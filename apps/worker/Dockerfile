@@ -19,7 +19,7 @@ ENV DAFTAR_REQUIRE_LIBREOFFICE=1 UV_NO_SYNC=1
 CMD ["uv", "run", "--frozen", "pytest", "apps/worker/tests", "-q"]
 
 FROM base AS runtime
-RUN rm -rf apps/worker/tests && uv sync --frozen --no-dev --no-editable --package daftar-worker
+RUN rm -rf apps/worker/tests eval && uv sync --frozen --no-dev --no-editable --package daftar-worker
 USER daftar
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
 EXPOSE 8000

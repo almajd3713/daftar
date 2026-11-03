@@ -10,10 +10,13 @@ from typing import Any
 
 from daftar_worker.census import render_markdown, run_census
 from daftar_worker.errors import MESSAGES, WorkerError
+from daftar_worker.evaluation.labels import EvalError, freeze_test_split, read_manifest
+from daftar_worker.evaluation.run import render_report, run_evaluation, write_drafts
 from daftar_worker.reader import read_file
 
 
 EXIT_UNREADABLE = 2
+EXIT_VALIDATION = 3
 
 
 def _write_atomic(path: Path, text: str) -> None:
@@ -56,6 +59,38 @@ def _census(args: argparse.Namespace) -> int:
     return 0
 
 
+def _eval_command(args: argparse.Namespace) -> int:
+    labels = Path(args.labels)
+    manifest = Path(args.manifest) if args.manifest else labels.parent / "manifest.csv"
+    output = Path(args.output)
+    analyses = Path(args.analyses) if args.analyses else None
+    if args.freeze:
+        if args.split != "test":
+            raise EvalError("only the test split can be frozen")
+        print(f"froze {freeze_test_split(read_manifest(manifest), manifest)} test workbooks")
+        return 0
+    if args.prelabel:
+        outcome = write_drafts(labels, manifest, args.split, analyses, output)
+        print(_dump(outcome), end="")
+        return 0
+    if analyses is None:
+        # WP-5 makes this optional by running the analyser on each workbook itself.
+        print("the analyser isn't available yet: pass --analyses DIR", file=sys.stderr)
+        return EXIT_UNREADABLE
+    report = run_evaluation(labels, manifest, args.split, analyses)
+    _write_atomic(output / "report.json", _dump(report))
+    _write_atomic(output / "report.md", render_report(report))
+    return 0
+
+
+def _eval(args: argparse.Namespace) -> int:
+    try:
+        return _eval_command(args)
+    except EvalError as error:
+        print(error, file=sys.stderr)
+        return EXIT_VALIDATION
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="daftar")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -67,6 +102,15 @@ def main(argv: list[str] | None = None) -> int:
     census.add_argument("paths", nargs="+", metavar="PATH")
     census.add_argument("-o", "--output", required=True)
     census.set_defaults(run=_census)
+    evaluate = commands.add_parser("eval", help="score analyses against labels")
+    evaluate.add_argument("--labels", required=True, metavar="DIR")
+    evaluate.add_argument("--split", required=True, choices=("dev", "test"))
+    evaluate.add_argument("-o", "--output", required=True, metavar="DIR")
+    evaluate.add_argument("--analyses", metavar="DIR", help="existing C-2 analyses, <id>.json")
+    evaluate.add_argument("--manifest", help="default: manifest.csv beside the labels folder")
+    evaluate.add_argument("--prelabel", action="store_true", help="write draft labels to -o")
+    evaluate.add_argument("--freeze", action="store_true", help="record the test split as frozen")
+    evaluate.set_defaults(run=_eval)
     args = parser.parse_args(argv)
     code: int = args.run(args)
     return code
