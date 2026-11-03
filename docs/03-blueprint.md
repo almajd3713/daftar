@@ -530,7 +530,7 @@ This plan gives you the goal, the required behaviour, the contracts and the chec
 
 - [x] WP-1: Repository, CI and the spec schema
 - [x] WP-2: Reader and census
-- [ ] WP-3: Labels and the evaluation harness
+- [x] WP-3: Labels and the evaluation harness
 - [ ] WP-4: First labelled workbooks
 - [ ] WP-5: Structure: tables, headers, totals, types, sheet kind
 - [ ] WP-6: Formulas: computed fields and calculators
