@@ -160,6 +160,7 @@ This plan gives you the goal, the required behaviour, the contracts and the chec
 
 - **Where things live:**
   - The repo root is `~/_hsproject/spread_monitor/`. It's greenfield: only `docs/` and the research folders exist.
+  - `docs/01-refined-idea.md`, `docs/02-research.md` and `research_notes/` are git-ignored and exist only on the operator's machine. A fresh clone doesn't have them.
   - Research evidence: `research_notes/Spreadsheet to app generator/*.md`.
   - A standard-library feature-count script: `research_notes/Spreadsheet to app generator/xlsx_census.py`. It was written during research and hasn't been reviewed; treat it as prior art for R-26.
 - **Precedent:**
@@ -554,3 +555,4 @@ This plan gives you the goal, the required behaviour, the contracts and the chec
 - 2026-11-03 (WP-1): Tagged unions use `oneOf` plus Ajv's `discriminator` keyword, which standard JSON Schema ignores. The Python validator implements it too, so errors name the one branch that applies and both languages report the same paths; `fixtures/invalid-cases.json` runs in both. Messages may differ, paths may not.
 - 2026-11-03 (WP-1): Surprise: Python's `$` matches before a trailing newline, so `"abc\n"` passed as a key under stock `jsonschema` while Ajv refused it. The Python validator now anchors patterns strictly, and schema patterns use `[0-9]`, not `\d`, which matches Arabic digits in Python.
 - 2026-11-03 (WP-1): Pinned TypeScript 6.0.3, not 7, because typescript-eslint supports `<6.1`. Licence field is `AGPL-3.0-only`. The worker has a `/healthz` endpoint outside C-4, for the Compose healthcheck, and FastAPI arrives now rather than in WP-2. Dev Compose adds `POSTGRES_PASSWORD` and `DAFTAR_DEV_DB_PORT`, outside C-10 and dev-only. `reports/` is git-ignored as a duplicate of `docs/02-research.md`.
+- 2026-11-03 (WP-1): User decision before the first push: only the code and this blueprint go public. `docs/01-refined-idea.md`, `docs/02-research.md`, `research_notes/` and `reports/` stay local and git-ignored, because they hold pricing and pilot plans.

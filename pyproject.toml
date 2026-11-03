@@ -1,0 +1,42 @@
+[project]
+name = "daftar-monorepo"
+version = "0.0.0"
+description = "Workspace root: installs every Python package so plain `uv run` works from here"
+requires-python = ">=3.12"
+license = "AGPL-3.0-only"
+dependencies = ["daftar-spec", "daftar-worker"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["apps/worker", "packages/spec"]
+
+[tool.uv.sources]
+daftar-spec = { workspace = true }
+daftar-worker = { workspace = true }
+
+[dependency-groups]
+dev = ["httpx2>=2.12,<3", "mypy>=1.13,<3", "pytest>=8,<10", "ruff>=0.8,<1", "types-jsonschema>=4.23"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["research_notes"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+known-first-party = ["daftar_spec", "daftar_worker"]
+lines-after-imports = 2
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["packages/spec/python", "packages/spec/tests", "apps/worker/src", "apps/worker/tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages/spec/tests", "apps/worker/tests"]
+addopts = "--import-mode=importlib"

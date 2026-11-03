@@ -1,0 +1,265 @@
+{
+  "specVersion": "1.0.0",
+  "app": {
+    "name": { "fr": "Centre de soutien El Nadjah", "ar": "مركز الدعم النجاح" },
+    "locales": ["fr-DZ", "ar-DZ"],
+    "defaultLocale": "ar-DZ",
+    "currency": "DZD",
+    "timezone": "Africa/Algiers"
+  },
+  "entities": [
+    {
+      "key": "classes",
+      "label": { "fr": "Classes", "ar": "الأقسام" },
+      "kind": "reference",
+      "naming": { "type": "field", "field": "code" },
+      "titleField": "name",
+      "personalData": false,
+      "fields": [
+        { "key": "code", "label": { "fr": "Code", "ar": "الرمز" }, "type": "text", "required": true, "unique": true },
+        { "key": "name", "label": { "fr": "Nom", "ar": "الاسم" }, "type": "text", "required": true },
+        { "key": "monthly_fee", "label": { "fr": "Frais mensuels", "ar": "الرسوم الشهرية" }, "type": "money", "precision": 2 },
+        {
+          "key": "students",
+          "label": { "fr": "Élèves", "ar": "التلاميذ" },
+          "type": "child",
+          "target": "students",
+          "via": "class"
+        }
+      ]
+    },
+    {
+      "key": "students",
+      "label": { "fr": "Élèves", "ar": "التلاميذ" },
+      "kind": "register",
+      "naming": { "type": "autonumber", "prefix": "EL-" },
+      "titleField": "full_name",
+      "searchFields": ["full_name", "parent_name", "parent_phone"],
+      "personalData": true,
+      "retention": {
+        "months": 36,
+        "basis": {
+          "fr": "Durée de la scolarité, puis trois ans pour le suivi des paiements",
+          "ar": "مدة الدراسة، ثم ثلاث سنوات لمتابعة المدفوعات"
+        }
+      },
+      "provenance": {
+        "workbookSha256": "1f3a9c5e7b2d4f6081a3c5e7092b4d6f8a1c3e5079b2d4f6a8c0e2f4163857a9",
+        "sheet": "Élèves",
+        "range": "A3:G212",
+        "detector": "table.region_growing",
+        "confidence": { "level": "high", "score": 0.94 },
+        "decision": "accepted",
+        "decidedBy": "operator",
+        "decidedAt": "2026-11-03T10:15:00+01:00"
+      },
+      "fields": [
+        {
+          "key": "full_name",
+          "label": { "fr": "Nom complet", "ar": "الاسم الكامل" },
+          "type": "text",
+          "required": true,
+          "personalData": true
+        },
+        {
+          "key": "birth_date",
+          "label": { "fr": "Date de naissance", "ar": "تاريخ الميلاد" },
+          "type": "date",
+          "personalData": true
+        },
+        {
+          "key": "parent_name",
+          "label": { "fr": "Nom du parent", "ar": "اسم الولي" },
+          "type": "text",
+          "personalData": true
+        },
+        {
+          "key": "parent_phone",
+          "label": { "fr": "Téléphone du parent", "ar": "هاتف الولي" },
+          "type": "phone",
+          "required": true,
+          "personalData": true
+        },
+        {
+          "key": "level",
+          "label": { "fr": "Niveau", "ar": "المستوى" },
+          "type": "choice",
+          "required": true,
+          "choices": [
+            { "key": "cem", "label": { "fr": "Moyen", "ar": "متوسط" }, "source": "CEM" },
+            { "key": "lycee", "label": { "fr": "Secondaire", "ar": "ثانوي" }, "source": "Lycée" }
+          ],
+          "provenance": {
+            "workbookSha256": "1f3a9c5e7b2d4f6081a3c5e7092b4d6f8a1c3e5079b2d4f6a8c0e2f4163857a9",
+            "sheet": "Élèves",
+            "range": "E3:E212",
+            "detector": "field.validation_list",
+            "confidence": { "level": "high", "score": 0.99 },
+            "decision": "edited",
+            "decidedBy": "operator",
+            "decidedAt": "2026-11-03T10:17:30+01:00"
+          }
+        },
+        {
+          "key": "class",
+          "label": { "fr": "Classe", "ar": "القسم" },
+          "type": "link",
+          "target": "classes",
+          "onDelete": "restrict",
+          "required": true
+        },
+        {
+          "key": "enrolled_on",
+          "label": { "fr": "Inscrit le", "ar": "تاريخ التسجيل" },
+          "type": "date"
+        }
+      ]
+    }
+  ],
+  "calculators": [],
+  "views": [
+    {
+      "key": "students_all",
+      "label": { "fr": "Tous les élèves", "ar": "كل التلاميذ" },
+      "entity": "students",
+      "type": "list",
+      "columns": ["full_name", "level", "class", "parent_name", "parent_phone"],
+      "sort": [{ "field": "full_name", "direction": "asc" }]
+    },
+    {
+      "key": "classes_all",
+      "label": { "fr": "Classes", "ar": "الأقسام" },
+      "entity": "classes",
+      "type": "list",
+      "columns": ["code", "name", "monthly_fee"]
+    }
+  ],
+  "forms": [
+    {
+      "key": "student_form",
+      "label": { "fr": "Fiche élève", "ar": "بطاقة التلميذ" },
+      "entity": "students",
+      "sections": [
+        {
+          "key": "identity",
+          "label": { "fr": "Identité", "ar": "الهوية" },
+          "fields": ["full_name", "birth_date"]
+        },
+        {
+          "key": "parent",
+          "label": { "fr": "Parent", "ar": "الولي" },
+          "fields": ["parent_name", "parent_phone"]
+        },
+        {
+          "key": "schooling",
+          "label": { "fr": "Scolarité", "ar": "الدراسة" },
+          "fields": ["level", "class", "enrolled_on"]
+        }
+      ]
+    },
+    {
+      "key": "class_form",
+      "label": { "fr": "Fiche classe", "ar": "بطاقة القسم" },
+      "entity": "classes",
+      "sections": [
+        {
+          "key": "main",
+          "label": { "fr": "Classe", "ar": "القسم" },
+          "fields": ["code", "name", "monthly_fee"]
+        }
+      ]
+    }
+  ],
+  "dashboards": [
+    {
+      "key": "overview",
+      "label": { "fr": "Vue d'ensemble", "ar": "نظرة عامة" },
+      "widgets": [
+        {
+          "key": "student_count",
+          "label": { "fr": "Nombre d'élèves", "ar": "عدد التلاميذ" },
+          "type": "kpi",
+          "entity": "students",
+          "aggregate": "count"
+        },
+        {
+          "key": "students_by_level",
+          "label": { "fr": "Élèves par niveau", "ar": "التلاميذ حسب المستوى" },
+          "type": "bar",
+          "entity": "students",
+          "aggregate": "count",
+          "groupBy": "level"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "owner",
+      "label": { "fr": "Propriétaire", "ar": "المالك" },
+      "fieldLevel": 1,
+      "permissions": [
+        { "entity": "students", "actions": ["read", "create", "update", "delete", "export", "import", "revert"], "rowScope": "all" },
+        { "entity": "classes", "actions": ["read", "create", "update", "delete", "export", "import", "revert"], "rowScope": "all" }
+      ]
+    },
+    {
+      "key": "staff",
+      "label": { "fr": "Employé", "ar": "موظف" },
+      "fieldLevel": 0,
+      "permissions": [
+        { "entity": "students", "actions": ["read", "create", "update"], "rowScope": "all" },
+        { "entity": "classes", "actions": ["read", "create", "update"], "rowScope": "all" }
+      ]
+    },
+    {
+      "key": "accountant",
+      "label": { "fr": "Comptable", "ar": "محاسب" },
+      "fieldLevel": 1,
+      "permissions": [
+        { "entity": "students", "actions": ["read", "export"], "rowScope": "all" },
+        { "entity": "classes", "actions": ["read", "export"], "rowScope": "all" }
+      ]
+    },
+    {
+      "key": "viewer",
+      "label": { "fr": "Lecteur", "ar": "قارئ" },
+      "fieldLevel": 0,
+      "permissions": [
+        { "entity": "students", "actions": ["read"], "rowScope": "all" },
+        { "entity": "classes", "actions": ["read"], "rowScope": "all" }
+      ]
+    }
+  ],
+  "workflows": [],
+  "reminders": [],
+  "history": { "retentionMonths": 36 },
+  "mapping": [
+    {
+      "entity": "students",
+      "sources": [{ "sheet": "Élèves", "range": "A3:G212" }],
+      "headerRow": 3,
+      "columns": [
+        { "header": "Nom et prénom", "field": "full_name" },
+        { "header": "Date de naissance", "field": "birth_date" },
+        { "header": "Parent", "field": "parent_name" },
+        { "header": "Tél parent", "field": "parent_phone" },
+        { "header": "Niveau", "field": "level" },
+        { "header": "Classe", "field": "class" },
+        { "header": "Inscription", "field": "enrolled_on" }
+      ],
+      "keyColumns": ["full_name", "parent_phone"]
+    },
+    {
+      "entity": "classes",
+      "sources": [{ "sheet": "Classes" }],
+      "headerRow": 1,
+      "columns": [
+        { "header": "Code", "field": "code" },
+        { "header": "Classe", "field": "name" },
+        { "header": "Frais", "field": "monthly_fee" }
+      ],
+      "keyColumns": ["code"]
+    }
+  ]
+}

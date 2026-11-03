@@ -1,0 +1,12 @@
+# Allow-list: nothing enters an image unless it is named here.
+*
+!pyproject.toml
+!uv.lock
+!.python-version
+!apps/worker/pyproject.toml
+!apps/worker/src/**
+!packages/spec/pyproject.toml
+!packages/spec/README.md
+!packages/spec/python/**
+!packages/spec/schema/**
+**/__pycache__
