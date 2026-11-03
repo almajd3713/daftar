@@ -1,0 +1,105 @@
+{
+  "specVersion": "1.0.0",
+  "app": {
+    "name": { "fr": "Calcul des frais", "ar": "حساب الرسوم" },
+    "locales": ["fr-DZ", "ar-DZ"],
+    "defaultLocale": "fr-DZ",
+    "currency": "DZD",
+    "timezone": "Africa/Algiers"
+  },
+  "entities": [],
+  "calculators": [
+    {
+      "key": "tuition_fee",
+      "label": { "fr": "Frais de scolarité", "ar": "رسوم الدراسة" },
+      "inputs": [
+        {
+          "key": "subject_fee",
+          "label": { "fr": "Prix par matière", "ar": "سعر المادة" },
+          "type": "money",
+          "sheet": "Calcul",
+          "cell": "B2",
+          "default": 3000
+        },
+        {
+          "key": "subjects",
+          "label": { "fr": "Nombre de matières", "ar": "عدد المواد" },
+          "type": "integer",
+          "sheet": "Calcul",
+          "cell": "B3",
+          "default": 1
+        },
+        {
+          "key": "siblings",
+          "label": { "fr": "Frères et sœurs inscrits", "ar": "عدد الإخوة المسجلين" },
+          "type": "integer",
+          "sheet": "Calcul",
+          "cell": "B4",
+          "default": 0
+        }
+      ],
+      "outputs": [
+        {
+          "key": "discount_rate",
+          "label": { "fr": "Taux de remise", "ar": "نسبة التخفيض" },
+          "type": "percent",
+          "sheet": "Calcul",
+          "cell": "B6"
+        },
+        {
+          "key": "total",
+          "label": { "fr": "Total à payer", "ar": "المبلغ الإجمالي" },
+          "type": "money",
+          "sheet": "Calcul",
+          "cell": "B8"
+        }
+      ],
+      "cells": [
+        { "sheet": "Calcul", "ref": "B2", "v": 3000 },
+        { "sheet": "Calcul", "ref": "B3", "v": 1 },
+        { "sheet": "Calcul", "ref": "B4", "v": 0 },
+        { "sheet": "Calcul", "ref": "B5", "f": "=B2*B3" },
+        { "sheet": "Calcul", "ref": "B6", "f": "=IF(B4>=2,0.1,IF(B4=1,0.05,0))" },
+        { "sheet": "Calcul", "ref": "B7", "f": "=B5*B6" },
+        { "sheet": "Calcul", "ref": "B8", "f": "=ROUND(B5-B7,2)" }
+      ],
+      "testCases": [
+        {
+          "inputs": { "subject_fee": 3000, "subjects": 1, "siblings": 0 },
+          "outputs": { "discount_rate": 0, "total": 3000 }
+        },
+        {
+          "inputs": { "subject_fee": 3000, "subjects": 2, "siblings": 1 },
+          "outputs": { "discount_rate": 0.05, "total": 5700 }
+        },
+        {
+          "inputs": { "subject_fee": 2500, "subjects": 3, "siblings": 2 },
+          "outputs": { "discount_rate": 0.1, "total": 6750 }
+        }
+      ],
+      "provenance": {
+        "workbookSha256": "7c2e4a6081f3b5d7092c4e6f8a1b3d5f70a2c4e6081b3d5f7a9c1e3f5062748b",
+        "sheet": "Calcul",
+        "range": "B2:B8",
+        "detector": "calculator.formula_chain",
+        "confidence": { "level": "medium", "score": 0.78 },
+        "decision": "accepted",
+        "decidedBy": "operator",
+        "decidedAt": "2026-11-03T11:02:00Z"
+      }
+    }
+  ],
+  "views": [],
+  "forms": [],
+  "dashboards": [],
+  "roles": [
+    { "key": "owner", "label": { "fr": "Propriétaire", "ar": "المالك" }, "fieldLevel": 1, "permissions": [] },
+    { "key": "staff", "label": { "fr": "Employé", "ar": "موظف" }, "fieldLevel": 0, "permissions": [] },
+    { "key": "accountant", "label": { "fr": "Comptable", "ar": "محاسب" }, "fieldLevel": 1, "permissions": [] },
+    { "key": "viewer", "label": { "fr": "Lecteur", "ar": "قارئ" }, "fieldLevel": 0, "permissions": [] }
+  ],
+  "workflows": [],
+  "reminders": [],
+  "history": {},
+  "mapping": []
+}

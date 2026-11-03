@@ -1,0 +1,45 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Client data: never commit it. Fixtures must be synthetic or clearly licensed.
+projects/
+*.daftar/
+eval/private/
+*.xlsx
+*.xlsm
+*.xlsb
+*.xls
+*.ods
+*.csv
+!eval/workbooks/**
+!eval/manifest.csv
+!**/tests/fixtures/workbooks/**
+
+# Local only: product intent, pricing and research notes
+docs/01-refined-idea.md
+docs/02-research.md
+research_notes/
+reports/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+build/
+*.egg-info/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store

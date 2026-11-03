@@ -1,0 +1,227 @@
+{
+  "specVersion": "1.0.0",
+  "app": {
+    "name": { "fr": "Suivi des paiements", "ar": "متابعة المدفوعات" },
+    "locales": ["fr-DZ", "ar-DZ"],
+    "defaultLocale": "fr-DZ",
+    "currency": "DZD",
+    "timezone": "Africa/Algiers"
+  },
+  "entities": [
+    {
+      "key": "payments",
+      "label": { "fr": "Paiements", "ar": "المدفوعات" },
+      "kind": "ledger",
+      "naming": { "type": "field", "field": "receipt_no" },
+      "titleField": "receipt_no",
+      "searchFields": ["receipt_no", "payer"],
+      "period": { "field": "period", "granularity": "month" },
+      "personalData": true,
+      "retention": {
+        "months": 60,
+        "basis": { "fr": "Suivi des impayés sur cinq ans", "ar": "متابعة المستحقات لمدة خمس سنوات" }
+      },
+      "fields": [
+        { "key": "receipt_no", "label": { "fr": "N° de reçu", "ar": "رقم الوصل" }, "type": "text", "required": true, "unique": true },
+        { "key": "payer", "label": { "fr": "Payeur", "ar": "الدافع" }, "type": "text", "required": true, "personalData": true },
+        { "key": "period", "label": { "fr": "Mois", "ar": "الشهر" }, "type": "date", "required": true },
+        { "key": "due_on", "label": { "fr": "Échéance", "ar": "تاريخ الاستحقاق" }, "type": "date" },
+        { "key": "amount_due", "label": { "fr": "Montant dû", "ar": "المبلغ المستحق" }, "type": "money", "precision": 2, "required": true },
+        { "key": "amount_paid", "label": { "fr": "Montant payé", "ar": "المبلغ المدفوع" }, "type": "money", "precision": 2, "default": 0 },
+        { "key": "cost", "label": { "fr": "Coût", "ar": "التكلفة" }, "type": "money", "precision": 2, "level": 1 },
+        {
+          "key": "remaining",
+          "label": { "fr": "Reste à payer", "ar": "المتبقي" },
+          "type": "computed",
+          "resultType": "money",
+          "precision": 2,
+          "computed": {
+            "eval": "translated",
+            "excel": "=E2-F2",
+            "deps": ["amount_due", "amount_paid"],
+            "store": true,
+            "expr": {
+              "kind": "op",
+              "valueType": "number",
+              "op": "sub",
+              "args": [
+                { "kind": "field", "valueType": "number", "field": "amount_due" },
+                { "kind": "field", "valueType": "number", "field": "amount_paid" }
+              ]
+            }
+          }
+        },
+        {
+          "key": "margin",
+          "label": { "fr": "Marge", "ar": "الهامش" },
+          "type": "computed",
+          "resultType": "money",
+          "precision": 2,
+          "level": 1,
+          "computed": {
+            "eval": "engine",
+            "excel": "=MROUND(F2-G2,10)",
+            "deps": ["amount_paid", "cost"],
+            "store": true
+          }
+        },
+        {
+          "key": "status",
+          "label": { "fr": "État", "ar": "الحالة" },
+          "type": "choice",
+          "required": true,
+          "default": "unpaid",
+          "choices": [
+            { "key": "unpaid", "label": { "fr": "Impayé", "ar": "غير مدفوع" }, "colour": "#d64545", "source": "Impayé" },
+            { "key": "partial", "label": { "fr": "Partiel", "ar": "جزئي" }, "colour": "#e0a030", "source": "Partiel" },
+            { "key": "paid", "label": { "fr": "Payé", "ar": "مدفوع" }, "colour": "#2f9e60", "source": "Payé" }
+          ]
+        }
+      ]
+    }
+  ],
+  "calculators": [],
+  "views": [
+    {
+      "key": "payments_all",
+      "label": { "fr": "Tous les paiements", "ar": "كل المدفوعات" },
+      "entity": "payments",
+      "type": "list",
+      "columns": ["receipt_no", "payer", "period", "amount_due", "amount_paid", "remaining", "status"],
+      "sort": [{ "field": "period", "direction": "desc" }],
+      "totals": ["amount_due", "amount_paid", "remaining"]
+    },
+    {
+      "key": "payments_unpaid",
+      "label": { "fr": "Impayés", "ar": "غير المدفوعة" },
+      "entity": "payments",
+      "type": "list",
+      "columns": ["receipt_no", "payer", "due_on", "remaining", "status"],
+      "filters": [{ "field": "status", "op": "ne", "value": "paid" }],
+      "totals": ["remaining"]
+    },
+    {
+      "key": "payments_overdue",
+      "label": { "fr": "En retard", "ar": "المتأخرة" },
+      "entity": "payments",
+      "type": "list",
+      "columns": ["receipt_no", "payer", "due_on", "remaining"],
+      "sort": [{ "field": "due_on", "direction": "asc" }],
+      "filters": [
+        { "field": "status", "op": "ne", "value": "paid" },
+        { "field": "due_on", "op": "lt", "relativeDays": 0 }
+      ],
+      "totals": ["remaining"]
+    }
+  ],
+  "forms": [
+    {
+      "key": "payment_form",
+      "label": { "fr": "Paiement", "ar": "دفعة" },
+      "entity": "payments",
+      "sections": [
+        {
+          "key": "main",
+          "label": { "fr": "Paiement", "ar": "الدفعة" },
+          "fields": ["receipt_no", "payer", "period", "due_on", "amount_due", "amount_paid", "status"]
+        },
+        {
+          "key": "internal",
+          "label": { "fr": "Interne", "ar": "داخلي" },
+          "fields": ["cost"]
+        }
+      ]
+    }
+  ],
+  "dashboards": [
+    {
+      "key": "cash",
+      "label": { "fr": "Encaissements", "ar": "التحصيل" },
+      "widgets": [
+        {
+          "key": "total_unpaid",
+          "label": { "fr": "Total à encaisser", "ar": "إجمالي المستحقات" },
+          "type": "kpi",
+          "entity": "payments",
+          "aggregate": "sum",
+          "field": "remaining",
+          "filters": [{ "field": "status", "op": "ne", "value": "paid" }]
+        },
+        {
+          "key": "paid_by_month",
+          "label": { "fr": "Encaissé par mois", "ar": "المحصل حسب الشهر" },
+          "type": "line",
+          "entity": "payments",
+          "aggregate": "sum",
+          "field": "amount_paid",
+          "groupBy": "period"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "owner",
+      "label": { "fr": "Propriétaire", "ar": "المالك" },
+      "fieldLevel": 1,
+      "permissions": [
+        { "entity": "payments", "actions": ["read", "create", "update", "delete", "export", "import", "revert"], "rowScope": "all" }
+      ]
+    },
+    {
+      "key": "staff",
+      "label": { "fr": "Employé", "ar": "موظف" },
+      "fieldLevel": 0,
+      "permissions": [{ "entity": "payments", "actions": ["read", "create", "update"], "rowScope": "own" }]
+    },
+    {
+      "key": "accountant",
+      "label": { "fr": "Comptable", "ar": "محاسب" },
+      "fieldLevel": 1,
+      "permissions": [{ "entity": "payments", "actions": ["read", "export"], "rowScope": "all" }]
+    },
+    {
+      "key": "viewer",
+      "label": { "fr": "Lecteur", "ar": "قارئ" },
+      "fieldLevel": 0,
+      "permissions": [{ "entity": "payments", "actions": ["read"], "rowScope": "all" }]
+    }
+  ],
+  "workflows": [],
+  "reminders": [
+    {
+      "key": "payment_due_soon",
+      "label": { "fr": "Échéance proche", "ar": "اقتراب الاستحقاق" },
+      "entity": "payments",
+      "dateField": "due_on",
+      "offsetDays": -3,
+      "filters": [{ "field": "status", "op": "ne", "value": "paid" }],
+      "roles": ["owner", "accountant"],
+      "message": { "fr": "Ce paiement arrive à échéance dans trois jours.", "ar": "يحين موعد هذه الدفعة بعد ثلاثة أيام." }
+    }
+  ],
+  "history": {},
+  "mapping": [
+    {
+      "entity": "payments",
+      "sources": [
+        { "sheet": "Janvier", "period": "2026-01" },
+        { "sheet": "Février", "period": "2026-02" },
+        { "sheet": "مارس", "period": "2026-03" }
+      ],
+      "headerRow": 2,
+      "columns": [
+        { "header": "Reçu", "field": "receipt_no" },
+        { "header": "Nom", "field": "payer" },
+        { "header": "Échéance", "field": "due_on" },
+        { "header": "Dû", "field": "amount_due" },
+        { "header": "Payé", "field": "amount_paid" },
+        { "header": "Coût", "field": "cost" },
+        { "header": "Reste", "field": "remaining" },
+        { "header": "Marge", "field": "margin" },
+        { "header": "État", "field": "status" }
+      ],
+      "keyColumns": ["receipt_no"]
+    }
+  ]
+}

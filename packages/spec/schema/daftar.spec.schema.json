@@ -1,0 +1,782 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/almajd3713/daftar/blob/main/packages/spec/schema/daftar.spec.schema.json",
+  "title": "DaftarSpec",
+  "description": "C-3: the app spec. Keys are the only source of database identifiers; every label is {fr, ar}. Rejected findings never reach a spec.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["specVersion", "app", "entities", "calculators", "views", "forms", "dashboards", "roles", "workflows", "reminders", "history", "mapping"],
+  "properties": {
+    "specVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$", "description": "Semver. This schema reads major version 1." },
+    "app": { "$ref": "#/$defs/app" },
+    "entities": { "type": "array", "items": { "$ref": "#/$defs/entity" } },
+    "calculators": { "type": "array", "items": { "$ref": "#/$defs/calculator" } },
+    "views": { "type": "array", "items": { "$ref": "#/$defs/view" } },
+    "forms": { "type": "array", "items": { "$ref": "#/$defs/form" } },
+    "dashboards": { "type": "array", "items": { "$ref": "#/$defs/dashboard" } },
+    "roles": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "$ref": "#/$defs/role" } },
+    "workflows": { "type": "array", "items": { "$ref": "#/$defs/workflow" } },
+    "reminders": { "type": "array", "items": { "$ref": "#/$defs/reminder" } },
+    "history": { "$ref": "#/$defs/history" },
+    "mapping": { "type": "array", "items": { "$ref": "#/$defs/entityMapping" } }
+  },
+  "$defs": {
+    "key": { "title": "Key", "type": "string", "pattern": "^[a-z][a-z0-9_]{0,62}$" },
+    "fieldPath": {
+      "title": "FieldPath",
+      "description": "A field key, or link_field.field for a field on a linked record.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,62}(\\.[a-z][a-z0-9_]{0,62})?$"
+    },
+    "label": {
+      "title": "Label",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fr", "ar"],
+      "properties": {
+        "fr": { "type": "string", "pattern": "\\S" },
+        "ar": { "type": "string", "pattern": "\\S" }
+      }
+    },
+    "colour": { "title": "Colour", "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "scalar": { "title": "Scalar", "type": ["string", "number", "boolean", "null"] },
+    "a1Range": { "title": "A1Range", "type": "string", "pattern": "^[A-Z]{1,3}[1-9][0-9]*(:[A-Z]{1,3}[1-9][0-9]*)?$" },
+    "provenance": {
+      "title": "Provenance",
+      "description": "Where an element came from. Only accepted or edited findings reach a spec.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workbookSha256", "sheet", "range", "detector", "confidence", "decision", "decidedBy", "decidedAt"],
+      "properties": {
+        "workbookSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "sheet": { "type": "string", "minLength": 1 },
+        "range": { "$ref": "#/$defs/a1Range" },
+        "detector": { "type": "string", "minLength": 1 },
+        "confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["level", "score"],
+          "properties": {
+            "level": { "enum": ["high", "medium", "low"] },
+            "score": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "decision": { "enum": ["accepted", "edited"] },
+        "decidedBy": { "type": "string", "minLength": 1 },
+        "decidedAt": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$" }
+      }
+    },
+    "app": {
+      "title": "App",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "locales", "defaultLocale", "currency", "timezone"],
+      "properties": {
+        "name": { "$ref": "#/$defs/label" },
+        "locales": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/locale" } },
+        "defaultLocale": { "$ref": "#/$defs/locale" },
+        "currency": { "const": "DZD" },
+        "timezone": { "type": "string", "pattern": "^[A-Za-z_]+(/[A-Za-z_+-]+)+$" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "locale": { "title": "Locale", "enum": ["fr-DZ", "ar-DZ"] },
+    "entity": {
+      "title": "Entity",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "kind", "naming", "titleField", "personalData", "fields"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "kind": { "enum": ["register", "ledger", "tracker", "reference"] },
+        "naming": { "$ref": "#/$defs/naming" },
+        "titleField": { "$ref": "#/$defs/key" },
+        "searchFields": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/key" } },
+        "period": { "$ref": "#/$defs/period" },
+        "personalData": { "type": "boolean", "description": "True if records in this entity hold personal data (R-24). Requires retention." },
+        "retention": { "$ref": "#/$defs/retention" },
+        "fields": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/field" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      },
+      "if": { "properties": { "personalData": { "const": true } }, "required": ["personalData"] },
+      "then": { "required": ["retention"] }
+    },
+    "naming": {
+      "title": "Naming",
+      "type": "object",
+      "required": ["type"],
+      "discriminator": { "propertyName": "type" },
+      "oneOf": [
+        { "$ref": "#/$defs/namingAutonumber" },
+        { "$ref": "#/$defs/namingField" },
+        { "$ref": "#/$defs/namingUuid" }
+      ]
+    },
+    "namingAutonumber": {
+      "title": "NamingAutonumber",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "prefix"],
+      "properties": {
+        "type": { "const": "autonumber" },
+        "prefix": { "type": "string", "pattern": "^[A-Z0-9-]{1,16}$" }
+      }
+    },
+    "namingField": {
+      "title": "NamingField",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "field"],
+      "properties": {
+        "type": { "const": "field" },
+        "field": { "$ref": "#/$defs/key" }
+      }
+    },
+    "namingUuid": {
+      "title": "NamingUuid",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": { "type": { "const": "uuid" } }
+    },
+    "period": {
+      "title": "Period",
+      "description": "Period field of an entity merged from period tabs (R-8).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "granularity"],
+      "properties": {
+        "field": { "$ref": "#/$defs/key" },
+        "granularity": { "enum": ["month", "quarter", "year"] }
+      }
+    },
+    "retention": {
+      "title": "Retention",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["months", "basis"],
+      "properties": {
+        "months": { "type": "integer", "minimum": 1 },
+        "basis": { "$ref": "#/$defs/label" }
+      }
+    },
+    "field": {
+      "title": "Field",
+      "type": "object",
+      "required": ["type"],
+      "discriminator": { "propertyName": "type" },
+      "oneOf": [
+        { "$ref": "#/$defs/fieldScalar" },
+        { "$ref": "#/$defs/fieldChoice" },
+        { "$ref": "#/$defs/fieldLink" },
+        { "$ref": "#/$defs/fieldChild" },
+        { "$ref": "#/$defs/fieldComputed" }
+      ]
+    },
+    "fieldLevel": {
+      "title": "FieldLevel",
+      "description": "0 is visible to every role; 1 is sensitive, for roles with fieldLevel 1 only (R-17).",
+      "enum": [0, 1]
+    },
+    "fieldScalar": {
+      "title": "FieldScalar",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "type"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "type": { "enum": ["text", "longtext", "integer", "decimal", "money", "percent", "date", "datetime", "boolean", "phone", "email"] },
+        "required": { "type": "boolean" },
+        "unique": { "type": "boolean" },
+        "default": { "$ref": "#/$defs/scalar" },
+        "precision": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "level": { "$ref": "#/$defs/fieldLevel" },
+        "personalData": { "type": "boolean" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "fieldChoice": {
+      "title": "FieldChoice",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "type", "choices"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "type": { "enum": ["choice", "multichoice"] },
+        "choices": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/choice" } },
+        "required": { "type": "boolean" },
+        "default": { "$ref": "#/$defs/scalar" },
+        "level": { "$ref": "#/$defs/fieldLevel" },
+        "personalData": { "type": "boolean" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "choice": {
+      "title": "Choice",
+      "description": "Stable key, separate from its labels. `source` keeps the original cell text for round trips.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "colour": { "$ref": "#/$defs/colour" },
+        "source": { "type": "string" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "fieldLink": {
+      "title": "FieldLink",
+      "description": "Many-to-one relation to another entity.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "type", "target", "onDelete"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "type": { "const": "link" },
+        "target": { "$ref": "#/$defs/key" },
+        "onDelete": { "enum": ["restrict", "setNull", "cascade"] },
+        "required": { "type": "boolean" },
+        "level": { "$ref": "#/$defs/fieldLevel" },
+        "personalData": { "type": "boolean" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "fieldChild": {
+      "title": "FieldChild",
+      "description": "One-to-many relation: records of `target` whose link field `via` points here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "type", "target", "via"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "type": { "const": "child" },
+        "target": { "$ref": "#/$defs/key" },
+        "via": { "$ref": "#/$defs/key" },
+        "level": { "$ref": "#/$defs/fieldLevel" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "fieldComputed": {
+      "title": "FieldComputed",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "type", "resultType", "computed"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "type": { "const": "computed" },
+        "resultType": {
+          "description": "How the result is typed and displayed.",
+          "enum": ["text", "integer", "decimal", "money", "percent", "date", "datetime", "boolean"]
+        },
+        "precision": { "type": "integer", "minimum": 0, "maximum": 15 },
+        "computed": { "$ref": "#/$defs/computed" },
+        "level": { "$ref": "#/$defs/fieldLevel" },
+        "personalData": { "type": "boolean" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "computed": {
+      "title": "Computed",
+      "type": "object",
+      "required": ["eval"],
+      "discriminator": { "propertyName": "eval" },
+      "oneOf": [
+        { "$ref": "#/$defs/computedTranslated" },
+        { "$ref": "#/$defs/computedEngine" }
+      ]
+    },
+    "computedTranslated": {
+      "title": "ComputedTranslated",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eval", "expr", "excel", "deps", "store"],
+      "properties": {
+        "eval": { "const": "translated" },
+        "expr": { "$ref": "#/$defs/expr" },
+        "excel": { "type": "string", "minLength": 1, "description": "The original formula text." },
+        "deps": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/fieldPath" } },
+        "store": { "type": "boolean" }
+      }
+    },
+    "computedEngine": {
+      "title": "ComputedEngine",
+      "description": "A formula outside the translatable set: no expression tree, the engine runs `excel` (R-19).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eval", "excel", "deps", "store"],
+      "properties": {
+        "eval": { "const": "engine" },
+        "excel": { "type": "string", "minLength": 1, "description": "The original formula text." },
+        "deps": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/fieldPath" } },
+        "store": { "type": "boolean" }
+      }
+    },
+    "valueType": { "title": "ValueType", "enum": ["number", "text", "boolean", "date", "any"] },
+    "expr": {
+      "title": "Expr",
+      "description": "Typed expression tree. Never built into SQL strings.",
+      "type": "object",
+      "required": ["kind"],
+      "discriminator": { "propertyName": "kind" },
+      "oneOf": [
+        { "$ref": "#/$defs/exprLiteral" },
+        { "$ref": "#/$defs/exprField" },
+        { "$ref": "#/$defs/exprRelated" },
+        { "$ref": "#/$defs/exprOp" },
+        { "$ref": "#/$defs/exprCall" },
+        { "$ref": "#/$defs/exprRollup" }
+      ]
+    },
+    "exprLiteral": {
+      "title": "ExprLiteral",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "valueType", "value"],
+      "properties": {
+        "kind": { "const": "literal" },
+        "valueType": { "$ref": "#/$defs/valueType" },
+        "value": { "$ref": "#/$defs/scalar" }
+      }
+    },
+    "exprField": {
+      "title": "ExprField",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "valueType", "field"],
+      "properties": {
+        "kind": { "const": "field" },
+        "valueType": { "$ref": "#/$defs/valueType" },
+        "field": { "$ref": "#/$defs/key" }
+      }
+    },
+    "exprRelated": {
+      "title": "ExprRelated",
+      "description": "A field on the record that the link field `via` points to.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "valueType", "via", "field"],
+      "properties": {
+        "kind": { "const": "related" },
+        "valueType": { "$ref": "#/$defs/valueType" },
+        "via": { "$ref": "#/$defs/key" },
+        "field": { "$ref": "#/$defs/key" }
+      }
+    },
+    "exprOp": {
+      "title": "ExprOp",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "valueType", "op", "args"],
+      "properties": {
+        "kind": { "const": "op" },
+        "valueType": { "$ref": "#/$defs/valueType" },
+        "op": { "enum": ["add", "sub", "mul", "div", "pow", "neg", "pct", "concat", "eq", "ne", "lt", "le", "gt", "ge"] },
+        "args": { "type": "array", "minItems": 1, "maxItems": 2, "items": { "$ref": "#/$defs/expr" } }
+      }
+    },
+    "exprCall": {
+      "title": "ExprCall",
+      "description": "An Excel function, English name. WP-6 owns the list of translatable functions.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "valueType", "fn", "args"],
+      "properties": {
+        "kind": { "const": "call" },
+        "valueType": { "$ref": "#/$defs/valueType" },
+        "fn": { "type": "string", "pattern": "^[A-Z][A-Z0-9.]*$" },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/expr" } }
+      }
+    },
+    "exprRollup": {
+      "title": "ExprRollup",
+      "description": "An aggregate over the records of the child field `via`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "valueType", "via", "fn"],
+      "properties": {
+        "kind": { "const": "rollup" },
+        "valueType": { "$ref": "#/$defs/valueType" },
+        "via": { "$ref": "#/$defs/key" },
+        "fn": { "$ref": "#/$defs/aggregate" },
+        "field": { "$ref": "#/$defs/key" }
+      }
+    },
+    "aggregate": { "title": "Aggregate", "enum": ["sum", "count", "avg", "min", "max"] },
+    "calculator": {
+      "title": "Calculator",
+      "description": "A formula model evaluated in the engine on demand. `cells` holds the cell graph; `testCases` are checked against Excel's stored results.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "inputs", "outputs", "cells", "testCases"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "inputs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/calculatorInput" } },
+        "outputs": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/calculatorOutput" } },
+        "cells": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/calculatorCell" } },
+        "testCases": { "type": "array", "items": { "$ref": "#/$defs/calculatorTestCase" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "calculatorInput": {
+      "title": "CalculatorInput",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "type", "sheet", "cell"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "type": { "enum": ["text", "integer", "decimal", "money", "percent", "date", "boolean", "choice"] },
+        "sheet": { "type": "string", "minLength": 1 },
+        "cell": { "$ref": "#/$defs/a1Range" },
+        "default": { "$ref": "#/$defs/scalar" },
+        "choices": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/choice" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      },
+      "if": { "properties": { "type": { "const": "choice" } }, "required": ["type"] },
+      "then": { "required": ["choices"] }
+    },
+    "calculatorOutput": {
+      "title": "CalculatorOutput",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "type", "sheet", "cell"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "type": { "enum": ["text", "integer", "decimal", "money", "percent", "date", "boolean"] },
+        "sheet": { "type": "string", "minLength": 1 },
+        "cell": { "$ref": "#/$defs/a1Range" },
+        "level": { "$ref": "#/$defs/fieldLevel" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "calculatorCell": {
+      "title": "CalculatorCell",
+      "description": "One cell of the model: a constant in `v`, or a formula in `f`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sheet", "ref"],
+      "properties": {
+        "sheet": { "type": "string", "minLength": 1 },
+        "ref": { "$ref": "#/$defs/a1Range" },
+        "v": { "$ref": "#/$defs/scalar" },
+        "f": { "type": "string", "minLength": 1 }
+      }
+    },
+    "keyedScalars": {
+      "title": "KeyedScalars",
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": { "^[a-z][a-z0-9_]{0,62}$": { "$ref": "#/$defs/scalar" } }
+    },
+    "calculatorTestCase": {
+      "title": "CalculatorTestCase",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inputs", "outputs"],
+      "properties": {
+        "inputs": { "$ref": "#/$defs/keyedScalars" },
+        "outputs": { "$ref": "#/$defs/keyedScalars" }
+      }
+    },
+    "filter": {
+      "title": "Filter",
+      "description": "`value` compares with a constant. `relativeDays` compares a date with today plus that many days.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "op"],
+      "properties": {
+        "field": { "$ref": "#/$defs/key" },
+        "op": { "enum": ["eq", "ne", "lt", "le", "gt", "ge", "in", "contains", "isEmpty", "isNotEmpty"] },
+        "value": { "type": ["string", "number", "boolean", "null", "array"], "items": { "$ref": "#/$defs/scalar" } },
+        "relativeDays": { "type": "integer" }
+      }
+    },
+    "sort": {
+      "title": "Sort",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "direction"],
+      "properties": {
+        "field": { "$ref": "#/$defs/key" },
+        "direction": { "enum": ["asc", "desc"] }
+      }
+    },
+    "view": {
+      "title": "View",
+      "type": "object",
+      "required": ["type"],
+      "discriminator": { "propertyName": "type" },
+      "oneOf": [
+        { "$ref": "#/$defs/viewList" },
+        { "$ref": "#/$defs/viewBoard" }
+      ]
+    },
+    "viewList": {
+      "title": "ViewList",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "entity", "type", "columns"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "entity": { "$ref": "#/$defs/key" },
+        "type": { "const": "list" },
+        "columns": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/key" } },
+        "sort": { "type": "array", "items": { "$ref": "#/$defs/sort" } },
+        "filters": { "type": "array", "items": { "$ref": "#/$defs/filter" } },
+        "totals": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/key" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "viewBoard": {
+      "title": "ViewBoard",
+      "description": "Columns are the workflow's states; dragging a card attempts a transition (R-20).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "entity", "type", "workflow", "cardFields"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "entity": { "$ref": "#/$defs/key" },
+        "type": { "const": "board" },
+        "workflow": { "$ref": "#/$defs/key" },
+        "cardFields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/key" } },
+        "filters": { "type": "array", "items": { "$ref": "#/$defs/filter" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "form": {
+      "title": "Form",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "entity", "sections"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "entity": { "$ref": "#/$defs/key" },
+        "sections": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/formSection" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "formSection": {
+      "title": "FormSection",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "fields"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/key" } }
+      }
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "widgets"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "widgets": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/widget" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "widget": {
+      "title": "Widget",
+      "type": "object",
+      "required": ["type"],
+      "discriminator": { "propertyName": "type" },
+      "oneOf": [
+        { "$ref": "#/$defs/widgetKpi" },
+        { "$ref": "#/$defs/widgetChart" }
+      ]
+    },
+    "widgetKpi": {
+      "title": "WidgetKpi",
+      "description": "`field` is required by every aggregate but count.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "type", "entity", "aggregate"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "type": { "const": "kpi" },
+        "entity": { "$ref": "#/$defs/key" },
+        "aggregate": { "$ref": "#/$defs/aggregate" },
+        "field": { "$ref": "#/$defs/key" },
+        "filters": { "type": "array", "items": { "$ref": "#/$defs/filter" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      },
+      "if": { "properties": { "aggregate": { "enum": ["sum", "avg", "min", "max"] } }, "required": ["aggregate"] },
+      "then": { "required": ["field"] }
+    },
+    "widgetChart": {
+      "title": "WidgetChart",
+      "description": "`field` is required by every aggregate but count.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "type", "entity", "aggregate", "groupBy"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "type": { "enum": ["bar", "line"] },
+        "entity": { "$ref": "#/$defs/key" },
+        "aggregate": { "$ref": "#/$defs/aggregate" },
+        "field": { "$ref": "#/$defs/key" },
+        "groupBy": { "$ref": "#/$defs/key" },
+        "filters": { "type": "array", "items": { "$ref": "#/$defs/filter" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      },
+      "if": { "properties": { "aggregate": { "enum": ["sum", "avg", "min", "max"] } }, "required": ["aggregate"] },
+      "then": { "required": ["field"] }
+    },
+    "role": {
+      "title": "Role",
+      "description": "One of the four roles of R-17. `fieldLevel` 1 lets the role see sensitive fields.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "fieldLevel", "permissions"],
+      "properties": {
+        "key": { "enum": ["owner", "staff", "accountant", "viewer"] },
+        "label": { "$ref": "#/$defs/label" },
+        "fieldLevel": { "$ref": "#/$defs/fieldLevel" },
+        "permissions": { "type": "array", "items": { "$ref": "#/$defs/permission" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "permission": {
+      "title": "Permission",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entity", "actions", "rowScope"],
+      "properties": {
+        "entity": { "$ref": "#/$defs/key" },
+        "actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": ["read", "create", "update", "delete", "export", "import", "revert"] }
+        },
+        "rowScope": { "enum": ["all", "own"], "description": "`own` limits the role to records it created (R-17)." }
+      }
+    },
+    "workflow": {
+      "title": "Workflow",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "entity", "stateField", "initialState", "states", "transitions"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "entity": { "$ref": "#/$defs/key" },
+        "stateField": { "$ref": "#/$defs/key" },
+        "initialState": { "$ref": "#/$defs/key" },
+        "states": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/workflowState" } },
+        "transitions": { "type": "array", "items": { "$ref": "#/$defs/workflowTransition" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "workflowState": {
+      "title": "WorkflowState",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "colour": { "$ref": "#/$defs/colour" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "workflowTransition": {
+      "title": "WorkflowTransition",
+      "description": "`key` is the action named in POST /api/e/{entity}/{id}/transition. `condition`, if present, must be true for the transition to go through.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "from", "to", "roles"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "from": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/key" } },
+        "to": { "$ref": "#/$defs/key" },
+        "roles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["owner", "staff", "accountant", "viewer"] } },
+        "condition": { "$ref": "#/$defs/expr" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "reminder": {
+      "title": "Reminder",
+      "description": "A date rule checked daily. It fires `offsetDays` after `dateField` (negative means before).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "label", "entity", "dateField", "offsetDays", "roles", "message"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "label": { "$ref": "#/$defs/label" },
+        "entity": { "$ref": "#/$defs/key" },
+        "dateField": { "$ref": "#/$defs/key" },
+        "offsetDays": { "type": "integer" },
+        "filters": { "type": "array", "items": { "$ref": "#/$defs/filter" } },
+        "roles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["owner", "staff", "accountant", "viewer"] } },
+        "message": { "$ref": "#/$defs/label" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "history": {
+      "title": "History",
+      "description": "Every change except computed fields is recorded (R-18). Omit retentionMonths to keep history indefinitely.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "retentionMonths": { "type": "integer", "minimum": 1 },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "entityMapping": {
+      "title": "EntityMapping",
+      "description": "An entity's source layout. Export (R-22) and re-import (R-23) both use it. The order of `columns` is the column order.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entity", "sources", "headerRow", "columns", "keyColumns"],
+      "properties": {
+        "entity": { "$ref": "#/$defs/key" },
+        "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/mappingSource" } },
+        "headerRow": { "type": "integer", "minimum": 1 },
+        "columns": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/mappingColumn" } },
+        "keyColumns": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/key" } },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "mappingSource": {
+      "title": "MappingSource",
+      "description": "`period` is set when the sheet is one tab of a merged series (R-8), as YYYY-MM, YYYY-Qn or YYYY.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sheet"],
+      "properties": {
+        "sheet": { "type": "string", "minLength": 1 },
+        "range": { "$ref": "#/$defs/a1Range" },
+        "period": { "type": "string", "pattern": "^[0-9]{4}(-(0[1-9]|1[0-2]|Q[1-4]))?$" }
+      }
+    },
+    "mappingColumn": {
+      "title": "MappingColumn",
+      "description": "`header` is the original header text, kept as it was for export.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["header", "field"],
+      "properties": {
+        "header": { "type": "string", "minLength": 1 },
+        "field": { "$ref": "#/$defs/key" }
+      }
+    }
+  }
+}

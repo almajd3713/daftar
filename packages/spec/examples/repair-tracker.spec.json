@@ -1,0 +1,268 @@
+{
+  "specVersion": "1.0.0",
+  "app": {
+    "name": { "fr": "Atelier de réparation", "ar": "ورشة التصليح" },
+    "locales": ["fr-DZ", "ar-DZ"],
+    "defaultLocale": "ar-DZ",
+    "currency": "DZD",
+    "timezone": "Africa/Algiers"
+  },
+  "entities": [
+    {
+      "key": "repairs",
+      "label": { "fr": "Réparations", "ar": "التصليحات" },
+      "kind": "tracker",
+      "naming": { "type": "autonumber", "prefix": "REP-" },
+      "titleField": "device",
+      "searchFields": ["device", "customer", "customer_phone"],
+      "personalData": true,
+      "retention": {
+        "months": 24,
+        "basis": { "fr": "Garantie et suivi client", "ar": "الضمان ومتابعة الزبائن" }
+      },
+      "fields": [
+        { "key": "device", "label": { "fr": "Appareil", "ar": "الجهاز" }, "type": "text", "required": true },
+        { "key": "customer", "label": { "fr": "Client", "ar": "الزبون" }, "type": "text", "required": true, "personalData": true },
+        { "key": "customer_phone", "label": { "fr": "Téléphone", "ar": "الهاتف" }, "type": "phone", "personalData": true },
+        { "key": "problem", "label": { "fr": "Panne", "ar": "العطل" }, "type": "longtext" },
+        { "key": "assignee", "label": { "fr": "Technicien", "ar": "التقني" }, "type": "text" },
+        { "key": "received_on", "label": { "fr": "Reçu le", "ar": "تاريخ الاستلام" }, "type": "date", "required": true },
+        { "key": "promised_on", "label": { "fr": "Promis pour le", "ar": "الموعد المتفق عليه" }, "type": "date" },
+        { "key": "price", "label": { "fr": "Prix", "ar": "السعر" }, "type": "money", "precision": 2 },
+        { "key": "parts_cost", "label": { "fr": "Coût des pièces", "ar": "تكلفة القطع" }, "type": "money", "precision": 2, "level": 1 },
+        {
+          "key": "margin",
+          "label": { "fr": "Marge", "ar": "الهامش" },
+          "type": "computed",
+          "resultType": "money",
+          "precision": 2,
+          "level": 1,
+          "computed": {
+            "eval": "translated",
+            "excel": "=IF(H2=\"\",0,H2-I2)",
+            "deps": ["price", "parts_cost"],
+            "store": true,
+            "expr": {
+              "kind": "call",
+              "valueType": "number",
+              "fn": "IF",
+              "args": [
+                {
+                  "kind": "op",
+                  "valueType": "boolean",
+                  "op": "eq",
+                  "args": [
+                    { "kind": "field", "valueType": "any", "field": "price" },
+                    { "kind": "literal", "valueType": "text", "value": "" }
+                  ]
+                },
+                { "kind": "literal", "valueType": "number", "value": 0 },
+                {
+                  "kind": "op",
+                  "valueType": "number",
+                  "op": "sub",
+                  "args": [
+                    { "kind": "field", "valueType": "number", "field": "price" },
+                    { "kind": "field", "valueType": "number", "field": "parts_cost" }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key": "status",
+          "label": { "fr": "État", "ar": "الحالة" },
+          "type": "choice",
+          "required": true,
+          "default": "received",
+          "choices": [
+            { "key": "received", "label": { "fr": "Reçu", "ar": "مستلم" }, "colour": "#6b7280", "source": "Reçu" },
+            { "key": "in_repair", "label": { "fr": "En réparation", "ar": "قيد التصليح" }, "colour": "#e0a030", "source": "En cours" },
+            { "key": "ready", "label": { "fr": "Prêt", "ar": "جاهز" }, "colour": "#3b82f6", "source": "Prêt" },
+            { "key": "delivered", "label": { "fr": "Livré", "ar": "مسلّم" }, "colour": "#2f9e60", "source": "Livré" }
+          ]
+        }
+      ]
+    }
+  ],
+  "calculators": [],
+  "views": [
+    {
+      "key": "repairs_board",
+      "label": { "fr": "Tableau", "ar": "اللوحة" },
+      "entity": "repairs",
+      "type": "board",
+      "workflow": "repair_flow",
+      "cardFields": ["device", "customer", "promised_on"]
+    },
+    {
+      "key": "repairs_all",
+      "label": { "fr": "Toutes les réparations", "ar": "كل التصليحات" },
+      "entity": "repairs",
+      "type": "list",
+      "columns": ["device", "customer", "assignee", "received_on", "promised_on", "price", "status"],
+      "sort": [{ "field": "received_on", "direction": "desc" }],
+      "totals": ["price"]
+    }
+  ],
+  "forms": [
+    {
+      "key": "repair_form",
+      "label": { "fr": "Fiche de réparation", "ar": "بطاقة التصليح" },
+      "entity": "repairs",
+      "sections": [
+        {
+          "key": "customer_info",
+          "label": { "fr": "Client", "ar": "الزبون" },
+          "fields": ["customer", "customer_phone"]
+        },
+        {
+          "key": "job",
+          "label": { "fr": "Travail", "ar": "العمل" },
+          "fields": ["device", "problem", "assignee", "received_on", "promised_on", "price", "parts_cost"]
+        }
+      ]
+    }
+  ],
+  "dashboards": [
+    {
+      "key": "workshop",
+      "label": { "fr": "Atelier", "ar": "الورشة" },
+      "widgets": [
+        {
+          "key": "open_repairs",
+          "label": { "fr": "Réparations en cours", "ar": "التصليحات الجارية" },
+          "type": "kpi",
+          "entity": "repairs",
+          "aggregate": "count",
+          "filters": [{ "field": "status", "op": "ne", "value": "delivered" }]
+        },
+        {
+          "key": "repairs_by_status",
+          "label": { "fr": "Par état", "ar": "حسب الحالة" },
+          "type": "bar",
+          "entity": "repairs",
+          "aggregate": "count",
+          "groupBy": "status"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "owner",
+      "label": { "fr": "Propriétaire", "ar": "المالك" },
+      "fieldLevel": 1,
+      "permissions": [
+        { "entity": "repairs", "actions": ["read", "create", "update", "delete", "export", "import", "revert"], "rowScope": "all" }
+      ]
+    },
+    {
+      "key": "staff",
+      "label": { "fr": "Employé", "ar": "موظف" },
+      "fieldLevel": 0,
+      "permissions": [{ "entity": "repairs", "actions": ["read", "create", "update"], "rowScope": "all" }]
+    },
+    {
+      "key": "accountant",
+      "label": { "fr": "Comptable", "ar": "محاسب" },
+      "fieldLevel": 1,
+      "permissions": [{ "entity": "repairs", "actions": ["read", "export"], "rowScope": "all" }]
+    },
+    {
+      "key": "viewer",
+      "label": { "fr": "Lecteur", "ar": "قارئ" },
+      "fieldLevel": 0,
+      "permissions": [{ "entity": "repairs", "actions": ["read"], "rowScope": "all" }]
+    }
+  ],
+  "workflows": [
+    {
+      "key": "repair_flow",
+      "label": { "fr": "Suivi de réparation", "ar": "مسار التصليح" },
+      "entity": "repairs",
+      "stateField": "status",
+      "initialState": "received",
+      "states": [
+        { "key": "received", "label": { "fr": "Reçu", "ar": "مستلم" }, "colour": "#6b7280" },
+        { "key": "in_repair", "label": { "fr": "En réparation", "ar": "قيد التصليح" }, "colour": "#e0a030" },
+        { "key": "ready", "label": { "fr": "Prêt", "ar": "جاهز" }, "colour": "#3b82f6" },
+        { "key": "delivered", "label": { "fr": "Livré", "ar": "مسلّم" }, "colour": "#2f9e60" }
+      ],
+      "transitions": [
+        {
+          "key": "start_repair",
+          "label": { "fr": "Commencer", "ar": "بدء التصليح" },
+          "from": ["received"],
+          "to": "in_repair",
+          "roles": ["owner", "staff"]
+        },
+        {
+          "key": "mark_ready",
+          "label": { "fr": "Marquer prêt", "ar": "تحديد كجاهز" },
+          "from": ["in_repair"],
+          "to": "ready",
+          "roles": ["owner", "staff"],
+          "condition": {
+            "kind": "op",
+            "valueType": "boolean",
+            "op": "gt",
+            "args": [
+              { "kind": "field", "valueType": "number", "field": "price" },
+              { "kind": "literal", "valueType": "number", "value": 0 }
+            ]
+          }
+        },
+        {
+          "key": "send_back",
+          "label": { "fr": "Renvoyer en réparation", "ar": "إرجاع إلى التصليح" },
+          "from": ["ready"],
+          "to": "in_repair",
+          "roles": ["owner", "staff"]
+        },
+        {
+          "key": "deliver",
+          "label": { "fr": "Livrer", "ar": "تسليم" },
+          "from": ["ready"],
+          "to": "delivered",
+          "roles": ["owner", "staff"]
+        }
+      ]
+    }
+  ],
+  "reminders": [
+    {
+      "key": "promise_tomorrow",
+      "label": { "fr": "Promis pour demain", "ar": "الموعد غدا" },
+      "entity": "repairs",
+      "dateField": "promised_on",
+      "offsetDays": -1,
+      "filters": [{ "field": "status", "op": "in", "value": ["received", "in_repair"] }],
+      "roles": ["owner", "staff"],
+      "message": { "fr": "Cette réparation est promise pour demain.", "ar": "موعد هذا التصليح غدا." }
+    }
+  ],
+  "history": { "retentionMonths": 24 },
+  "mapping": [
+    {
+      "entity": "repairs",
+      "sources": [{ "sheet": "Suivi" }],
+      "headerRow": 1,
+      "columns": [
+        { "header": "Appareil", "field": "device" },
+        { "header": "Client", "field": "customer" },
+        { "header": "Tél", "field": "customer_phone" },
+        { "header": "Panne", "field": "problem" },
+        { "header": "Technicien", "field": "assignee" },
+        { "header": "Reçu le", "field": "received_on" },
+        { "header": "Promis le", "field": "promised_on" },
+        { "header": "Prix", "field": "price" },
+        { "header": "Pièces", "field": "parts_cost" },
+        { "header": "Marge", "field": "margin" },
+        { "header": "État", "field": "status" }
+      ],
+      "keyColumns": ["device", "customer", "received_on"]
+    }
+  ]
+}
