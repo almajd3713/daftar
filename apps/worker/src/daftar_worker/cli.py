@@ -8,6 +8,7 @@ import sys
 import tempfile
 from typing import Any
 
+from daftar_worker.analyser import analyze_snapshot
 from daftar_worker.census import render_markdown, run_census
 from daftar_worker.errors import MESSAGES, WorkerError
 from daftar_worker.evaluation.labels import EvalError, freeze_test_split, read_manifest
@@ -47,6 +48,18 @@ def _read(args: argparse.Namespace) -> int:
     return 0
 
 
+def _analyze(args: argparse.Namespace) -> int:
+    try:
+        snapshot = read_file(args.file)
+    except WorkerError as error:
+        message = MESSAGES[error.code]
+        print(f"{error.code}: {message['fr']}\n{message['ar']}", file=sys.stderr)
+        return EXIT_UNREADABLE
+    # WP-8 adds the language model; until then every run is rules only, as with --no-llm.
+    _write_atomic(Path(args.output), _dump(analyze_snapshot(snapshot)))
+    return 0
+
+
 def _census(args: argparse.Namespace) -> int:
     missing = [path for path in args.paths if not Path(path).exists()]
     if missing:
@@ -73,10 +86,6 @@ def _eval_command(args: argparse.Namespace) -> int:
         outcome = write_drafts(labels, manifest, args.split, analyses, output)
         print(_dump(outcome), end="")
         return 0
-    if analyses is None:
-        # WP-5 makes this optional by running the analyser on each workbook itself.
-        print("the analyser isn't available yet: pass --analyses DIR", file=sys.stderr)
-        return EXIT_UNREADABLE
     report = run_evaluation(labels, manifest, args.split, analyses)
     _write_atomic(output / "report.json", _dump(report))
     _write_atomic(output / "report.md", render_report(report))
@@ -98,6 +107,11 @@ def main(argv: list[str] | None = None) -> int:
     read.add_argument("file")
     read.add_argument("-o", "--output", required=True)
     read.set_defaults(run=_read)
+    analyze = commands.add_parser("analyze", help="understand a workbook")
+    analyze.add_argument("file")
+    analyze.add_argument("--no-llm", action="store_true", help="rules only")
+    analyze.add_argument("-o", "--output", required=True)
+    analyze.set_defaults(run=_analyze)
     census = commands.add_parser("census", help="count workbook features over files and folders")
     census.add_argument("paths", nargs="+", metavar="PATH")
     census.add_argument("-o", "--output", required=True)
@@ -106,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("--labels", required=True, metavar="DIR")
     evaluate.add_argument("--split", required=True, choices=("dev", "test"))
     evaluate.add_argument("-o", "--output", required=True, metavar="DIR")
-    evaluate.add_argument("--analyses", metavar="DIR", help="existing C-2 analyses, <id>.json")
+    evaluate.add_argument("--analyses", metavar="DIR", help="existing C-2 analyses, <id>.json; default: run the analyser")
     evaluate.add_argument("--manifest", help="default: manifest.csv beside the labels folder")
     evaluate.add_argument("--prelabel", action="store_true", help="write draft labels to -o")
     evaluate.add_argument("--freeze", action="store_true", help="record the test split as frozen")

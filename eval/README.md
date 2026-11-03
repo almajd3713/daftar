@@ -21,7 +21,10 @@ The labelled workbooks behind Daftar's published accuracy (contract C-6).
 ## Commands
 
 ```sh
-# Score analyses against the labels. Reports go to the -o folder.
+# Run the analyser and score it against the labels. Reports go to the -o folder.
+uv run daftar eval --labels eval/labels --split dev -o reports/dev
+
+# Or score analyses that already exist.
 uv run daftar eval --labels eval/labels --split dev --analyses analyses/ -o reports/dev
 
 # Write draft labels for a person to correct. Existing labels are never overwritten.

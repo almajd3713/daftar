@@ -8,6 +8,7 @@ from typing import Any
 
 from openpyxl.utils import range_boundaries
 
+from daftar_worker.analyser import analyze_snapshot
 from daftar_worker.errors import WorkerError
 from daftar_worker.evaluation.labels import (
     SEPARATE_STRATA,
@@ -76,8 +77,19 @@ def _engine_stamp(engines: list[dict[str, Any]]) -> dict[str, list[str]]:
     return {key: sorted(stamp[key]) for key in ("rulesVersion", "model", "quant")}
 
 
+def _analyse_workbook(manifest_path: Path, row: ManifestRow) -> dict[str, Any] | None:
+    """Run the analyser on a workbook from the set. None if it can't be found or read."""
+    path = workbook_path(manifest_path, row)
+    if path is None:
+        return None
+    try:
+        return analyze_snapshot(read_file(path))
+    except WorkerError:
+        return None
+
+
 def run_evaluation(
-    labels_dir: Path, manifest_path: Path, split: str, analyses_dir: Path
+    labels_dir: Path, manifest_path: Path, split: str, analyses_dir: Path | None
 ) -> dict[str, Any]:
     all_rows = read_manifest(manifest_path)
     frozen = check_frozen(all_rows, manifest_path)
@@ -88,10 +100,20 @@ def run_evaluation(
 
     scores: list[WorkbookScore] = []
     missing: list[str] = []
+    parity_not_run: list[str] = []
     engines: list[dict[str, Any]] = []
     for row in rows:
-        analysis = _read_json(analyses_dir / f"{row.id}.json")
-        parity = _read_json(analyses_dir / f"{row.id}.parity.json")
+        if analyses_dir is None:
+            analysis = _analyse_workbook(manifest_path, row)
+            parity = None
+        else:
+            analysis = _read_json(analyses_dir / f"{row.id}.json")
+            parity = _read_json(analyses_dir / f"{row.id}.parity.json")
+        # No formula engine ran at all, which says nothing about whether it would get them right.
+        # A formula missing from a results file that does exist still counts as wrong.
+        parity_ran = parity is not None or analysis is None
+        if not parity_ran and labels[row.id]["resultsFrom"] == "excel":
+            parity_not_run.append(row.id)
         if analysis is None:
             missing.append(row.id)
             predictions = Predictions()
@@ -100,7 +122,7 @@ def run_evaluation(
                 raise EvalError(f"{row.id}: the analysis is of a different workbook")
             engines.append(analysis.get("engine") or {})
             predictions = from_analysis(analysis, parity)
-        scores.append(score_workbook(row.id, row.stratum, labels[row.id], predictions))
+        scores.append(score_workbook(row.id, row.stratum, labels[row.id], predictions, parity_ran))
 
     headline = [score for score in scores if score.stratum not in SEPARATE_STRATA]
     strata: dict[str, list[WorkbookScore]] = defaultdict(list)
@@ -115,7 +137,10 @@ def run_evaluation(
         "engine": _engine_stamp(engines),
         "workbooks": len(scores),
         "missingAnalyses": missing,
-        "excludedFromParity": sorted(score.id for score in scores if not score.in_parity),
+        "excludedFromParity": sorted(
+            row.id for row in rows if labels[row.id]["resultsFrom"] != "excel"
+        ),
+        "parityNotRun": parity_not_run,
         "excludedFromHeadline": sorted(s.id for s in scores if s.stratum in SEPARATE_STRATA),
         "overall": summarise(headline),
         "byStratum": {name: summarise(strata[name]) for name in sorted(strata)},
@@ -150,6 +175,7 @@ def render_report(report: dict[str, Any]) -> str:
         f"- Test split frozen: {'yes' if report['testSplitFrozen'] else 'no'}",
         f"- No analysis, scored as wrong: {', '.join(report['missingAnalyses']) or 'none'}",
         f"- Left out of formula parity (results not from Excel): {', '.join(report['excludedFromParity']) or 'none'}",
+        f"- Left out of formula parity (no formula engine run): {', '.join(report['parityNotRun']) or 'none'}",
         f"- Reported only under their stratum: {', '.join(report['excludedFromHeadline']) or 'none'}",
         "",
         "## Headline",
