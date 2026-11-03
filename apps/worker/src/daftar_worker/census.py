@@ -26,7 +26,7 @@ COVERAGE_MARKS = (0.8, 0.9, 0.95, 0.99)
 
 # Yes-or-no features reported as a share of workbooks.
 FLAGS = (
-    "multipleSheets", "hiddenSheets", "protectedSheets", "merges", "validations",
+    "multipleSheets", "hiddenSheets", "hiddenRowsOrColumns", "protectedSheets", "merges", "validations",
     "conditionalFormats", "tables", "definedNames", "comments", "formulas", "crossSheetFormulas",
     "arrayFormulas", "errorValues", "macros", "pivots", "charts", "images", "shapes",
     "externalLinks", "otherUnsupported",
@@ -76,6 +76,7 @@ def census_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
     rows_per_sheet: list[int] = []
     for sheet in sheets:
         counts["hiddenSheets"] += sheet["state"] != "visible"
+        counts["hiddenRowsOrColumns"] += bool(sheet["hiddenRows"] or sheet["hiddenColumns"])
         counts["protectedSheets"] += bool(sheet["protected"])
         counts["merges"] += len(sheet["merges"])
         counts["validations"] += len(sheet["validations"])

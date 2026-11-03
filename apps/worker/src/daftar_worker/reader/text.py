@@ -97,6 +97,8 @@ def read_csv(path: Path, sheet_name: str) -> list[dict[str, Any]]:
             "protected": False,
             "rtl": False,
             "dimension": dimension,
+            "hiddenRows": [],
+            "hiddenColumns": [],
             "cells": cells,
             "merges": [],
             "validations": [],

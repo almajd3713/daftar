@@ -12,6 +12,7 @@ The plan is in [`docs/03-blueprint.md`](docs/03-blueprint.md). The research note
 |---|---|
 | `packages/spec` | The app spec: one JSON Schema, TypeScript types and validators in both languages, and example specs |
 | `apps/worker` | The Python worker: reads, analyses, exports and diffs workbooks |
+| `eval` | The labelled evaluation set and its rules: see [`eval/README.md`](eval/README.md) |
 | `compose.dev.yaml` | Dev stack: Postgres and the worker image, with LibreOffice installed |
 
 ## Development
@@ -39,6 +40,9 @@ docker run --rm daftar-worker-test
 # Read a workbook, or count features over folders of them. Exit codes: 0 ok, 2 unreadable.
 uv run daftar read workbook.xlsx -o snapshot.json
 uv run daftar census folder/ -o census.json
+
+# Score analyses against the labelled set. Exit codes: 0 ok, 2 unreadable, 3 invalid labels.
+uv run daftar eval --labels eval/labels --split dev --analyses analyses/ -o reports/dev
 
 # Validate a spec. Exit codes: 0 valid, 2 unreadable, 3 invalid.
 uv run python -m daftar_spec packages/spec/examples/*.spec.json

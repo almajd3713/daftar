@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DaftarEvalLabel",
+  "description": "C-6: the human labels for one workbook. Ranges are A1 without dollar signs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["labelVersion", "id", "workbookSha256", "status", "resultsFrom", "sheets", "relations", "formulas"],
+  "properties": {
+    "labelVersion": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+    "workbookSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "status": { "enum": ["draft", "reviewed"], "description": "Scoring refuses drafts." },
+    "labelledBy": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "resultsFrom": { "enum": ["excel", "other", "none"], "description": "C-1 resultsFrom of the original file." },
+    "workbook": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hasMacros": { "type": "boolean" },
+        "hasExternalLinks": { "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    },
+    "sheets": { "type": "array", "items": { "$ref": "#/$defs/sheet" } },
+    "relations": { "type": "array", "items": { "$ref": "#/$defs/relation" } },
+    "formulas": { "type": "array", "items": { "$ref": "#/$defs/formula" } }
+  },
+  "$defs": {
+    "range": { "type": "string", "pattern": "^[A-Z]{1,3}[1-9][0-9]*(:[A-Z]{1,3}[1-9][0-9]*)?$" },
+    "column": { "type": "string", "pattern": "^[A-Z]{1,3}$" },
+    "sheet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "regions", "tables"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["register", "ledger", "formulaModel", "tracker", "referenceList", "notConverted"] },
+        "reason": { "enum": ["form", "report", "chartOrPivotOnly", "empty", "outOfScope"] },
+        "hidden": { "type": "boolean" },
+        "periodGroup": { "type": "string", "minLength": 1, "description": "Shared by monthly tabs that form one table." },
+        "regions": { "type": "array", "items": { "$ref": "#/$defs/region" } },
+        "tables": { "type": "array", "items": { "$ref": "#/$defs/table" } },
+        "inputs": { "type": "array", "items": { "$ref": "#/$defs/range" } },
+        "outputs": { "type": "array", "items": { "$ref": "#/$defs/range" } },
+        "cellRoles": { "type": "array", "items": { "$ref": "#/$defs/cellRole" } }
+      },
+      "if": { "properties": { "kind": { "const": "notConverted" } }, "required": ["kind"] },
+      "then": { "required": ["reason"] }
+    },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["range", "type"],
+      "properties": {
+        "range": { "$ref": "#/$defs/range" },
+        "type": { "enum": ["title", "notes", "inputBlock", "outputBlock"] }
+      }
+    },
+    "table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["range", "headerRows", "fields"],
+      "properties": {
+        "range": { "$ref": "#/$defs/range" },
+        "headerRows": { "type": "array", "uniqueItems": true, "items": { "type": "integer", "minimum": 1 } },
+        "totalRows": { "type": "array", "uniqueItems": true, "items": { "type": "integer", "minimum": 1 } },
+        "operator": { "enum": ["none", "unpivot", "transpose", "fillMerged", "splitStacked"] },
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/field" } }
+      }
+    },
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column", "name", "type"],
+      "properties": {
+        "column": { "$ref": "#/$defs/column" },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["text", "longtext", "integer", "decimal", "money", "percent", "date", "datetime", "boolean", "choice", "multichoice", "phone", "email", "link", "computed"] },
+        "unit": { "type": "string" },
+        "unique": { "type": "boolean" },
+        "choiceSource": { "enum": ["validationList", "conditionalFormat", "fill", "freeText"] },
+        "isStatus": { "type": "boolean" }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "$ref": "#/$defs/columnRef" },
+        "to": { "$ref": "#/$defs/columnRef" },
+        "evidence": { "enum": ["lookupFormula", "validationList", "sharedValues", "sameName"] },
+        "cardinality": { "enum": ["manyToOne", "oneToOne", "manyToMany"] }
+      }
+    },
+    "columnRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sheet", "column"],
+      "properties": {
+        "sheet": { "type": "string", "minLength": 1 },
+        "column": { "$ref": "#/$defs/column" }
+      }
+    },
+    "formula": {
+      "description": "The oracle: the result stored in the original file, read before any conversion.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sheet", "ref", "f", "result", "t"],
+      "properties": {
+        "sheet": { "type": "string", "minLength": 1 },
+        "ref": { "$ref": "#/$defs/range" },
+        "f": { "type": "string", "minLength": 1 },
+        "result": { "type": ["string", "number", "boolean", "null"] },
+        "t": { "enum": ["n", "s", "b", "d", "e"] }
+      }
+    },
+    "cellRole": {
+      "description": "An optional DECO-compatible layer. It is stored, not yet scored.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["range", "role"],
+      "properties": {
+        "range": { "$ref": "#/$defs/range" },
+        "role": { "enum": ["header", "rowAttribute", "data", "derived", "title", "note", "input", "output"] },
+        "depth": { "type": "integer", "minimum": 1, "maximum": 3 }
+      }
+    }
+  }
+}

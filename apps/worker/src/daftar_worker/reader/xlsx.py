@@ -243,6 +243,34 @@ def _tables(worksheet: Any) -> list[dict[str, Any]]:
     return sorted(out, key=lambda item: item["name"])
 
 
+def _hidden_rows(worksheet: Any) -> list[str]:
+    """Hidden rows as compact ranges such as "5:9"."""
+    rows = sorted(index for index, row in worksheet.row_dimensions.items() if row.hidden)
+    runs: list[list[int]] = []
+    for row in rows:
+        if runs and row == runs[-1][1] + 1:
+            runs[-1][1] = row
+        else:
+            runs.append([row, row])
+    return [f"{low}:{high}" for low, high in runs]
+
+
+def _hidden_columns(worksheet: Any) -> list[str]:
+    """Hidden columns as compact ranges such as "A:C". Files often hide everything unused."""
+    spans = sorted(
+        (column.min, column.max)
+        for column in worksheet.column_dimensions.values()
+        if column.hidden and column.min and column.max
+    )
+    runs: list[list[int]] = []
+    for low, high in spans:
+        if runs and low <= runs[-1][1] + 1:
+            runs[-1][1] = max(runs[-1][1], high)
+        else:
+            runs.append([low, high])
+    return [f"{get_column_letter(low)}:{get_column_letter(high)}" for low, high in runs]
+
+
 def _empty_sheet(sheet: RawSheet, index: int) -> dict[str, Any]:
     return {
         "name": sheet.name,
@@ -251,6 +279,8 @@ def _empty_sheet(sheet: RawSheet, index: int) -> dict[str, Any]:
         "protected": False,
         "rtl": False,
         "dimension": None,
+        "hiddenRows": [],
+        "hiddenColumns": [],
         "cells": [],
         "merges": [],
         "validations": [],
@@ -288,6 +318,8 @@ def _worksheet(
         "protected": bool(ws_formulas.protection and ws_formulas.protection.sheet),
         "rtl": bool(views and views[0].rightToLeft),
         "dimension": dimension,
+        "hiddenRows": _hidden_rows(ws_formulas),
+        "hiddenColumns": _hidden_columns(ws_formulas),
         "cells": cells,
         "merges": sorted(str(item) for item in ws_formulas.merged_cells.ranges),
         "validations": _validations(ws_formulas) + package.ext_validations.get(sheet.name, []),

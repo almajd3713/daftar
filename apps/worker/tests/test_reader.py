@@ -126,6 +126,27 @@ def test_sheet_state_protection_direction(snapshot: dict[str, Any]) -> None:
     assert sheet_of(snapshot, "Données")["protected"] is False
 
 
+def test_hidden_rows_and_columns(tmp_path: Path) -> None:
+    path = tmp_path / "hidden.xlsx"
+    book = xlsxwriter.Workbook(str(path))
+    sheet = book.add_worksheet("H")
+    sheet.write_string("A1", "x")
+    for row in (4, 5, 6, 8):  # Rows 5, 6, 7 and 9 in A1 terms.
+        sheet.set_row(row, None, None, {"hidden": True})
+    sheet.set_column("B:C", None, None, {"hidden": True})
+    sheet.set_column("E:E", None, None, {"hidden": True})
+    sheet.set_column("G:XFD", None, None, {"hidden": True})  # Hiding everything unused is common.
+    book.close()
+    data = read_file(path)["sheets"][0]
+    assert data["hiddenRows"] == ["5:7", "9:9"]
+    assert data["hiddenColumns"] == ["B:C", "E:E", "G:XFD"]
+
+
+def test_nothing_hidden_gives_empty_lists(snapshot: dict[str, Any]) -> None:
+    data = sheet_of(snapshot, "Données")
+    assert (data["hiddenRows"], data["hiddenColumns"]) == ([], [])
+
+
 def test_unsupported_parts_become_entries(snapshot: dict[str, Any]) -> None:
     assert snapshot["unsupported"] == [
         {"kind": "chart", "sheet": "Données", "ref": "H2"},
@@ -638,6 +659,9 @@ def test_xls_features_and_french_arabic_text(tmp_path: Path, clean_temp: Path) -
     sheet.write(0, 0, "أمينة")
     sheet.write(0, 1, "Prénom")
     sheet.write_merge(2, 2, 0, 1, "Total")
+    sheet.row(4).hidden = True
+    sheet.col(3).hidden = True
+    sheet.write(4, 3, "caché")
     hidden = book.add_sheet("Caché")
     hidden.write(0, 0, 1)
     hidden.visibility = 1
@@ -647,6 +671,8 @@ def test_xls_features_and_french_arabic_text(tmp_path: Path, clean_temp: Path) -
     assert cell_of(first, "A1")["v"] == "أمينة"
     assert first["merges"] == ["A3:B3"]
     assert sheet_of(snapshot, "Caché")["state"] == "hidden"
+    assert first["hiddenRows"] == ["5:5"]
+    assert first["hiddenColumns"] == ["D:D"]
     assert snapshot["source"]["resultsFrom"] == "none"
     assert list(clean_temp.iterdir()) == []
 

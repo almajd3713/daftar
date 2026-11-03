@@ -201,7 +201,8 @@ This plan gives you the goal, the required behaviour, the contracts and the chec
 **C-1 Workbook snapshot** (worker → analyser, Studio grid). JSON, `snapshotVersion: 1`:
 - `source`: `{fileName, sha256, format: xlsx|xlsm|xls|ods|csv, convertedFrom?, application?, resultsFrom: excel|other|none}`
   - `resultsFrom` says who produced the stored formula results in the original file. It is `excel` only when Excel last saved the file in automatic-calculation mode; `none` means the file has no formulas.
-- `sheets[]`: `{name, index, state: visible|hidden|veryHidden, protected, rtl, dimension, cells[], merges[], validations[], conditionalFormats[], tables[]}`
+- `sheets[]`: `{name, index, state: visible|hidden|veryHidden, protected, rtl, dimension, hiddenRows[], hiddenColumns[], cells[], merges[], validations[], conditionalFormats[], tables[]}`
+  - `hiddenRows` and `hiddenColumns` are compact ranges, such as `"5:9"` and `"A:C"`. Hidden cells stay in `cells[]`.
   - Cells are sparse: `{ref, v, t: n|s|b|d|e, f?, fmt?, style?: {fill?, color?, bold?}, comment?}`. Here `v` is the stored or typed value and `f` is the A1 formula with English function names.
 - `definedNames[]`: `{name, scope?, ref}`
 - `unsupported[]`: `{kind: pivot|chart|image|shape|macro|externalLink|other, sheet?, ref?}`
@@ -236,7 +237,7 @@ This plan gives you the goal, the required behaviour, the contracts and the chec
 - `read FILE -o snapshot.json`
 - `analyze FILE [--no-llm] -o analysis.json`
 - `census PATH... -o census.json` (also writes `census.md`)
-- `eval --labels DIR --split dev|test -o DIR`
+- `eval --labels DIR --split dev|test -o DIR [--analyses DIR] [--manifest FILE] [--prelabel] [--freeze]`
 - `bundle PROJECT -o DIR`
 - `studio` (starts the Studio stack)
 
@@ -245,6 +246,7 @@ This plan gives you the goal, the required behaviour, the contracts and the chec
 - `eval/labels/<id>.json`: the label set in research notes `corpora_and_mess.md` §4, plus each formula cell's stored Excel result. Those results are read from the original file before any conversion. Workbooks whose `resultsFrom` isn't `excel` are left out of the parity metric and listed in the report.
 - Publishable workbooks go in `eval/workbooks/`. Everything else goes in the git-ignored `eval/private/`.
 - Once frozen, the test split changes only by adding files.
+- `eval/labels/<id>.json` has `status: draft|reviewed`, and scoring refuses drafts. Its schema is `apps/worker/src/daftar_worker/evaluation/label.schema.json`. `eval/test-frozen.json` records the frozen test split.
 
 **C-7 Runtime HTTP API** (behind session-cookie auth):
 - Auth and metadata: `/api/auth/{setup,login,logout,me}`, `/api/meta` (the spec, filtered by role)
@@ -528,7 +530,7 @@ This plan gives you the goal, the required behaviour, the contracts and the chec
 
 - [x] WP-1: Repository, CI and the spec schema
 - [x] WP-2: Reader and census
-- [ ] WP-3: Labels and the evaluation harness
+- [x] WP-3: Labels and the evaluation harness
 - [ ] WP-4: First labelled workbooks
 - [ ] WP-5: Structure: tables, headers, totals, types, sheet kind
 - [ ] WP-6: Formulas: computed fields and calculators
@@ -559,6 +561,11 @@ This plan gives you the goal, the required behaviour, the contracts and the chec
 - 2026-11-03 (WP-2): Surprise, and a correction to the plan's trap: LibreOffice recalculates .xls and .ods on load whatever the setting, so stale results came back fresh (999 became 6). Its "never recalculate" only binds .xlsx. LibreOffice now converts structure only; stored results come from the original through `xlrd` (.xls) and `content.xml` (.ods). If a formula cell's result can't be restored, `resultsFrom` becomes `other`. R-1's outcome and the WP-2 check still hold; only the method changed. `xlrd` is now a runtime dependency.
 - 2026-11-03 (WP-2): `resultsFrom` rules beyond the contract's wording. `fullCalcOnLoad` counts as not-Excel, because openpyxl and XlsxWriter also write "Microsoft Excel" as the application. A real Excel 2010 .xls had no application name, so .xls also counts as Excel when its BOF `verLastXLSaved` is above 0. Excel 97 files with no name stay `other`, on purpose. **Checked on one real file only; WP-4 should check `applications` in the census output against the real corpus.**
 - 2026-11-03 (WP-2): C-1 details: `format` is the original's format and `convertedFrom` repeats it when converted. A formula with no stored result has `v: null, t: "s"`. Array formulas use Excel's display form, `{=...}`, on every cell of the range; data tables are `{=TABLE(r1,r2)}`. Blank cells are kept only if they have a fill or comment. `_xlfn.` prefixes are removed. CSV values all stay `t: "s"`, so leading zeros survive; WP-5 infers types. `validations[]`, `conditionalFormats[]` and `tables[]` had no shape in C-1, so the reader defines them, and `dimension` is null on an empty sheet.
-- 2026-11-03 (WP-2): Gap in C-1: it has no place for hidden rows and columns, so they aren't captured, though R-2's "hidden state" may mean them too. Adding them is a contract change, so it needs the user. Serial 60 reads as `1900-02-29`, the day only Excel has.
+- 2026-11-03 (WP-2): Serial 60 reads as `1900-02-29`, the day only Excel has.
+- 2026-11-03 (WP-3): Additions to C-5 and C-6, all additive: `eval` gains `--analyses`, `--manifest`, `--prelabel` and `--freeze`, and labels gain `status`. **`--analyses` is required until WP-5 exists; WP-5 should make it optional by running the analyser.** Formula values arrive beside each analysis as `<id>.parity.json`, because C-2 has no place for them; WP-6 writes that file.
+- 2026-11-03 (WP-3): Interface for WP-5 to WP-7. `evaluation/predictions.py` is the only code that reads C-2 findings, and it expects: `table` and `header` findings carry their ranges in `evidence`; `fieldType` has the column range in `evidence[0]` and `proposal.type`; `relation` has `proposal.from` and `proposal.to`, each `{sheet, column}`; `snapshotSha256` equals C-1 `source.sha256`. If WP-5 defines other shapes, change this one file.
+- 2026-11-03 (WP-3): Scoring choices a reviewer might question. Stress workbooks stay out of the headline, as the research says, and appear under their stratum. A workbook with no analysis, and a formula with no value, score as wrong and are listed; nothing is skipped. Metrics pool across workbooks, then the bootstrap resamples workbooks (2,000 draws, fixed seed, percentile interval). Header F1 compares (sheet, row), so two side-by-side tables on one row count once. Types use the C-3 set from R-5, not the research's 14 types. R-19's tolerance is relative only, so 1e-16 against an exact 0 is a mismatch; **WP-6 may want the user's view if Excel's near-zero rounding makes this bite.** The test split's report holds no per-workbook detail.
+- 2026-11-03 (WP-3): Sheet kind labels use R-3's six outcomes, with `reason` for `notConverted`, not the research's ten kinds. The cell-role layer is stored but not scored. Inter-annotator agreement isn't in the harness: WP-3's metrics don't list it, but **WP-4's 25% double labelling will need kappa and boundary agreement.**
+- 2026-11-03: User-delegated decision: C-1 gains `hiddenRows` and `hiddenColumns`, an additive change. Hidden rows can hold old data or helper columns, and R-2's "hidden state" covers them. Rows hidden by an AutoFilter look the same as manually hidden ones.
 - 2026-11-03 (WP-2): openpyxl loads through a copy with its pivot links removed, because it parses pivots on load and raises on any it dislikes; pivots are reported from the raw XML. The largest allowed file (1,000,000 cells) took 51 s and 1.1 GB peak on the dev machine. Macros are never run: openpyxl doesn't execute them, and LibreOffice's profile disables them.
 - 2026-11-03 (WP-2): Census counts each byte-identical file once and holds only counts and function names, no cell values. It runs the full reader per file, which is slower than the prior art's regex scan but counts .xls and .ods the same way. File paths are in the output, so treat it as private if paths name clients.
