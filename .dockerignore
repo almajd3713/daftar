@@ -5,6 +5,7 @@
 !.python-version
 !apps/worker/pyproject.toml
 !apps/worker/src/**
+!apps/worker/tests/**
 !packages/spec/pyproject.toml
 !packages/spec/README.md
 !packages/spec/python/**

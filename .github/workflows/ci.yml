@@ -36,6 +36,14 @@ jobs:
       - name: Validate the example specs
         run: uv run python -m daftar_spec packages/spec/examples/*.spec.json
 
+  worker-image-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --target test -f apps/worker/Dockerfile -t daftar-worker-test .
+      # Includes the conversion tests, which a missing soffice fails rather than skips.
+      - run: docker run --rm daftar-worker-test
+
   dev-stack:
     runs-on: ubuntu-latest
     steps:
@@ -48,6 +56,8 @@ jobs:
       - run: docker compose -f compose.dev.yaml up -d --wait
       - name: LibreOffice is in the worker image
         run: docker compose -f compose.dev.yaml exec -T worker soffice --version
+      - name: The daftar command is in the worker image
+        run: docker compose -f compose.dev.yaml exec -T worker daftar --help
       - name: The schema ships in the worker image
         run: docker compose -f compose.dev.yaml exec -T worker python -c "import daftar_spec; daftar_spec.load_schema()"
       - if: always()

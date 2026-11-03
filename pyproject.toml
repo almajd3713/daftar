@@ -17,7 +17,7 @@ daftar-spec = { workspace = true }
 daftar-worker = { workspace = true }
 
 [dependency-groups]
-dev = ["httpx2>=2.12,<3", "mypy>=1.13,<3", "pytest>=8,<10", "ruff>=0.8,<1", "types-jsonschema>=4.23"]
+dev = ["httpx2>=2.12,<3", "mypy>=1.13,<3", "pytest>=8,<10", "ruff>=0.8,<1", "types-jsonschema>=4.23", "msoffcrypto-tool>=6,<7", "xlsxwriter>=3.2,<4", "xlwt>=1.3,<2"]
 
 [tool.ruff]
 line-length = 100
@@ -36,7 +36,14 @@ lines-after-imports = 2
 python_version = "3.12"
 strict = true
 files = ["packages/spec/python", "packages/spec/tests", "apps/worker/src", "apps/worker/tests"]
+mypy_path = "apps/worker/tests"
+
+[[tool.mypy.overrides]]
+module = ["defusedxml.*", "msoffcrypto.*", "olefile.*", "openpyxl.*", "xlrd.*", "xlsxwriter.*", "xlwt.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
+markers = ["libreoffice: needs soffice; skipped locally, required in the worker test image"]
 testpaths = ["packages/spec/tests", "apps/worker/tests"]
 addopts = "--import-mode=importlib"
+pythonpath = ["apps/worker/tests"]
