@@ -526,7 +526,7 @@ This plan gives you the goal, the required behaviour, the contracts and the chec
 
 ## Progress
 
-- [ ] WP-1: Repository, CI and the spec schema
+- [x] WP-1: Repository, CI and the spec schema
 - [ ] WP-2: Reader and census
 - [ ] WP-3: Labels and the evaluation harness
 - [ ] WP-4: First labelled workbooks
