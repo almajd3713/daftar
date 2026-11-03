@@ -32,6 +32,14 @@ uv run ruff check
 uv run mypy
 uv run pytest
 
+# The tests LibreOffice needs are skipped above; they run in the worker image.
+docker build --target test -f apps/worker/Dockerfile -t daftar-worker-test .
+docker run --rm daftar-worker-test
+
+# Read a workbook, or count features over folders of them. Exit codes: 0 ok, 2 unreadable.
+uv run daftar read workbook.xlsx -o snapshot.json
+uv run daftar census folder/ -o census.json
+
 # Validate a spec. Exit codes: 0 valid, 2 unreadable, 3 invalid.
 uv run python -m daftar_spec packages/spec/examples/*.spec.json
 

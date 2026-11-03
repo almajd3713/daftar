@@ -8,7 +8,19 @@ version = "0.1.0"
 description = "Daftar worker: reads, analyses, exports and diffs workbooks"
 requires-python = ">=3.12"
 license = "AGPL-3.0-only"
-dependencies = ["daftar-spec", "fastapi>=0.115,<1", "uvicorn>=0.30,<1"]
+dependencies = [
+    "daftar-spec",
+    "defusedxml>=0.7,<1",
+    "fastapi>=0.115,<1",
+    "olefile>=0.47,<1",
+    "openpyxl==3.1.5",
+    "python-multipart>=0.0.20,<1",
+    "uvicorn>=0.30,<1",
+    "xlrd>=2.0,<3",
+]
+
+[project.scripts]
+daftar = "daftar_worker.cli:main"
 
 [tool.uv.sources]
 daftar-spec = { workspace = true }
