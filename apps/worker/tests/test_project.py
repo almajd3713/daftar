@@ -448,6 +448,8 @@ def test_reanalyze_with_an_updated_workbook_reports_conflicts(tmp_path: Path) ->
 def build_fixture(root: Path) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]]]:
     path = builders.tutoring_workbook(root / "centre.xlsx")
     snapshot = read_file(path)
+    # Patching the zip stamps the current time in it, so the real hash differs on every run.
+    snapshot["source"]["sha256"] = "0" * 64
     analysis = analyze_snapshot(snapshot)
     accept_everything(analysis)
     spec, seed, _ = Generator(analysis, snapshot).generate()

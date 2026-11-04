@@ -39,7 +39,7 @@
       "ar": "Matricule"
      },
      "provenance": {
-      "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "sheet": "Élèves",
       "range": "A2:A17",
       "detector": "fieldType",
@@ -60,7 +60,7 @@
       "ar": "Élève"
      },
      "provenance": {
-      "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "sheet": "Élèves",
       "range": "B2:B17",
       "detector": "fieldType",
@@ -82,7 +82,7 @@
       "ar": "Parent"
      },
      "provenance": {
-      "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "sheet": "Élèves",
       "range": "C2:C17",
       "detector": "fieldType",
@@ -106,7 +106,7 @@
       "ar": "Téléphone parent"
      },
      "provenance": {
-      "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "sheet": "Élèves",
       "range": "D2:D17",
       "detector": "fieldType",
@@ -130,7 +130,7 @@
     }
    },
    "provenance": {
-    "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+    "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "sheet": "Élèves",
     "range": "A1:D17",
     "detector": "table",
@@ -176,7 +176,7 @@
       "ar": "Matricule"
      },
      "provenance": {
-      "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "sheet": "Janvier 2026",
       "range": "A4:A15",
       "detector": "fieldType",
@@ -199,7 +199,7 @@
       "ar": "Dû"
      },
      "provenance": {
-      "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "sheet": "Janvier 2026",
       "range": "B4:B15",
       "detector": "fieldType",
@@ -221,7 +221,7 @@
       "ar": "Payé"
      },
      "provenance": {
-      "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "sheet": "Janvier 2026",
       "range": "C4:C15",
       "detector": "fieldType",
@@ -243,7 +243,7 @@
       "ar": "Reste"
      },
      "provenance": {
-      "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "sheet": "Janvier 2026",
       "range": "D4:D15",
       "detector": "fieldType",
@@ -291,7 +291,7 @@
       "ar": "Statut"
      },
      "provenance": {
-      "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "sheet": "Janvier 2026",
       "range": "E4:E15",
       "detector": "fieldType",
@@ -327,7 +327,7 @@
     }
    ],
    "provenance": {
-    "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+    "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "sheet": "Janvier 2026",
     "range": "A3:E16",
     "detector": "table",
@@ -481,7 +481,7 @@
     }
    ],
    "provenance": {
-    "workbookSha256": "f5664bf0c027b15605fd0e46f49f894482634dabb33361052d2b417c7dc8fa80",
+    "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
     "sheet": "Calcul",
     "range": "B1",
     "detector": "calculator",
