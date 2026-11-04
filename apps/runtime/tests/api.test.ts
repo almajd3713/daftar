@@ -167,7 +167,9 @@ describe("roles (R-17)", () => {
   it("history masks sensitive changes for those who can't see them", async () => {
     await owner.patch(`/api/e/payments/${paymentId}`, { cost: 350 });
     const forViewer = (await viewer.get(`/api/e/payments/${paymentId}/history`)).body.changes;
-    expect(JSON.stringify(forViewer)).not.toContain("350");
+    // Ids and timestamps are random, and can hold those digits by chance.
+    const shown = JSON.stringify(forViewer).replace(/[0-9a-f]{8}-[0-9a-f-]{27}|\d{4}-\d\d-\d\dT[\d:.]+Z/g, "");
+    expect(shown).not.toContain("350");
     expect(forViewer[0].changes.cost).toEqual(["*", "*"]);
     const forOwner = (await owner.get(`/api/e/payments/${paymentId}/history`)).body.changes;
     expect(forOwner[0].changes.cost).toEqual([300, 350]);

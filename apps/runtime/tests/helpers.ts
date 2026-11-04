@@ -37,6 +37,13 @@ export async function newDatabase(): Promise<{ db: Db; name: string; drop: () =>
     name,
     drop: async () => {
       await db.destroy();
+      // destroy() asks each connection to close without waiting for the server to finish. FORCE would
+      // kill one still on its way out, and that client, out of the pool, has nobody to take the error.
+      for (let tries = 0; tries < 100; tries += 1) {
+        const { rows } = await sql<{ open: number }>`SELECT count(*)::int AS open FROM pg_stat_activity WHERE datname = ${name}`.execute(admin);
+        if (!rows[0]?.open) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
       await sql`DROP DATABASE ${sql.ref(name)} WITH (FORCE)`.execute(admin);
       await admin.destroy();
     },
