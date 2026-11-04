@@ -9,6 +9,7 @@ import re
 from typing import Any, cast
 
 from jsonschema import Draft202012Validator
+from openpyxl.utils import column_index_from_string, range_boundaries
 
 
 COLUMNS = ["id", "source", "licence", "language", "stratum", "split", "consent", "sha256"]
@@ -134,6 +135,78 @@ def check_label(label: Any, row: ManifestRow) -> list[str]:
     if len(names) != len(set(names)):
         problems.append(f"{row.id}: duplicate sheet names")
     return problems
+
+
+def schema_problems(label: Any) -> list[str]:
+    """What the label format itself refuses, without the rule that scoring refuses drafts."""
+    errors = sorted(_label_validator().iter_errors(label), key=lambda item: list(map(str, item.absolute_path)))
+    return [f"{'/'.join(str(part) for part in error.absolute_path) or '(root)'}: {error.message}" for error in errors]
+
+
+def _check_table(where: str, table: dict[str, Any], problems: list[str], warnings: list[str]) -> None:
+    left, top, right, bottom = (int(edge) for edge in range_boundaries(table["range"]))
+    for name, rows in (("header row", table["headerRows"]), ("total row", table.get("totalRows", []))):
+        problems.extend(f"{where}: {name} {row} is outside {table['range']}" for row in rows if not top <= row <= bottom)
+    both = set(table["headerRows"]) & set(table.get("totalRows", []))
+    problems.extend(f"{where}: row {row} is both a header and a total" for row in sorted(both))
+    columns = [field["column"] for field in table["fields"]]
+    repeated = sorted({column for column in columns if columns.count(column) > 1})
+    problems.extend(f"{where}: column {column} has two fields" for column in repeated)
+    numbers = {column_index_from_string(column) for column in columns}
+    problems.extend(f"{where}: field {column} is outside {table['range']}" for column in columns if not left <= column_index_from_string(column) <= right)
+    if not columns:
+        problems.append(f"{where}: no fields")
+    elif len(numbers & set(range(left, right + 1))) < right - left + 1:
+        warnings.append(f"{where}: some columns of {table['range']} have no field")
+    if not table["headerRows"]:
+        warnings.append(f"{where}: no header row")
+
+
+def _column_in_tables(sheet: dict[str, Any] | None, column: str) -> bool:
+    if sheet is None:
+        return False
+    number = column_index_from_string(column)
+    return any(int(range_boundaries(table["range"])[0]) <= number <= int(range_boundaries(table["range"])[2]) for table in sheet["tables"])
+
+
+def check_against_workbook(label: dict[str, Any], snapshot: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """Mistakes the format can't see, because they need the workbook. Problems block a review; warnings ask."""
+    problems: list[str] = []
+    warnings: list[str] = []
+    expected = [sheet["name"] for sheet in snapshot["sheets"]]
+    named = [sheet["name"] for sheet in label["sheets"]]
+    problems.extend(f"sheet {name}: not labelled" for name in expected if name not in named)
+    problems.extend(f"sheet {name}: not in the workbook" for name in named if name not in expected)
+    groups: dict[str, list[str]] = {}
+    for sheet in label["sheets"]:
+        name = sheet["name"]
+        if sheet["kind"] == "notConverted" and sheet["tables"]:
+            problems.append(f"sheet {name}: notConverted can't have tables")
+        if sheet["kind"] not in ("notConverted", "formulaModel") and not sheet["tables"]:
+            problems.append(f"sheet {name}: {sheet['kind']} needs a table")
+        if sheet.get("periodGroup"):
+            groups.setdefault(sheet["periodGroup"], []).append(name)
+        ranges = [range_boundaries(table["range"]) for table in sheet["tables"]]
+        for number, table in enumerate(sheet["tables"], start=1):
+            _check_table(f"sheet {name}, table {number}", table, problems, warnings)
+        for first in range(len(ranges)):
+            for second in range(first + 1, len(ranges)):
+                a, b = ranges[first], ranges[second]
+                if int(a[0]) <= int(b[2]) and int(b[0]) <= int(a[2]) and int(a[1]) <= int(b[3]) and int(b[1]) <= int(a[3]):
+                    problems.append(f"sheet {name}: tables {first + 1} and {second + 1} overlap")
+    problems.extend(f"period group {group}: needs at least two tabs" for group, names in sorted(groups.items()) if len(names) < 2)
+    by_name = {sheet["name"]: sheet for sheet in label["sheets"]}
+    for relation in label["relations"]:
+        origin, target = relation["from"], relation["to"]
+        text = f"relation {origin['sheet']}!{origin['column']} -> {target['sheet']}!{target['column']}"
+        for end in (origin, target):
+            if end["sheet"] not in by_name:
+                problems.append(f"{text}: no sheet {end['sheet']}")
+            elif not _column_in_tables(by_name[end["sheet"]], end["column"]):
+                warnings.append(f"{text}: {end['sheet']}!{end['column']} isn't in a table")
+        if origin == target:
+            problems.append(f"{text}: a column can't relate to itself")
+    return problems, warnings
 
 
 def load_labels(labels_dir: Path, rows: list[ManifestRow]) -> dict[str, dict[str, Any]]:

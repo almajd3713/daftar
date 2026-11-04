@@ -167,6 +167,19 @@ def _eval(args: argparse.Namespace) -> int:
         return EXIT_VALIDATION
 
 
+def _label(args: argparse.Namespace) -> int:
+    import uvicorn
+
+    from daftar_worker.evaluation.label_screen import HOST, create_label_app
+
+    labels = Path(args.labels)
+    manifest = Path(args.manifest) if args.manifest else labels.parent / "manifest.csv"
+    app = create_label_app(labels, manifest, args.who, args.port)
+    print(f"open http://{HOST}:{args.port}", file=sys.stderr)
+    uvicorn.run(app, host=HOST, port=args.port, log_level="warning")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="daftar")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -207,6 +220,12 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("--no-llm", action="store_true", help="rules only, even if a model is set")
     evaluate.add_argument("--freeze", action="store_true", help="record the test split as frozen")
     evaluate.set_defaults(run=_eval)
+    label = commands.add_parser("label", help="correct labels in a screen on this machine")
+    label.add_argument("--labels", required=True, metavar="DIR")
+    label.add_argument("--who", required=True, help="the labeller's name, recorded on each review")
+    label.add_argument("--manifest", help="default: manifest.csv beside the labels folder")
+    label.add_argument("--port", type=int, default=8790)
+    label.set_defaults(run=_label)
     args = parser.parse_args(argv)
     code: int = args.run(args)
     return code

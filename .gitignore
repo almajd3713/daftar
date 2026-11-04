@@ -7,6 +7,8 @@
 projects/
 *.daftar/
 eval/private/
+# A label stores formula results, so a private workbook's label is private too.
+eval/labels/sb_*
 *.xlsx
 *.xlsm
 *.xlsb
