@@ -5,6 +5,7 @@ export interface Message {
 }
 
 export const MESSAGES = {
+  workerUnavailable: { fr: "Le service Excel ne répond pas. Réessayez dans un instant.", ar: "خدمة Excel لا تستجيب. أعد المحاولة بعد قليل." },
   required: { fr: "Ce champ est obligatoire.", ar: "هذا الحقل إجباري." },
   unknownField: { fr: "Ce champ n'existe pas.", ar: "هذا الحقل غير موجود." },
   readOnly: { fr: "Ce champ est calculé ou ne peut pas être modifié ici.", ar: "هذا الحقل محسوب أو لا يمكن تعديله هنا." },

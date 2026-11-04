@@ -4,6 +4,8 @@ import { sql, type ExpressionBuilder } from "kysely";
 import type { DaftarSpec, Entity, Field, Workflow } from "@daftar/spec/types";
 
 import { column, tableOf, type Db, type Tx } from "../db.js";
+import { HttpException, HttpStatus } from "@nestjs/common";
+
 import { BadQuery, Conflict, FieldErrors, Forbidden, MESSAGES, NotFound } from "../errors.js";
 import { evaluate, ExcelError } from "../expr/evaluate.js";
 import type { Message } from "../messages.js";
@@ -16,6 +18,12 @@ export const MASK = "*";
 const MAX_PAGE_SIZE = 500;
 const FILTER_OPS: Record<string, string> = { eq: "=", ne: "!=", lt: "<", le: "<=", gt: ">", ge: ">=" };
 const NUMERIC = new Set(["integer", "decimal", "money", "percent"]);
+
+export interface ImportPlan {
+  entity: Entity;
+  added: { key: string; values: Record<string, unknown> }[];
+  changed: { key: string; id: string; version: number; fields: Record<string, [unknown, unknown]> }[];
+}
 
 export interface WriteContext {
   user: User;
@@ -576,6 +584,58 @@ export class RecordService {
     });
   }
 
+  /** R-23: apply chosen rows from a re-import, as the user who chose them, in one undoable batch. */
+  async applyImportBatch(
+    tx: Tx,
+    user: User,
+    plan: ImportPlan[],
+    resolve: (tx: Tx, entity: Entity, values: Record<string, unknown>, where: string, problems: SeedProblem[]) => Promise<Record<string, unknown>>,
+  ): Promise<{ batchId: string; added: number; changed: number; stale: string[]; problems: SeedProblem[] }> {
+    const { id: batchId } = (await sql<{ id: string }>`SELECT gen_random_uuid() AS id`.execute(tx)).rows[0] as { id: string };
+    const context: WriteContext = { user, source: "import", batchId, deferEngine: true };
+    const problems: SeedProblem[] = [];
+    const stale: string[] = [];
+    const inserted: { entity: Entity; row: Record<string, unknown> }[] = [];
+    let added = 0;
+    let changed = 0;
+    // The whole batch stands or falls together, so a refused row says which one it was.
+    const naming = async <T>(entity: Entity, key: string, write: () => Promise<T>): Promise<T> => {
+      try {
+        return await write();
+      } catch (error) {
+        if (error instanceof FieldErrors) throw new HttpException({ entity: entity.key, key, ...(error.getResponse() as object) }, HttpStatus.BAD_REQUEST);
+        throw error;
+      }
+    };
+    for (const { entity, added: rows, changed: edits } of plan) {
+      for (const item of rows) {
+        await naming(entity, item.key, async () => {
+          inserted.push({ entity, row: await this.createIn(tx, context, entity, await resolve(tx, entity, item.values, item.key, problems)) });
+        });
+        added += 1;
+      }
+      for (const item of edits) {
+        const before = await this.fetchRow(tx, user, entity, item.id, true);
+        // Someone edited this row after the comparison: what the owner chose no longer describes it.
+        if (before._version !== item.version) {
+          stale.push(item.key);
+          continue;
+        }
+        const incoming = Object.fromEntries(Object.entries(item.fields).map(([key, pair]) => [key, pair[1]]));
+        await naming(entity, item.key, async () => {
+          const values = await this.check(tx, user, entity, await resolve(tx, entity, incoming, item.key, problems), false, "import");
+          await this.updateIn(tx, context, entity, before, values, "update");
+        });
+        changed += 1;
+      }
+    }
+    // The deferred part of each new row's write, now that they're all in: formulas read across tables.
+    if (added || changed) for (const entity of this.spec.entities) await recomputeEngineFields(tx, this.spec, entity);
+    for (const { entity, row } of inserted) await recomputeDependents(tx, this.spec, entity, row._id as string, this.clock(), row);
+    await this.refreshTranslated(tx, [...new Set(inserted.map(({ entity }) => entity))]);
+    return { batchId, added, changed, stale, problems };
+  }
+
   /** Several entities in one transaction and one batch, so a seed loads whole or not at all. */
   async loadBatch(
     entities: { key: string; rows: Record<string, unknown>[] }[],
@@ -595,14 +655,17 @@ export class RecordService {
       }
       // Now everything is in: the formulas that read across tables see the whole picture.
       for (const { key } of entities) await recomputeEngineFields(tx, this.spec, this.entity(key));
-      for (const { key } of entities) {
-        const entity = this.entity(key);
-        if (!computedFields(entity).some((field) => field.computed.eval === "translated")) continue;
-        const rows = await tx.selectFrom(tableOf(key)).selectAll().execute();
-        for (const row of rows) await this.refreshComputed(tx, entity, row);
-      }
+      await this.refreshTranslated(tx, entities.map(({ key }) => this.entity(key)));
       return { batchId, created, problems };
     });
+  }
+
+  private async refreshTranslated(tx: Tx, entities: Entity[]): Promise<void> {
+    for (const entity of entities) {
+      if (!computedFields(entity).some((field) => field.computed.eval === "translated")) continue;
+      const rows = await tx.selectFrom(tableOf(entity.key)).selectAll().execute();
+      for (const row of rows) await this.refreshComputed(tx, entity, row);
+    }
   }
 
   private async refreshComputed(tx: Tx, entity: Entity, row: Record<string, unknown>): Promise<void> {

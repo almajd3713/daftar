@@ -412,7 +412,8 @@ class Generator:
                 period_date = self._period_date(tab)
                 if period_date is None:
                     continue
-                source["period"] = tab["period"]
+                # "--01" says only "January": the mapping needs the year the owner gave it.
+                source["period"] = period_date[:7] if tab["period"].startswith("-") else tab["period"]
             sources.append(source)
             rows += self._seed_rows(key, tab["sheet"], tab["table"], by_letter, period_key, period_date)
         if not sources:

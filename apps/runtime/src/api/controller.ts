@@ -11,12 +11,13 @@ import type { Db } from "../db.js";
 import { BadQuery, Forbidden, Unauthorized } from "../errors.js";
 import type { User } from "../records/access.js";
 import type { ListQuery, RecordService } from "../records/service.js";
+import { applyImport, exportWorkbook, startImport } from "./roundtrip.js";
 import { auditCsv, metaFor, notificationsFor, processingRegister, runCalculator } from "./features.js";
 
 export const RUNTIME = Symbol("runtime");
 export interface Runtime {
   spec: DaftarSpec;
-  config: Pick<Config, "timezone" | "processor">;
+  config: Pick<Config, "timezone" | "processor" | "workerUrl">;
   db: Db;
   auth: AuthService;
   records: RecordService;
@@ -173,6 +174,33 @@ export class ApiController {
   async notifications(@Req() request: Request) {
     const { db, spec, config, clock } = this.runtime;
     return { notifications: await notificationsFor(db, spec, await this.user(request), config.timezone, clock()) };
+  }
+
+  @Get("export.xlsx")
+  async exportXlsx(@Query("locale") locale: string | undefined, @Req() request: Request, @Res() response: Response): Promise<void> {
+    const user = await this.user(request);
+    const { db, spec, config } = this.runtime;
+    const data = await exportWorkbook(db, spec, user, config, locale === "ar-DZ" || locale === "fr-DZ" ? locale : undefined);
+    response.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    response.setHeader("Content-Disposition", 'attachment; filename="daftar.xlsx"');
+    response.send(data);
+  }
+
+  /** The body is the file itself, so a browser's fetch can send it with no form encoding. */
+  @Post("import")
+  async startImport(@Query("name") name: string | undefined, @Req() request: Request) {
+    const user = await this.user(request);
+    const { db, spec, config } = this.runtime;
+    const body = request.body as unknown;
+    if (!Buffer.isBuffer(body) || !body.length) throw new BadQuery("file");
+    return startImport(db, spec, user, config, body, name ?? "import.xlsx");
+  }
+
+  @Post("import/:diffId/apply")
+  @HttpCode(200)
+  async applyImport(@Param("diffId") diffId: string, @Body() body: Record<string, unknown>, @Req() request: Request) {
+    const { db, spec, records } = this.runtime;
+    return applyImport(db, spec, records, await this.user(request), diffId, body.selected as Parameters<typeof applyImport>[5]);
   }
 
   /** C-9's compliance export. History is the automated log that Law 25-11 asks for. */

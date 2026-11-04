@@ -90,6 +90,18 @@ export class Client {
     return { status: response.status, body: parsed, text };
   }
 
+  /** A file, as a browser's fetch sends it. */
+  async upload(path: string, data: Uint8Array<ArrayBuffer>, type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): Promise<Response> {
+    const response = await fetch(`${this.base}${path}`, { method: "POST", headers: { "Content-Type": type, Cookie: this.cookie }, body: data });
+    const text = await response.text();
+    return { status: response.status, body: text ? JSON.parse(text) : null, text };
+  }
+
+  async download(path: string): Promise<{ status: number; type: string | null; data: Uint8Array<ArrayBuffer> }> {
+    const response = await fetch(`${this.base}${path}`, { headers: { Cookie: this.cookie } });
+    return { status: response.status, type: response.headers.get("content-type"), data: new Uint8Array(await response.arrayBuffer()) };
+  }
+
   get = (path: string) => this.request("GET", path);
   post = (path: string, body: unknown = {}) => this.request("POST", path, body);
   patch = (path: string, body: unknown) => this.request("PATCH", path, body);
