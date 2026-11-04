@@ -33,7 +33,8 @@ TEXT_PERCENT = re.compile(r"^-?[0-9]+([.,][0-9]+)?\s*%$")
 TEXT_INTEGER = re.compile(r"^-?[1-9][0-9]{0,2}([   .,][0-9]{3})+$|^-?(0|[1-9][0-9]*)$")
 TEXT_DECIMAL = re.compile(r"^-?[0-9]{1,3}([   .][0-9]{3})*,[0-9]+$|^-?[0-9]+[.,][0-9]+$")
 BOOLEAN_WORDS = {"oui", "non", "yes", "no", "vrai", "faux", "true", "false", "نعم", "لا", "o", "n"}
-MULTI_SEPARATOR = re.compile(r"\s*[;,/+]\s*")
+MULTI_SEPARATOR = re.compile(r"\s*[;,]\s*")
+MULTI_MAX_VALUES = 20
 
 SERIAL_LOW = 18264  # 1950-01-01.
 SERIAL_HIGH = 73050  # 2099-12-31.
@@ -191,7 +192,7 @@ def _free_text(cells: list[Cell], total: int) -> TypeGuess:
         total >= CHOICE_MIN_ROWS
         and any(MULTI_SEPARATOR.search(text) for text in texts)
         and 2 <= distinct_parts < distinct
-        and distinct_parts <= total * 0.5
+        and distinct_parts <= min(total * 0.5, MULTI_MAX_VALUES)
     ):
         guess = _guess("multichoice", "fewValuesSeparated", len(cells), total, 0.65)
         guess.choices = _choices_from(parts)

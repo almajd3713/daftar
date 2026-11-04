@@ -294,23 +294,25 @@ def _scan_workbook_parts(archive: zipfile.ZipFile, package: RawPackage) -> None:
             package.unsupported.append({"kind": "other", "sheet": sheet.name})
 
 
-PIVOT_RELATIONSHIP = re.compile(r"<Relationship\b[^>]*/pivotTable\"[^>]*/>")
+EMBEDDED_RELATIONSHIP = re.compile(r"<Relationship\b[^>]*/(?:pivotTable|drawing)\"[^>]*/>")
 
 
-def copy_without_pivot_links(path: str, target: str) -> bool:
-    """Copy the package minus its sheet-to-pivot links. Returns False if it has no pivots.
+def copy_without_embedded_objects(path: str, target: str) -> bool:
+    """Copy the package minus its links to pivots and drawings. False if it has neither.
 
-    openpyxl parses every pivot on load, only to preserve it, and raises on any it dislikes. We
-    never read pivots through it, so one odd pivot mustn't make a whole workbook unreadable.
+    openpyxl parses every pivot and chart on load, only to preserve them, and raises on any it
+    dislikes. Real files do trip this. We report those parts from the raw XML, so one odd chart
+    mustn't make a whole workbook unreadable.
     """
     with zipfile.ZipFile(path) as archive:
-        if not any(name.startswith("xl/pivotTables/") for name in archive.namelist()):
+        names = archive.namelist()
+        if not any(name.startswith(("xl/pivotTables/", "xl/drawings/")) for name in names):
             return False
         with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as out:
-            for name in archive.namelist():
+            for name in names:
                 data = archive.read(name)
-                if name.startswith("xl/worksheets/_rels/"):
-                    data = PIVOT_RELATIONSHIP.sub("", data.decode("utf-8")).encode("utf-8")
+                if name.startswith(("xl/worksheets/_rels/", "xl/chartsheets/_rels/")):
+                    data = EMBEDDED_RELATIONSHIP.sub("", data.decode("utf-8")).encode("utf-8")
                 out.writestr(name, data)
     return True
 

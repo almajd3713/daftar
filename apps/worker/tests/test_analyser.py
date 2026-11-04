@@ -1,3 +1,4 @@
+from datetime import datetime
 import hashlib
 import json
 from pathlib import Path
@@ -218,12 +219,15 @@ def _write(path: Path, rows: dict[str, list[Any]], name: str = "S", header_bold:
     book = xlsxwriter.Workbook(str(path))
     sheet = book.add_worksheet(name)
     bold = book.add_format({"bold": True}) if header_bold else None
+    date_format = book.add_format({"num_format": "dd/mm/yyyy"})
     for position, (cell, values) in enumerate(rows.items()):
         for offset, value in enumerate(values):
             if value is None:
                 continue
             target = xl_cell_to_rowcol(cell)
-            if isinstance(value, str) and value.startswith("="):
+            if isinstance(value, datetime):
+                sheet.write_datetime(target[0], target[1] + offset, value, date_format)
+            elif isinstance(value, str) and value.startswith("="):
                 sheet.write_formula(target[0], target[1] + offset, value, None, 1)
             else:
                 sheet.write(target[0], target[1] + offset, value, bold if position == 0 else None)
@@ -299,6 +303,88 @@ def test_table_with_no_header_is_low_confidence_with_letter_names(tmp_path: Path
     assert table["confidence"]["level"] == "low"
     assert by_kind(analysis, "header") == []
     assert {item["proposal"]["name"] for item in by_kind(analysis, "fieldType")} == {"A", "B", "C"}
+
+
+# Shapes found in real public workbooks, where the first version of the rules missed the header.
+
+
+def _period_rows(first: list[Any], label: str = "Ligne") -> dict[str, list[Any]]:
+    rows: dict[str, list[Any]] = {"A1": first}
+    for row in range(2, 7):
+        rows[f"A{row}"] = [f"{label} {row}"] + [row * 1.5 + offset for offset in range(len(first) - 1)]
+    return rows
+
+
+@pytest.mark.parametrize(
+    "first",
+    [
+        ["Année", 2000, 2001, 2002],
+        ["Agent", 1, 2, 3, 4],
+        ["Date", datetime(2020, 1, 1), datetime(2020, 2, 29), datetime(2020, 3, 31)],
+    ],
+    ids=["years", "consecutive", "dates"],
+)
+def test_a_label_then_a_rising_series_is_a_header(tmp_path: Path, first: list[Any]) -> None:
+    path = _write(tmp_path / "p.xlsx", _period_rows(first))
+    analysis = analyze_snapshot(read_file(path))
+    assert by_kind(analysis, "table")[0]["proposal"]["headerRows"] == [1]
+    labels = by_kind(analysis, "header")[0]["proposal"]["labels"]
+    assert labels[0]["label"] == first[0]
+    assert all("T00:00:00" not in item["label"] for item in labels)
+
+
+@pytest.mark.parametrize(
+    "first",
+    [
+        ["Sara", 3, 1, 246],  # Not rising.
+        ["Sara", 88, 90, 95],  # Rising, but neither years nor a count.
+        ["Sara", 1.5, 2.5, 3.5],  # Not whole numbers.
+    ],
+)
+def test_an_ordinary_record_isnt_a_period_header(tmp_path: Path, first: list[Any]) -> None:
+    path = _write(tmp_path / "p.xlsx", _period_rows(first))
+    assert by_kind(analyze_snapshot(read_file(path)), "table")[0]["proposal"]["headerRows"] == []
+
+
+def test_a_rising_row_followed_by_numbers_isnt_a_header(tmp_path: Path) -> None:
+    rows: dict[str, list[Any]] = {"A1": ["Sara", 1, 2, 3], "A2": [7, 8, 9, 10], "A3": [7, 2, 5, 1], "A4": [1, 3, 2, 4]}
+    assert by_kind(analyze_snapshot(read_file(_write(tmp_path / "p.xlsx", rows))), "table")[0]["proposal"]["headerRows"] == []
+
+
+def test_header_built_by_formulas(tmp_path: Path) -> None:
+    path = tmp_path / "f.xlsx"
+    book = xlsxwriter.Workbook(str(path))
+    sheet = book.add_worksheet("F")
+    sheet.write("A1", "Nom")
+    sheet.write_formula("B1", '="Test "&1', None, "Test 1")
+    sheet.write_formula("C1", '="Test "&2', None, "Test 2")
+    for row in range(2, 7):
+        sheet.write_row(f"A{row}", [f"Élève {row}", row * 1.5, row * 2.5])
+    book.close()
+    analysis = analyze_snapshot(read_file(path))
+    labels = by_kind(analysis, "header")[0]["proposal"]["labels"]
+    assert [item["label"] for item in labels] == ["Nom", "Test 1", "Test 2"]
+
+
+def test_repeated_header_names_over_numbers_are_still_a_header(tmp_path: Path) -> None:
+    rows: dict[str, list[Any]] = {"A1": ["Réf", "Autre", "Autre"]}
+    for row in range(2, 7):
+        rows[f"A{row}"] = [f"R{row}", row * 1.5, row * 2.5]
+    assert by_kind(analyze_snapshot(read_file(_write(tmp_path / "r.xlsx", rows))), "table")[0]["proposal"]["headerRows"] == [1]
+
+
+def test_a_lone_date_above_a_wide_table_is_a_title(tmp_path: Path) -> None:
+    rows: dict[str, list[Any]] = {"A1": [datetime(2016, 6, 28)], "A2": ["Agent", "Ventes", "Retours"]}
+    for row in range(3, 8):
+        rows[f"A{row}"] = [f"Agent {row}", row * 1.5, row]
+    table = by_kind(analyze_snapshot(read_file(_write(tmp_path / "d.xlsx", rows))), "table")[0]["proposal"]
+    assert table["titleRows"] == [1]
+    assert table["headerRows"] == [2]
+
+
+def test_a_lone_column_with_no_title_isnt_a_table(tmp_path: Path) -> None:
+    rows: dict[str, list[Any]] = {f"A{row}": [row * 3] for row in range(1, 9)}
+    assert by_kind(analyze_snapshot(read_file(_write(tmp_path / "c.xlsx", rows))), "table") == []
 
 
 def test_a_word_starting_like_total_isnt_one(tmp_path: Path) -> None:
@@ -444,6 +530,7 @@ def test_phone_numbers(number: str, expected: bool) -> None:
         (_cells(["x" * 120, "y" * 130]), "", "longtext"),
         (_cells(["Rouge", "Vert", "Rouge", "Vert", "Rouge", "Vert"]), "", "choice"),
         (_cells(["Rouge;Vert", "Vert", "Bleu;Rouge", "Vert", "Bleu", "Rouge"]), "", "multichoice"),
+        (_cells(["18e siècle / 19e", "19e", "20e / 19e", "18e", "20e", "19e"]), "", "text"),  # A slash isn't a list.
         (_cells(["a", "b", "c", "d", "e", "f"]), "", "text"),
     ],
 )

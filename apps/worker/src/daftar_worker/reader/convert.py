@@ -7,9 +7,11 @@ Don't trust the formula results in the output: LibreOffice recalculates these fo
 
 import os
 from pathlib import Path
+import re
 import shutil
 import signal
 import subprocess
+import zipfile
 
 from daftar_worker.errors import WorkerError
 from daftar_worker.reader.limits import CONVERT_TIMEOUT_SECONDS
@@ -26,6 +28,33 @@ PROFILE = """<?xml version="1.0" encoding="UTF-8"?>
 <item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="MacroSecurityLevel" oor:op="fuse"><value>3</value></prop></item>
 </oor:items>
 """  # noqa: E501
+
+
+# Control characters XML 1.0 forbids, raw or as numeric references. Old .xls text can hold them.
+RAW_CONTROL = re.compile(rb"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+REFERENCE = re.compile(rb"&#(x[0-9a-fA-F]+|[0-9]+);")
+# LibreOffice also leaves a bare "&" in some drawing names, as in "Sales & Use".
+BARE_AMPERSAND = re.compile(rb"&(?!(?:amp|lt|gt|quot|apos|#[0-9]+|#x[0-9a-fA-F]+);)")
+
+
+def _drop_illegal_reference(match: re.Match[bytes]) -> bytes:
+    text = match.group(1).decode()
+    code = int(text[1:], 16) if text.startswith("x") else int(text)
+    legal = code in (0x9, 0xA, 0xD) or 0x20 <= code <= 0xD7FF or 0xE000 <= code <= 0xFFFD or code >= 0x10000
+    return match.group(0) if legal else b""
+
+
+def remove_illegal_xml(path: Path) -> None:
+    """Repair a converted file in place: LibreOffice's XML isn't always well-formed."""
+    temporary = path.with_suffix(".clean")
+    with zipfile.ZipFile(path) as source, zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED) as target:
+        for name in source.namelist():
+            data = source.read(name)
+            if name.endswith((".xml", ".rels")):
+                data = REFERENCE.sub(_drop_illegal_reference, RAW_CONTROL.sub(b"", data))
+                data = BARE_AMPERSAND.sub(b"&amp;", data)
+            target.writestr(name, data)
+    temporary.replace(path)
 
 
 def soffice_path() -> str | None:
@@ -69,4 +98,5 @@ def convert_to_xlsx(source: Path, work_dir: Path) -> Path:
     converted = out_dir / f"{source.stem}.xlsx"
     if not converted.exists():
         raise WorkerError("unreadable", f"LibreOffice produced no file, exit {process.returncode}")
+    remove_illegal_xml(converted)
     return converted

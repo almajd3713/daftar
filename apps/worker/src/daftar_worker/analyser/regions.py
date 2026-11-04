@@ -134,10 +134,30 @@ def _is_lone_row(grid: Grid, row: int, rect: Rect) -> bool:
 
 
 def _is_header_like(cells: list[Cell]) -> bool:
+    """All text. A formula that builds a label ("Test 1") counts, since its result is text."""
     if not cells:
         return False
-    text = [cell for cell in cells if cell.is_text]
-    return len(text) == len(cells) and all(len(text_of(cell)) <= 80 for cell in text)
+    return all(cell.kind == "s" and cell.value is not None and len(text_of(cell)) <= 80 for cell in cells)
+
+
+def _is_period_header(cells: list[Cell], following: list[Cell]) -> bool:
+    """A label, then a rising series across the columns: Année, 2000, 2001 or Agent, 1, 2, 3.
+
+    The series must rise, and the next row must start with its own label, or this would match
+    ordinary records that begin with a name.
+    """
+    if len(cells) < 3 or not cells[0].is_text or not following or not following[0].is_text:
+        return False
+    series = cells[1:]
+    if all(cell.kind == "d" for cell in series):
+        values = [str(cell.value) for cell in series]
+        return values == sorted(set(values))
+    if not all(cell.is_number and float(cell.value).is_integer() for cell in series):
+        return False
+    numbers = [int(cell.value) for cell in series]
+    rising = all(later > earlier for earlier, later in zip(numbers, numbers[1:], strict=False))
+    steps_by_one = all(later - earlier == 1 for earlier, later in zip(numbers, numbers[1:], strict=False))
+    return rising and (steps_by_one or all(1900 <= number <= 2100 for number in numbers))
 
 
 def _is_data_like(cells: list[Cell]) -> bool:
@@ -153,13 +173,16 @@ def _style_key(cells: list[Cell]) -> tuple[bool, bool]:
 
 def _find_headers(grid: Grid, rect: Rect, top: int, bottom: int) -> tuple[list[int], float]:
     first = grid.row_cells(top, rect.left, rect.right)
+    if _is_period_header(first, grid.row_cells(top + 1, rect.left, rect.right)):
+        return [top], 0.8
     if not _is_header_like(first):
         return [], 0.0
     # An all-text sheet could have data in its first row. Style and repetition tell them apart.
     values = [text_of(cell).casefold() for cell in first]
     below = _column_profile_differs(grid, rect, top, bottom)
     styled = any(_style_key(first))
-    if len(set(values)) < len(values) and not styled and not grid.spanning_merge(top, rect.left, rect.right):
+    repeated = len(set(values)) < len(values)
+    if repeated and not styled and not below and not grid.spanning_merge(top, rect.left, rect.right):
         return [], 0.0
 
     rows = [top]
@@ -316,7 +339,7 @@ def _trim_edges(grid: Grid, rect: Rect) -> tuple[int, int, list[int], list[int]]
     """Set aside lone title rows above the table and lone note rows below it."""
     top, bottom = rect.top, rect.bottom
     titles: list[int] = []
-    while top < bottom and _is_lone_text(grid, top, rect):
+    while top < bottom and _is_lone_title(grid, top, rect):
         titles.append(top)
         top += 1
     notes: list[int] = []
@@ -335,6 +358,14 @@ def _is_lone_text(grid: Grid, row: int, rect: Rect) -> bool:
     return cells[0].is_text
 
 
+def _is_lone_title(grid: Grid, row: int, rect: Rect) -> bool:
+    """A lone text, or a lone date such as the report date on top of a wide table."""
+    if _is_lone_text(grid, row, rect):
+        return True
+    cells = grid.row_cells(row, rect.left, rect.right)
+    return len(cells) == 1 and cells[0].kind == "d" and rect.width >= 3
+
+
 def analyse_block(grid: Grid, rect: Rect, layout: SheetLayout) -> None:
     top, bottom, titles, notes = _trim_edges(grid, rect)
     height = bottom - top + 1
@@ -350,7 +381,8 @@ def analyse_block(grid: Grid, rect: Rect, layout: SheetLayout) -> None:
         return
     headers, confidence = _find_headers(grid, content, top, bottom)
     data_top = headers[-1] + 1 if headers else top
-    if data_top > bottom:
+    # A lone column with no title is a scrap of working figures, not a table.
+    if data_top > bottom or (not headers and len(columns_used) == 1):
         layout.other_blocks.append(rect)
         return
     totals = _find_total_rows(grid, content, data_top, bottom)
@@ -407,7 +439,7 @@ def flatten_headers(grid: Grid, table: Table) -> dict[int, str]:
             cell = grid.get(row, column)
             if cell is not None:
                 span = grid.merge_spans.get((row, column))
-                carried = text_of(cell)
+                carried = text_of(cell).removesuffix("T00:00:00")
                 carried_until = span[1] if span else column
                 labels.setdefault(column, []).append(carried)
             elif column <= carried_until and carried:
