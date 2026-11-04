@@ -64,7 +64,13 @@ Reasons for `notConverted`:
 
 **Unsure between `ledger` and `register`?** Look for a date and an amount on each row. If they say what happened that day, it's `ledger`.
 
-**Unsure between `referenceList` and `register`?** Does another sheet use it to look up values? If not, it's `register`.
+**Unsure between `referenceList` and `register`?** A `referenceList` has one row per key, and exists so that others can look a value up. Being read by a formula isn't enough: rows whose keys repeat, or quantities that another sheet adds up with `SUMIFS`, aren't a reference list. Neither are the figures of a business's accounts, even with one row per line item: they're the data itself, so that's `register`.
+
+**Unsure between `formulaModel` and a list?** Labelled single values read by formulas (a rate, an area, a growth figure) are a model's inputs, not a table, even when they sit alone on their own sheet. Rows that list things stay a list, even with formula totals under them.
+
+**Unsure between `form` and a table?** A blank layout to fill in or print is a `form`. Filled-in documents that hold real rows, such as invoices with their lines, are tables: mark one per document.
+
+**Unsure between `report` and a table?** Look at the layout, not only at the formulas. Figures typed in but grouped for reading, with group headings between the rows and the same labels repeated under each, are a `report`.
 
 ### Column type
 
@@ -83,13 +89,26 @@ Reasons for `notConverted`:
 | `longtext` | Sentences, remarks |
 | `text` | Everything else: names, codes, addresses |
 
-A mixed column takes the type of most of its values. Say so in the notes if it matters.
+A mixed column takes the type of most of its values. Say so in the notes if it matters. A column with a formula in only a few cells is therefore not `computed`.
+
+**`choice` or `text`?** Repeating isn't enough. It's `choice` only if someone could write the whole list in advance and new rows would rarely add to it: a status, a category, a department. Customers, products, item codes and brands keep growing, so they're `text`, or `link` if they point to another sheet. A dropdown in the column makes it `choice`, or `link` if its list comes from another sheet.
+
+**`date` or `datetime`?** If every time in the column is midnight, it's `date`.
+
+**A column a relation starts from is `link`**, unless it's `computed`.
 
 ### Relations
 
 A relation goes from the column that **points** (many rows) to the column that **identifies** (one row per value). For example `January!C` → `Customers!A`.
 
-Count a lookup (`VLOOKUP`), a dropdown fed by another sheet, or values that clearly match. On a series of tabs, add the relation **for each tab**.
+Count any of these:
+
+- A lookup (`VLOOKUP`, `INDEX`/`MATCH`).
+- A `SUMIFS` or `COUNTIFS` that matches on a column of another sheet. The rows being added up point to the sheet holding the formula. If it matches on two columns, add two relations.
+- A dropdown fed by another sheet.
+- A column naming things listed on another sheet, even with no formula: client names in a tracker, with a sheet of clients.
+
+Values that happen to be the same don't count: two columns of city names aren't related unless one is the list of the other. On a series of tabs, add the relation **for each tab**.
 
 ### Series of tabs
 
@@ -170,7 +189,13 @@ Raisons pour `notConverted` :
 
 **En cas de doute entre `ledger` et `register` :** cherchez une date et un montant sur chaque ligne. S'ils décrivent ce qui s'est passé ce jour-là, c'est `ledger`.
 
-**En cas de doute entre `referenceList` et `register` :** une autre feuille s'en sert-elle pour retrouver ses valeurs ? Si non, c'est `register`.
+**En cas de doute entre `referenceList` et `register` :** une `referenceList` a une ligne par clé et sert à y retrouver une valeur. Être lue par une formule ne suffit pas : des lignes dont les clés se répètent, ou des quantités qu'une autre feuille additionne avec `SUMIFS`, ne forment pas une liste de référence. Les chiffres des comptes d'une entreprise non plus, même avec une ligne par poste : ce sont les données elles-mêmes, donc `register`.
+
+**En cas de doute entre `formulaModel` et une liste :** des valeurs isolées et nommées, lues par des formules (un taux, une surface, une croissance), sont les entrées d'un modèle et non un tableau, même seules sur leur propre feuille. Des lignes qui énumèrent des choses restent une liste, même avec des totaux calculés en dessous.
+
+**En cas de doute entre `form` et un tableau :** une mise en page vierge à remplir ou à imprimer est un `form`. Des documents remplis qui contiennent de vraies lignes, comme des factures avec leurs articles, sont des tableaux : un par document.
+
+**En cas de doute entre `report` et un tableau :** regardez la disposition, pas seulement les formules. Des chiffres saisis à la main mais regroupés pour la lecture, avec des titres de groupe entre les lignes et les mêmes libellés répétés sous chacun, forment un `report`.
 
 ### Type des colonnes
 
@@ -189,13 +214,26 @@ Raisons pour `notConverted` :
 | `longtext` | Des phrases, des remarques |
 | `text` | Le reste : noms, codes, adresses |
 
-Une colonne mélangée prend le type de la majorité de ses valeurs. Mentionnez-le dans les notes si c'est gênant.
+Une colonne mélangée prend le type de la majorité de ses valeurs. Mentionnez-le dans les notes si c'est gênant. Une colonne avec une formule dans quelques cases seulement n'est donc pas `computed`.
+
+**`choice` ou `text` ?** Se répéter ne suffit pas. C'est `choice` seulement si l'on pourrait écrire toute la liste à l'avance et si les nouvelles lignes l'allongeraient rarement : un statut, une catégorie, un service. Les clients, les produits, les codes d'articles et les marques ne cessent de s'ajouter : c'est `text`, ou `link` s'ils renvoient à une autre feuille. Une liste déroulante dans la colonne en fait un `choice`, ou un `link` si sa liste vient d'une autre feuille.
+
+**`date` ou `datetime` ?** Si toutes les heures de la colonne sont à minuit, c'est `date`.
+
+**Une colonne d'où part un lien est `link`**, sauf si elle est `computed`.
 
 ### Liens
 
 Un lien part de la colonne qui **renvoie** (les nombreuses lignes) et arrive à la colonne qui **identifie** (une ligne par valeur). Exemple : `Janvier!C` → `Clients!A`.
 
-Comptez comme lien une recherche (`VLOOKUP`), une liste déroulante alimentée par une autre feuille, ou des valeurs qui correspondent clairement. Sur une série d'onglets, ajoutez le lien **pour chaque onglet**.
+Comptez comme lien :
+
+- Une recherche (`VLOOKUP`, `INDEX`/`MATCH`).
+- Un `SUMIFS` ou `COUNTIFS` qui compare une colonne d'une autre feuille. Les lignes additionnées renvoient à la feuille qui porte la formule. S'il compare deux colonnes, ajoutez deux liens.
+- Une liste déroulante alimentée par une autre feuille.
+- Une colonne qui nomme des choses listées sur une autre feuille, même sans formule : des noms de clients dans un suivi, avec une feuille de clients.
+
+Des valeurs identiques par hasard ne comptent pas : deux colonnes de villes ne sont liées que si l'une est la liste de l'autre. Sur une série d'onglets, ajoutez le lien **pour chaque onglet**.
 
 ### Séries d'onglets
 
@@ -282,7 +320,13 @@ uv run daftar label --labels eval/labels --who "Votre nom"
 
 **عند التردد بين `ledger` و`register`:** ابحث عن تاريخ ومبلغ في كل صف. إذا كانا يصفان ما حدث في ذلك اليوم فهي `ledger`.
 
-**عند التردد بين `referenceList` و`register`:** هل تستعملها ورقة أخرى لجلب قيمها؟ إذا لم يكن كذلك فهي `register`.
+**عند التردد بين `referenceList` و`register`:** في `referenceList` صف واحد لكل مفتاح، والغرض منها جلب قيمة منها. لا يكفي أن تقرأها صيغة: الصفوف التي تتكرر مفاتيحها، أو الكميات التي تجمعها ورقة أخرى بـ`SUMIFS`، ليست قائمة مرجعية. وكذلك أرقام حسابات المؤسسة، حتى مع صف واحد لكل بند: فهي البيانات نفسها، إذن `register`.
+
+**عند التردد بين `formulaModel` وقائمة:** القيم المنفردة المسمّاة التي تقرأها الصيغ (نسبة، مساحة، معدل نمو) هي مدخلات نموذج وليست جدولا، حتى لو كانت وحدها في ورقتها. أما الصفوف التي تعدّد أشياء فتبقى قائمة، حتى مع مجاميع محسوبة تحتها.
+
+**عند التردد بين `form` وجدول:** التخطيط الفارغ المعدّ للملء أو الطباعة هو `form`. أما المستندات المملوءة التي فيها صفوف حقيقية، كالفواتير ببنودها، فهي جداول: جدول لكل مستند.
+
+**عند التردد بين `report` وجدول:** انظر إلى التخطيط لا إلى الصيغ فقط. الأرقام المكتوبة يدويا والمجمّعة للقراءة، مع عناوين مجموعات بين الصفوف وتكرار التسميات نفسها تحت كل عنوان، هي `report`.
 
 ### نوع الأعمدة
 
@@ -301,13 +345,26 @@ uv run daftar label --labels eval/labels --who "Votre nom"
 | `longtext` | جمل وملاحظات |
 | `text` | الباقي: أسماء، رموز، عناوين |
 
-العمود المختلط يأخذ نوع أغلب قيمه. اذكر ذلك في الملاحظات إذا كان مزعجا.
+العمود المختلط يأخذ نوع أغلب قيمه. اذكر ذلك في الملاحظات إذا كان مزعجا. لذلك فالعمود الذي فيه صيغة في بضع خانات فقط ليس `computed`.
+
+**`choice` أم `text`؟** التكرار وحده لا يكفي. يكون `choice` فقط إذا أمكن كتابة القائمة كلها مسبقا وكانت الصفوف الجديدة نادرا ما تضيف إليها: حالة، صنف، قسم. الزبائن والمنتجات ورموز السلع والعلامات التجارية تزداد باستمرار، فهي `text`، أو `link` إذا كانت تشير إلى ورقة أخرى. القائمة المنسدلة في العمود تجعله `choice`، أو `link` إذا جاءت قائمتها من ورقة أخرى.
+
+**`date` أم `datetime`؟** إذا كانت كل الأوقات في العمود منتصف الليل فهو `date`.
+
+**العمود الذي يبدأ منه رابط نوعه `link`**، إلا إذا كان `computed`.
 
 ### الروابط
 
 يبدأ الرابط من العمود الذي **يشير** (الصفوف الكثيرة) وينتهي عند العمود الذي **يعرّف** (صف واحد لكل قيمة). مثال: <span dir="ltr">`Janvier!C` → `Clients!A`</span>.
 
-اعتبر رابطا كل بحث (`VLOOKUP`)، أو قائمة منسدلة تغذيها ورقة أخرى، أو قيما تتطابق بوضوح. في سلسلة أوراق، أضف الرابط **لكل ورقة**.
+اعتبر رابطا كل ما يلي:
+
+- بحث (`VLOOKUP`، `INDEX`/`MATCH`).
+- `SUMIFS` أو `COUNTIFS` يطابق عمودا من ورقة أخرى. الصفوف التي تُجمع تشير إلى الورقة التي فيها الصيغة. إذا طابق عمودين فأضف رابطين.
+- قائمة منسدلة تغذيها ورقة أخرى.
+- عمود يذكر أشياء مدرجة في ورقة أخرى، حتى دون صيغة: أسماء الزبائن في جدول متابعة مع ورقة للزبائن.
+
+القيم المتطابقة صدفة لا تُحسب: عمودان لأسماء المدن ليسا مرتبطين إلا إذا كان أحدهما قائمة الآخر. في سلسلة أوراق، أضف الرابط **لكل ورقة**.
 
 ### سلاسل الأوراق
 
