@@ -4,6 +4,9 @@ import csv
 import hashlib
 import json
 from pathlib import Path
+import re
+import shutil
+import subprocess
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -236,6 +239,28 @@ def test_the_page_never_turns_a_cell_into_markup_and_says_so_to_the_browser(clie
     assert "document.write" not in response.text
     assert "default-src 'none'" in response.headers["content-security-policy"]
     assert "http://" not in response.text and "https://" not in response.text
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("ITEM", "ITEM"),
+        ("THILAND", "THILAND"),
+        ("TOTAL T", "TOTAL T"),
+        ("2026-01-03T00:00:00", "2026-01-03"),
+        ("2026-01-03T10:30:00", "2026-01-03 10:30:00"),
+        (12, "12"),
+        (None, ""),
+    ],
+)
+def test_the_page_shows_cells_as_the_workbook_holds_them(client: TestClient, value: Any, expected: str) -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("needs node")
+    match = re.search(r"const shown = .*?\n};\n", client.get("/").text, re.DOTALL)
+    assert match
+    script = f"{match.group(0)}process.stdout.write(shown({json.dumps(value)}));"
+    assert subprocess.run([node, "-e", script], capture_output=True, text=True, check=True, timeout=30).stdout == expected
 
 
 def _label(*sheets: dict[str, Any], relations: list[dict[str, Any]] | None = None) -> dict[str, Any]:

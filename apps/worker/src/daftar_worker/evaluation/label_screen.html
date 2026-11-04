@@ -201,7 +201,12 @@ function prepareSheet(sheet) {
 }
 const currentSheet = () => state.sheets[state.sheet];
 const currentLabel = () => state.label.sheets.find((item) => item.name === currentSheet().name);
-const shown = (value) => value === null || value === undefined ? "" : String(value).replace(/T00:00:00(\.0+)?Z?$/, "").replace("T", " ");
+// Only a real date loses its T. Any other text is shown exactly as the workbook holds it.
+const shown = (value) => {
+  if (value === null || value === undefined) return "";
+  const text = String(value);
+  return text.replace(/T00:00:00(\.0+)?Z?$/, "").replace("T", " ");
+};
 const cellText = (sheet, r, c) => {
   const cell = sheet.cellMap.get(`${r},${c}`);
   return cell ? shown(cell.v).replace(/\s+/g, " ").trim() : "";
