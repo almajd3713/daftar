@@ -752,7 +752,22 @@
         "headerRow": { "type": "integer", "minimum": 1 },
         "columns": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/mappingColumn" } },
         "keyColumns": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/key" } },
+        "totals": {
+          "type": "array",
+          "description": "The total row the sheet had, so an export can write it again (R-22).",
+          "items": { "$ref": "#/$defs/mappingTotal" }
+        },
         "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "mappingTotal": {
+      "title": "MappingTotal",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "function"],
+      "properties": {
+        "field": { "$ref": "#/$defs/key" },
+        "function": { "enum": ["sum", "average", "count", "counta", "max", "min", "product"] }
       }
     },
     "mappingSource": {
@@ -775,7 +790,8 @@
       "required": ["header", "field"],
       "properties": {
         "header": { "type": "string", "minLength": 1 },
-        "field": { "$ref": "#/$defs/key" }
+        "field": { "$ref": "#/$defs/key" },
+        "column": { "type": "string", "pattern": "^[A-Z]{1,3}$", "description": "Its letter in the sheet. Without it, columns run on from the source's first column." }
       }
     }
   }

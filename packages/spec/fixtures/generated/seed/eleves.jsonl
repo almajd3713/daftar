@@ -1,0 +1,16 @@
+{"matricule": "E000", "eleve": "Élève 0", "parent": {"$ref": {"field": "nom", "value": "BENALI"}}, "telephone_parent": "0550123456"}
+{"matricule": "E001", "eleve": "Élève 1", "parent": {"$ref": {"field": "nom", "value": "BENALI"}}, "telephone_parent": "0550123456"}
+{"matricule": "E002", "eleve": "Élève 2", "parent": {"$ref": {"field": "nom", "value": "BENALI"}}, "telephone_parent": "0550123456"}
+{"matricule": "E003", "eleve": "Élève 3", "parent": {"$ref": {"field": "nom", "value": "mme_saidi"}}, "telephone_parent": "0661234567"}
+{"matricule": "E004", "eleve": "Élève 4", "parent": {"$ref": {"field": "nom", "value": "mme_saidi"}}, "telephone_parent": "0661234567"}
+{"matricule": "E005", "eleve": "Élève 5", "parent": {"$ref": {"field": "nom", "value": "hamdi_karim"}}, "telephone_parent": "0771234567"}
+{"matricule": "E006", "eleve": "Élève 6", "parent": {"$ref": {"field": "nom", "value": "hamdi_karim"}}, "telephone_parent": "0771234567"}
+{"matricule": "E007", "eleve": "Élève 7", "parent": {"$ref": {"field": "nom", "value": "kaci_omar"}}, "telephone_parent": "0552222222"}
+{"matricule": "E008", "eleve": "Élève 8", "parent": {"$ref": {"field": "nom", "value": "BENALI"}}, "telephone_parent": "0550123456"}
+{"matricule": "E009", "eleve": "Élève 9", "parent": {"$ref": {"field": "nom", "value": "BENALI"}}, "telephone_parent": "0550123456"}
+{"matricule": "E010", "eleve": "Élève 10", "parent": {"$ref": {"field": "nom", "value": "BENALI"}}, "telephone_parent": "0550123456"}
+{"matricule": "E011", "eleve": "Élève 11", "parent": {"$ref": {"field": "nom", "value": "mme_saidi"}}, "telephone_parent": "0661234567"}
+{"matricule": "E012", "eleve": "Élève 12", "parent": {"$ref": {"field": "nom", "value": "mme_saidi"}}, "telephone_parent": "0661234567"}
+{"matricule": "E013", "eleve": "Élève 13", "parent": {"$ref": {"field": "nom", "value": "hamdi_karim"}}, "telephone_parent": "0771234567"}
+{"matricule": "E014", "eleve": "Élève 14", "parent": {"$ref": {"field": "nom", "value": "hamdi_karim"}}, "telephone_parent": "0771234567"}
+{"matricule": "E015", "eleve": "Élève 15", "parent": {"$ref": {"field": "nom", "value": "kaci_omar"}}, "telephone_parent": "0552222222"}

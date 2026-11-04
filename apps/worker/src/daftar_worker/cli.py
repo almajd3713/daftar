@@ -15,6 +15,14 @@ from daftar_worker.evaluation.labels import EvalError, freeze_test_split, read_m
 from daftar_worker.evaluation.run import render_report, run_evaluation, write_drafts
 from daftar_worker.formulas.parity import aggregate_parity, render_parity, run_parity
 from daftar_worker.llm.client import settings_from_env
+from daftar_worker.project.files import (
+    ProjectError,
+    project_decide,
+    project_generate,
+    project_init,
+    project_reanalyze,
+)
+from daftar_worker.project.generate import GenerationError
 from daftar_worker.reader import read_file
 
 
@@ -74,6 +82,29 @@ def _census(args: argparse.Namespace) -> int:
     return 0
 
 
+def _project(args: argparse.Namespace) -> int:
+    folder = Path(args.folder)
+    action = args.action
+    try:
+        if action == "init":
+            result = project_init(Path(args.file), folder, None if args.no_llm else settings_from_env())
+        elif action == "decide":
+            result = project_decide(folder, args.accept or [], args.reject or [], args.accept_high, args.by)
+        elif action == "reanalyze":
+            result = project_reanalyze(folder, Path(args.file) if args.file else None, None if args.no_llm else settings_from_env())
+        else:
+            result = project_generate(folder)
+    except WorkerError as error:
+        message = MESSAGES[error.code]
+        print(f"{error.code}: {message['fr']}\n{message['ar']}", file=sys.stderr)
+        return EXIT_UNREADABLE
+    except (GenerationError, ProjectError) as error:
+        print(error, file=sys.stderr)
+        return EXIT_VALIDATION
+    print(_dump(result), end="")
+    return 0
+
+
 def _parity(args: argparse.Namespace) -> int:
     missing = [path for path in args.paths if not Path(path).exists()]
     if missing:
@@ -98,6 +129,7 @@ def _parity(args: argparse.Namespace) -> int:
             continue
         record = run_parity(path, snapshot)
         record.pop("results")  # Cell values: the report keeps counts and function names only.
+        record.pop("mismatches", None)
         records.append({"file": str(path), **record})
     report = aggregate_parity(records)
     output = Path(args.output)
@@ -151,6 +183,16 @@ def main(argv: list[str] | None = None) -> int:
     census.add_argument("paths", nargs="+", metavar="PATH")
     census.add_argument("-o", "--output", required=True)
     census.set_defaults(run=_census)
+    project = commands.add_parser("project", help="a conversion project: decisions, then a spec")
+    project.add_argument("action", choices=("init", "decide", "reanalyze", "generate"))
+    project.add_argument("folder")
+    project.add_argument("--file", help="the workbook, for init and reanalyze")
+    project.add_argument("--accept", action="append", metavar="ID")
+    project.add_argument("--reject", action="append", metavar="ID")
+    project.add_argument("--accept-high", action="store_true", help="accept what the analyser is sure of")
+    project.add_argument("--by", default="operator")
+    project.add_argument("--no-llm", action="store_true")
+    project.set_defaults(run=_project)
     parity = commands.add_parser("parity", help="compare recomputed formulas with Excel's results")
     parity.add_argument("paths", nargs="+", metavar="PATH")
     parity.add_argument("-o", "--output", required=True, metavar="DIR")

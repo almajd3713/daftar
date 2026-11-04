@@ -12,4 +12,5 @@
 !packages/spec/python/**
 !packages/spec/schema/**
 !packages/spec/fixtures/expression-cases.json
+!packages/spec/fixtures/generated/**
 **/__pycache__

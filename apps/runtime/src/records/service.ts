@@ -21,6 +21,14 @@ export interface WriteContext {
   user: User;
   source: Source;
   batchId?: string;
+  /** A bulk load runs the table's engine formulas once at the end, not after every row. */
+  deferEngine?: boolean;
+}
+
+export interface SeedProblem {
+  where: string;
+  field: string;
+  value: unknown;
 }
 
 export interface ListQuery {
@@ -331,6 +339,7 @@ export class RecordService {
         .returningAll()
         .executeTakeFirstOrThrow();
       await this.audit(tx, context, entity, id, "create", this.changesOf(entity, {}, inserted), { snapshot: { _name: name, _created_by: inserted._created_by } });
+      if (context.deferEngine) return inserted;
       await this.afterWrite(tx, entity, id, inserted);
       return await tx.selectFrom(tableOf(entity.key)).selectAll().where("_id", "=", id).executeTakeFirstOrThrow();
     } catch (error) {
@@ -560,8 +569,46 @@ export class RecordService {
     const entity = this.entity(entityKey);
     return this.db.transaction().execute(async (tx) => {
       const { id: batchId } = (await sql<{ id: string }>`SELECT gen_random_uuid() AS id`.execute(tx)).rows[0] as { id: string };
-      for (const row of rows) await this.createIn(tx, { user: SYSTEM_USER, source, batchId }, entity, row);
+      const context: WriteContext = { user: SYSTEM_USER, source, batchId, deferEngine: true };
+      for (const row of rows) await this.createIn(tx, context, entity, row);
+      await recomputeEngineFields(tx, this.spec, entity);
       return { batchId, created: rows.length };
     });
+  }
+
+  /** Several entities in one transaction and one batch, so a seed loads whole or not at all. */
+  async loadBatch(
+    entities: { key: string; rows: Record<string, unknown>[] }[],
+    resolve: (tx: Tx, row: Record<string, unknown>, problems: SeedProblem[], where: string) => Promise<Record<string, unknown>>,
+  ): Promise<{ batchId: string; created: number; problems: SeedProblem[] }> {
+    return this.db.transaction().execute(async (tx) => {
+      const { id: batchId } = (await sql<{ id: string }>`SELECT gen_random_uuid() AS id`.execute(tx)).rows[0] as { id: string };
+      const context: WriteContext = { user: SYSTEM_USER, source: "import", batchId, deferEngine: true };
+      const problems: SeedProblem[] = [];
+      let created = 0;
+      for (const { key, rows } of entities) {
+        const entity = this.entity(key);
+        for (const [index, row] of rows.entries()) {
+          await this.createIn(tx, context, entity, await resolve(tx, row, problems, `${key}[${index}]`));
+          created += 1;
+        }
+      }
+      // Now everything is in: the formulas that read across tables see the whole picture.
+      for (const { key } of entities) await recomputeEngineFields(tx, this.spec, this.entity(key));
+      for (const { key } of entities) {
+        const entity = this.entity(key);
+        if (!computedFields(entity).some((field) => field.computed.eval === "translated")) continue;
+        const rows = await tx.selectFrom(tableOf(key)).selectAll().execute();
+        for (const row of rows) await this.refreshComputed(tx, entity, row);
+      }
+      return { batchId, created, problems };
+    });
+  }
+
+  private async refreshComputed(tx: Tx, entity: Entity, row: Record<string, unknown>): Promise<void> {
+    await computeRow(tx, this.spec, entity, row, this.clock());
+    const set: Record<string, unknown> = { _errors: row._errors ? JSON.stringify(row._errors) : null };
+    for (const field of computedFields(entity)) if (field.computed.store && field.computed.eval === "translated") set[field.key] = row[field.key];
+    await tx.updateTable(tableOf(entity.key)).set(set).where("_id", "=", row._id).execute();
   }
 }

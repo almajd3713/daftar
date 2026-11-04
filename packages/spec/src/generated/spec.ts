@@ -535,6 +535,10 @@ export interface EntityMapping {
    * @minItems 1
    */
   keyColumns: [Key, ...Key[]];
+  /**
+   * The total row the sheet had, so an export can write it again (R-22).
+   */
+  totals?: MappingTotal[];
   provenance?: Provenance;
 }
 /**
@@ -551,4 +555,12 @@ export interface MappingSource {
 export interface MappingColumn {
   header: string;
   field: Key;
+  /**
+   * Its letter in the sheet. Without it, columns run on from the source's first column.
+   */
+  column?: string;
+}
+export interface MappingTotal {
+  field: Key;
+  function: "sum" | "average" | "count" | "counta" | "max" | "min" | "product";
 }
