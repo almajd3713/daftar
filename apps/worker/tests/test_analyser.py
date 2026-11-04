@@ -857,3 +857,19 @@ def test_a_long_list_with_notes_around_it_stays_a_list(tmp_path: Path) -> None:
     }  # fmt: skip
     rows |= {f"A{row}": [f"Article {row}", row] for row in range(10, 40)}
     assert [item["range"] for item in _tables(_write(tmp_path / "l.xlsx", rows))] == ["A9:B39"]
+
+
+def test_stacked_documents_with_the_same_header_stay_apart(tmp_path: Path) -> None:
+    path = _write(tmp_path / "inv.xlsx", {
+        "A1": ["Article", "Qté", "Prix", "Montant"],
+        "A2": ["Vis", 2, 10.5, 21.0],
+        "A3": ["Clou", 3, 4.5, 13.5],
+        "D5": ["Facture"],
+        "D6": ["A102"],
+        "A7": ["Article", "Qté", "Prix", "Montant"],
+        "A8": ["Encre", 1, 7.5, 7.5],
+        "A9": ["Colle", 2, 2.5, 5.0],
+    })  # fmt: skip
+    ranges = [item["range"] for item in _tables(path)]
+    assert ranges[0] == "A1:D3"
+    assert ranges[1].endswith("D9")
