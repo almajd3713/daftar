@@ -5,12 +5,12 @@ from typing import Any
 from openpyxl.utils import get_column_letter
 
 from daftar_worker.analyser import explain
-from daftar_worker.analyser.grid import Grid, a1, a1_range
 from daftar_worker.analyser.regions import Table
 from daftar_worker.analyser.types import TypeGuess
 from daftar_worker.formulas.calculators import Port, find_model, port_key
 from daftar_worker.formulas.computed import MAX_LISTED_CELLS, ComputedColumn, find_computed
 from daftar_worker.formulas.translate import field_key
+from daftar_worker.sheet.grid import Grid, a1, a1_range
 
 
 CELL_TYPES = {"percent": "percent", "decimal": "decimal", "date": "date", "boolean": "boolean", "text": "text"}

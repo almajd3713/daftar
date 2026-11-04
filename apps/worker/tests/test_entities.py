@@ -11,11 +11,11 @@ import xlsxwriter
 from daftar_worker import analyser
 from daftar_worker.analyser import analyze_snapshot
 from daftar_worker.analyser.entities import cluster_names
-from daftar_worker.analyser.names import fingerprint, same_with_initial, tokens
 from daftar_worker.analyser.periods import Period, parse_period
 from daftar_worker.evaluation.metrics import compute_metrics, score_workbook
 from daftar_worker.evaluation.predictions import from_analysis
 from daftar_worker.reader import read_file
+from daftar_worker.sheet.names import fingerprint, same_with_initial, tokens
 
 
 SCHEMA = json.loads(Path(analyser.__file__).with_name("analysis.schema.json").read_text(encoding="utf-8"))

@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 import re
 from typing import Any
 
-from daftar_worker.analyser.grid import Cell, Grid, a1, text_of
 from daftar_worker.formulas.references import clean_sheet, parse_reference
+from daftar_worker.sheet.grid import Cell, Grid, a1, text_of
 
 
 MAX_MODEL_CELLS = 5000

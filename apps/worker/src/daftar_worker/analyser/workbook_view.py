@@ -2,9 +2,9 @@
 
 from dataclasses import dataclass
 
-from daftar_worker.analyser.grid import Grid
 from daftar_worker.analyser.regions import SheetLayout
 from daftar_worker.analyser.types import TypeGuess
+from daftar_worker.sheet.grid import Grid
 
 
 @dataclass

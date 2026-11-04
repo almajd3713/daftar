@@ -4,9 +4,9 @@ from dataclasses import dataclass
 import re
 from typing import Any
 
-from daftar_worker.analyser.grid import Grid, a1, column_index, text_of
 from daftar_worker.analyser.regions import SheetLayout, Table
 from daftar_worker.analyser.types import TypeGuess
+from daftar_worker.sheet.grid import Grid, a1, column_index, text_of
 
 
 STATUS_HINT = re.compile(

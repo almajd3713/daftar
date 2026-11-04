@@ -79,7 +79,13 @@ class Grid:
                 continue
             row, column = int(match.group(2)), column_index(match.group(1))
             cell = Cell(
-                row, column, raw.get("v"), raw["t"], raw.get("f"), raw.get("fmt"), raw.get("style") or {}
+                row,
+                column,
+                raw.get("v"),
+                raw["t"],
+                raw.get("f"),
+                raw.get("fmt"),
+                raw.get("style") or {},
             )
             self.cells[(row, column)] = cell
         # A merged range counts as filled across its span, if its first cell holds something.

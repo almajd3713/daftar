@@ -12,9 +12,9 @@ from typing import Any
 from openpyxl.utils import range_boundaries
 
 from daftar_worker.analyser import confidence_level
-from daftar_worker.analyser.grid import Grid, column_index, text_of
 from daftar_worker.llm.client import LlmClient, LlmSettings, ModelUnavailable
 from daftar_worker.llm.glossary import gloss
+from daftar_worker.sheet.grid import Grid, column_index, text_of
 
 
 PROMPT_VERSION = "1"

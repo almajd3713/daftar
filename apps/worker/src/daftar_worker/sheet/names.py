@@ -4,7 +4,9 @@ import re
 import unicodedata
 
 
-ARABIC_LETTERS = str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ة": "ه", "ى": "ي", "ؤ": "و", "ئ": "ي", "ـ": None})
+ARABIC_LETTERS = str.maketrans(
+    {"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ة": "ه", "ى": "ي", "ؤ": "و", "ئ": "ي", "ـ": None}
+)
 ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
 # Digits inside a Latin word stand for Arabic sounds: "3li" is Ali, "7assan" is Hassan.
 ARABIZI = {"2": "a", "3": "a", "5": "kh", "7": "h", "8": "gh", "9": "q"}
@@ -50,7 +52,7 @@ def digits_in(text: str) -> list[str]:
 
 
 def same_with_initial(left: list[str], right: list[str]) -> bool:
-    """"A Benali" and "Ahmed Benali": one name's initial stands for the other's first name."""
+    """ "A Benali" and "Ahmed Benali": one name's initial stands for the other's first name."""
     if len(left) != len(right) or len(left) < 2:
         return False
     pairs = list(zip(sorted(left, key=len), sorted(right, key=len), strict=True))

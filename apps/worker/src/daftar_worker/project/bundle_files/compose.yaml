@@ -1,0 +1,87 @@
+# One firm's Daftar (C-8). Secrets are in .env, generated when this bundle was built.
+name: daftar
+
+services:
+  proxy:
+    image: {{CADDY_IMAGE}}
+    restart: unless-stopped
+    ports:
+      - "${DAFTAR_BIND:-127.0.0.1}:${DAFTAR_PORT:-8080}:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      runtime:
+        condition: service_healthy
+
+  runtime:
+    image: daftar-runtime:${DAFTAR_IMAGE_TAG:?}
+    restart: unless-stopped
+    environment:
+      DAFTAR_DATABASE_URL: postgres://daftar:${POSTGRES_PASSWORD:?}@postgres:5432/daftar
+      DAFTAR_WORKER_URL: http://worker:8000
+      DAFTAR_SPEC_PATH: /bundle/daftar.spec.json
+      DAFTAR_SECRET: ${DAFTAR_SECRET:?}
+      DAFTAR_DEFAULT_LOCALE: ${DAFTAR_DEFAULT_LOCALE:-fr-DZ}
+      DAFTAR_TZ: ${DAFTAR_TZ:-Africa/Algiers}
+    volumes:
+      - ./daftar.spec.json:/bundle/daftar.spec.json:ro
+      - ./seed:/bundle/seed:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      worker:
+        condition: service_healthy
+
+  # No published port: only the runtime talks to it (C-4).
+  worker:
+    image: daftar-worker-client:${DAFTAR_IMAGE_TAG:?}
+    restart: unless-stopped
+    environment:
+      DAFTAR_TZ: ${DAFTAR_TZ:-Africa/Algiers}
+
+  postgres:
+    image: {{POSTGRES_IMAGE}}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: daftar
+      POSTGRES_DB: daftar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U daftar -d daftar"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # A dump every day, keeping the last 14. ./backup makes one at any time.
+  backup:
+    image: {{POSTGRES_IMAGE}}
+    restart: unless-stopped
+    user: "${DAFTAR_UID:-1000}:${DAFTAR_GID:-1000}"
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes:
+      - ./backups:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        umask 077
+        while true; do
+          sleep 86400
+          stamp=$$(date +%Y%m%d-%H%M%S)
+          if pg_dump -h postgres -U daftar -d daftar -Fc -f "/backups/.daftar-$$stamp.tmp"; then
+            mv "/backups/.daftar-$$stamp.tmp" "/backups/daftar-$$stamp.dump"
+            ls -1t /backups/daftar-*.dump | tail -n +15 | xargs -r rm -f
+          else
+            rm -f "/backups/.daftar-$$stamp.tmp"
+            echo "backup failed at $$stamp" >&2
+          fi
+        done
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

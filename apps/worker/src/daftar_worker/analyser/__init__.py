@@ -8,11 +8,11 @@ from typing import Any
 from openpyxl.utils import get_column_letter
 
 from daftar_worker.analyser import explain
-from daftar_worker.analyser.grid import Grid, a1_range
 from daftar_worker.analyser.kinds import referenced_sheets, resolve_validation, score_sheet
 from daftar_worker.analyser.regions import SheetLayout, Table, detect_layout, flatten_headers
 from daftar_worker.analyser.types import TypeGuess, infer_type
 from daftar_worker.analyser.workbook_view import SheetView
+from daftar_worker.sheet.grid import Grid, a1_range
 
 
 RULES_VERSION = "1"

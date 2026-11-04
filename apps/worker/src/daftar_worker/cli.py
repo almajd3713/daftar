@@ -15,6 +15,7 @@ from daftar_worker.evaluation.labels import EvalError, freeze_test_split, read_m
 from daftar_worker.evaluation.run import render_report, run_evaluation, write_drafts
 from daftar_worker.formulas.parity import aggregate_parity, render_parity, run_parity
 from daftar_worker.llm.client import settings_from_env
+from daftar_worker.project.bundle import BundleError, build_bundle
 from daftar_worker.project.files import (
     ProjectError,
     project_decide,
@@ -99,6 +100,16 @@ def _project(args: argparse.Namespace) -> int:
         print(f"{error.code}: {message['fr']}\n{message['ar']}", file=sys.stderr)
         return EXIT_UNREADABLE
     except (GenerationError, ProjectError) as error:
+        print(error, file=sys.stderr)
+        return EXIT_VALIDATION
+    print(_dump(result), end="")
+    return 0
+
+
+def _bundle(args: argparse.Namespace) -> int:
+    try:
+        result = build_bundle(Path(args.project), Path(args.output), args.tag, Path(args.images) if args.images else None)
+    except BundleError as error:
         print(error, file=sys.stderr)
         return EXIT_VALIDATION
     print(_dump(result), end="")
@@ -206,6 +217,12 @@ def main(argv: list[str] | None = None) -> int:
     project.add_argument("--by", default="operator")
     project.add_argument("--no-llm", action="store_true")
     project.set_defaults(run=_project)
+    bundle = commands.add_parser("bundle", help="a deployable folder for one client (C-8)")
+    bundle.add_argument("project")
+    bundle.add_argument("-o", "--output", required=True)
+    bundle.add_argument("--tag", help="the image tag to pin, by default this version")
+    bundle.add_argument("--images", help="a file from deploy/build-images.sh to put in the folder")
+    bundle.set_defaults(run=_bundle)
     parity = commands.add_parser("parity", help="compare recomputed formulas with Excel's results")
     parity.add_argument("paths", nargs="+", metavar="PATH")
     parity.add_argument("-o", "--output", required=True, metavar="DIR")

@@ -1,0 +1,11 @@
+#!/bin/sh
+# Starts the app. The first start creates the database and loads the imported data.
+set -eu
+cd "$(dirname "$0")"
+if [ -f images.tar ] && ! docker image inspect "daftar-runtime:$(sed -n 's/^DAFTAR_IMAGE_TAG=//p' .env)" >/dev/null 2>&1; then
+  docker load -i images.tar
+fi
+mkdir -p backups
+chmod 700 backups
+export DAFTAR_UID="$(id -u)" DAFTAR_GID="$(id -g)"
+docker compose up -d --wait

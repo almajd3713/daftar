@@ -1,0 +1,18 @@
+# Allow-list: nothing enters this image unless it is named here.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!apps/runtime/package.json
+!apps/runtime/tsconfig.json
+!apps/runtime/tsconfig.build.json
+!apps/runtime/src/**
+!packages/spec/package.json
+!packages/spec/tsconfig.json
+!packages/spec/tsconfig.build.json
+!packages/spec/src/**
+!packages/spec/schema/**
+!packages/spec/examples/**
+**/node_modules
+**/dist

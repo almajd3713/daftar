@@ -1,0 +1,15 @@
+#!/bin/sh
+# Writes a full backup to backups/ and prints its path.
+set -eu
+cd "$(dirname "$0")"
+mkdir -p backups
+chmod 700 backups
+umask 077
+target="backups/daftar-$(date +%Y%m%d-%H%M%S).dump"
+partial="$target.tmp"
+trap 'rm -f "$partial"' EXIT
+docker compose exec -T postgres pg_dump -U daftar -d daftar -Fc > "$partial"
+# Refuse to call a damaged file a backup.
+docker compose exec -T postgres pg_restore --list < "$partial" > /dev/null
+mv "$partial" "$target"
+echo "$target"

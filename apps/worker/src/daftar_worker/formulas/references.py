@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 import re
 
-from daftar_worker.analyser.grid import column_index
+from daftar_worker.sheet.grid import column_index
 
 
 # A string, a quoted sheet name, an unquoted sheet name, or a cell reference, whichever comes first.

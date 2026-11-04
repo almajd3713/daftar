@@ -8,11 +8,11 @@ from openpyxl.utils import get_column_letter
 from rapidfuzz import fuzz
 
 from daftar_worker.analyser import explain
-from daftar_worker.analyser.grid import a1_range, text_of
 from daftar_worker.analyser.kinds import STATUS_HINT
-from daftar_worker.analyser.names import digits_in, fingerprint, same_with_initial, tokens
 from daftar_worker.analyser.regions import Table
 from daftar_worker.analyser.workbook_view import SheetView
+from daftar_worker.sheet.grid import a1_range, text_of
+from daftar_worker.sheet.names import digits_in, fingerprint, same_with_initial, tokens
 
 
 SIMILAR = 88

@@ -7,11 +7,11 @@ from typing import Any
 from openpyxl.utils import get_column_letter
 
 from daftar_worker.analyser import explain
-from daftar_worker.analyser.grid import Grid, a1_range, column_index, text_of
 from daftar_worker.analyser.kinds import STATUS_HINT
 from daftar_worker.analyser.regions import Table
 from daftar_worker.analyser.types import TypeGuess
 from daftar_worker.analyser.workbook_view import SheetView
+from daftar_worker.sheet.grid import Grid, a1_range, column_index, text_of
 
 
 EXPRESSION = re.compile(r'^\$?([A-Z]{1,3})\$?[0-9]+\s*=\s*"([^"]*)"$')
