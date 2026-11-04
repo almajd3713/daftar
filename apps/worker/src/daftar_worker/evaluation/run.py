@@ -77,15 +77,21 @@ def _engine_stamp(engines: list[dict[str, Any]]) -> dict[str, list[str]]:
     return {key: sorted(stamp[key]) for key in ("rulesVersion", "model", "quant")}
 
 
-def _analyse_workbook(manifest_path: Path, row: ManifestRow) -> dict[str, Any] | None:
-    """Run the analyser on a workbook from the set. None if it can't be found or read."""
+def _analyse_workbook(
+    manifest_path: Path, row: ManifestRow
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Run the analyser and the engine on a workbook from the set. None if it can't be read."""
+    # Imported here because the parity module reads this package's metrics.
+    from daftar_worker.formulas.parity import run_parity
+
     path = workbook_path(manifest_path, row)
     if path is None:
-        return None
+        return None, None
     try:
-        return analyze_snapshot(read_file(path))
+        snapshot = read_file(path)
     except WorkerError:
-        return None
+        return None, None
+    return analyze_snapshot(snapshot), run_parity(path, snapshot)
 
 
 def run_evaluation(
@@ -104,8 +110,7 @@ def run_evaluation(
     engines: list[dict[str, Any]] = []
     for row in rows:
         if analyses_dir is None:
-            analysis = _analyse_workbook(manifest_path, row)
-            parity = None
+            analysis, parity = _analyse_workbook(manifest_path, row)
         else:
             analysis = _read_json(analyses_dir / f"{row.id}.json")
             parity = _read_json(analyses_dir / f"{row.id}.parity.json")

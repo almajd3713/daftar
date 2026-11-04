@@ -696,14 +696,35 @@ def test_eval_runs_the_analyser_when_given_no_analyses(tmp_path: Path) -> None:
     )
     label = {
         "labelVersion": 1, "id": "wb", "workbookSha256": sha256, "status": "reviewed",
-        "resultsFrom": "excel", "sheets": case.sheets, "relations": [],
-        "formulas": [{"sheet": "Réparations", "ref": "E2", "f": "=1+1", "result": 2, "t": "n"}],
+        "resultsFrom": "none", "sheets": case.sheets, "relations": [], "formulas": [],
     }  # fmt: skip
     (root / "labels" / "wb.json").write_text(json.dumps(label), encoding="utf-8")
     report = run_evaluation(root / "labels", root / "manifest.csv", "dev", None)
     assert report["engine"]["rulesVersion"] == [analyser.RULES_VERSION]
     assert report["missingAnalyses"] == []
     assert report["overall"]["metrics"]["kind.accuracy"]["value"] == 1.0
-    # No formula engine ran. That's reported, and it doesn't read as 0% parity.
+
+
+def test_analyses_with_no_engine_results_read_as_not_run(tmp_path: Path) -> None:
+    """Existing analyses but no results file: nothing ran, which mustn't read as 0% parity."""
+    root = tmp_path / "eval"
+    (root / "labels").mkdir(parents=True)
+    analyses = tmp_path / "analyses"
+    analyses.mkdir()
+    sha256 = "a" * 64
+    (root / "manifest.csv").write_text(
+        f"id,source,licence,language,stratum,split,consent,sha256\nwb,synthetic,CC0,fr,tracker,dev,n/a,{sha256}\n",
+        encoding="utf-8",
+    )
+    label = {
+        "labelVersion": 1, "id": "wb", "workbookSha256": sha256, "status": "reviewed", "resultsFrom": "excel",
+        "sheets": [], "relations": [], "formulas": [{"sheet": "S", "ref": "E2", "f": "=1+1", "result": 2, "t": "n"}],
+    }  # fmt: skip
+    (root / "labels" / "wb.json").write_text(json.dumps(label), encoding="utf-8")
+    (analyses / "wb.json").write_text(
+        json.dumps({"snapshotSha256": sha256, "engine": {"rulesVersion": "1"}, "sheets": [], "findings": []}),
+        encoding="utf-8",
+    )
+    report = run_evaluation(root / "labels", root / "manifest.csv", "dev", analyses)
     assert report["parityNotRun"] == ["wb"]
     assert report["overall"]["metrics"]["parity.share"]["value"] is None

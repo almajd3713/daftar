@@ -145,6 +145,48 @@ def choice_list(header_text: str, field: str, values: list[dict[str, Any]], sour
     }
 
 
+def computed_field(
+    header_text: str, field: str, formula: str, matching: int, total: int, translated: bool, missing: list[str]
+) -> Explanation:
+    name = header_text or field
+    if missing:
+        names = ", ".join(missing)
+        return {
+            "fr": f"« {name} » utilise {names}, que Daftar ne sait pas calculer. Cette colonne doit être vérifiée.",
+            "ar": f"«{name}» يستعمل {names}، ولا يستطيع دفتر حسابها. يجب التحقق من هذا العمود.",
+        }
+    how_fr = "elle sera recalculée à chaque modification" if translated else "elle sera calculée par le moteur de formules"
+    how_ar = "سيُعاد حسابه عند كل تعديل" if translated else "سيحسبه محرك الصيغ"
+    return {
+        "fr": f"« {name} » ({field}) est calculée par la formule {formula} sur {matching} lignes sur {total} : {how_fr}.",
+        "ar": f"«{name}» ({field}) يُحسب بالصيغة {formula} في {matching} صف من {total}: {how_ar}.",
+    }
+
+
+def inconsistent_formula(header_text: str, field: str, cells: list[str], count: int) -> Explanation:
+    sample = ", ".join(cells[:5])
+    return {
+        "fr": f"Dans « {header_text or field} », {count} cellule(s) ne suivent pas la formule de la colonne : {sample}.",
+        "ar": f"في «{header_text or field}»، {count} خلية لا تتبع صيغة العمود: {sample}.",
+    }
+
+
+def relation_from_lookup(sheet: str, source: str, to_sheet: str, target: str) -> Explanation:
+    return {
+        "fr": f"La colonne {source} de « {sheet} » va chercher ses valeurs dans la colonne {target} de « {to_sheet} ». En faire un lien entre les deux listes ?",
+        "ar": f"العمود {source} في «{sheet}» يبحث عن قيمه في العمود {target} من «{to_sheet}». هل نجعله رابطا بين القائمتين؟",
+    }
+
+
+def calculator(sheet: str, inputs: list[str], outputs: list[str]) -> Explanation:
+    in_text = ", ".join(inputs[:5])
+    out_text = ", ".join(outputs[:5])
+    return {
+        "fr": f"« {sheet} » est un calcul : {len(inputs)} valeur(s) à saisir ({in_text}) donnent {len(outputs)} résultat(s) ({out_text}).",
+        "ar": f"«{sheet}» ورقة حساب: {len(inputs)} قيمة للإدخال ({in_text}) تعطي {len(outputs)} نتيجة ({out_text}).",
+    }
+
+
 UNSUPPORTED_NAMES: dict[str, tuple[str, str]] = {
     "pivot": ("un tableau croisé dynamique", "جدول محوري"),
     "chart": ("un graphique", "رسم بياني"),

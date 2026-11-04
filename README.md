@@ -41,6 +41,7 @@ docker run --rm daftar-worker-test
 uv run daftar read workbook.xlsx -o snapshot.json
 uv run daftar analyze workbook.xlsx --no-llm -o analysis.json
 uv run daftar census folder/ -o census.json
+uv run daftar parity folder/ -o reports/parity  # Recompute formulas and compare with Excel's results.
 
 # Score the analyser against the labelled set. Exit codes: 0 ok, 2 unreadable, 3 invalid labels.
 uv run daftar eval --labels eval/labels --split dev -o reports/dev
