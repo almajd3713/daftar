@@ -134,8 +134,8 @@ def english_guide() -> str:
     return text[start:end].replace("---", "").strip() + "\n"
 
 
-def prepare(row: ManifestRow, snapshot: dict[str, Any], tag: str) -> Path:
-    folder = WORK / tag / row.id
+def prepare(workbook_id: str, snapshot: dict[str, Any], tag: str) -> Path:
+    folder = WORK / tag / workbook_id
     folder.mkdir(parents=True, exist_ok=True)
     for old in folder.iterdir():
         old.unlink()
@@ -223,42 +223,46 @@ def model_used(log: str) -> str | None:
     return None
 
 
+def ask_agent(folder: Path, model: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            "claude",
+            "-p",
+            TASK,
+            "--model",
+            model,
+            "--tools",
+            "Read,Write",
+            "--allowedTools",
+            "Read(./**)",
+            "Edit(./**)",
+            "--permission-mode",
+            "dontAsk",
+            "--strict-mcp-config",
+            "--setting-sources",
+            "project",
+            "--output-format",
+            "stream-json",
+            "--verbose",
+        ],
+        cwd=folder,
+        capture_output=True,
+        text=True,
+        timeout=TIMEOUT_SECONDS,
+        check=False,
+        stdin=subprocess.DEVNULL,
+    )
+
+
 def label(workbook_id: str, model: str, run: int) -> None:
     tag = f"{model}-{run}"
     row = row_of(workbook_id)
     snapshot = snapshot_of(row)
-    folder = prepare(row, snapshot, tag)
+    folder = prepare(row.id, snapshot, tag)
     out = RESULTS / tag
     out.mkdir(parents=True, exist_ok=True)
     try:
-        done = subprocess.run(
-            [
-                "claude",
-                "-p",
-                TASK,
-                "--model",
-                model,
-                "--tools",
-                "Read,Write",
-                "--allowedTools",
-                "Read(./**)",
-                "Edit(./**)",
-                "--permission-mode",
-                "dontAsk",
-                "--strict-mcp-config",
-                "--setting-sources",
-                "project",
-                "--output-format",
-                "stream-json",
-                "--verbose",
-            ],
-            cwd=folder,
-            capture_output=True,
-            text=True,
-            timeout=TIMEOUT_SECONDS,
-            check=False,
-            stdin=subprocess.DEVNULL,
-        )
+        done = ask_agent(folder, model)
     except subprocess.TimeoutExpired:
         print(f"{tag} {workbook_id}: timed out")
         return

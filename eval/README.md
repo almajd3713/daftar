@@ -48,6 +48,9 @@ uv run python eval/blind/run.py models sb_2768 --tags opus-3 sonnet-3
 # List what a person has to rule on: where two runs differ, and what the first was unsure of.
 uv run python eval/blind/run.py review sb_2768 --tags opus-3 sonnet-3
 
+# Score the blind agents and Daftar against DECO's human tables and headers. Counts only, kept private.
+uv run python eval/blind/deco.py score --tags opus sonnet
+
 # Freeze the test split.
 uv run daftar eval --labels eval/labels --split test --freeze -o reports/freeze
 ```
