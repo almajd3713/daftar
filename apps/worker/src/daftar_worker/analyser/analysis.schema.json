@@ -99,11 +99,22 @@
         { "if": { "properties": { "kind": { "const": "statusColours" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalStatusColours" } } } }
       ]
     },
+    "twoLanguages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fr", "ar"],
+      "properties": { "fr": { "$ref": "#/$defs/text" }, "ar": { "$ref": "#/$defs/text" } }
+    },
     "proposalSheetKind": {
       "type": "object",
       "additionalProperties": false,
       "required": ["outcome"],
-      "properties": { "outcome": { "$ref": "#/$defs/outcome" }, "reason": { "$ref": "#/$defs/reason" } }
+      "properties": {
+        "outcome": { "$ref": "#/$defs/outcome" },
+        "reason": { "$ref": "#/$defs/reason" },
+        "score": { "type": "number", "description": "The rules' score for the outcome, comparable with `alternatives`." },
+        "needsReview": { "const": true, "description": "The rules' answer stands: the model couldn't settle this tie." }
+      }
     },
     "rows": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
     "proposalTable": {
@@ -117,7 +128,8 @@
         "headerRows": { "$ref": "#/$defs/rows" },
         "totalRows": { "$ref": "#/$defs/rows" },
         "titleRows": { "$ref": "#/$defs/rows" },
-        "noteRows": { "$ref": "#/$defs/rows" }
+        "noteRows": { "$ref": "#/$defs/rows" },
+        "entityLabel": { "$ref": "#/$defs/twoLanguages" }
       }
     },
     "proposalHeader": {
@@ -135,7 +147,8 @@
             "required": ["column", "label"],
             "properties": { "column": { "$ref": "#/$defs/column" }, "label": { "type": "string" } }
           }
-        }
+        },
+        "needsReview": { "const": true }
       }
     },
     "proposalTotalRow": {
@@ -176,7 +189,8 @@
           "required": ["sheet", "column"],
           "properties": { "sheet": { "type": "string" }, "column": { "$ref": "#/$defs/column" } }
         },
-        "hidden": { "const": true }
+        "hidden": { "const": true },
+        "label": { "$ref": "#/$defs/twoLanguages", "description": "From the model. Without one, WP-12 falls back to `name` (R-11)." }
       }
     },
     "proposalChoiceList": {

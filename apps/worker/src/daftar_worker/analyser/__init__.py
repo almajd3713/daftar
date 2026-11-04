@@ -220,6 +220,8 @@ def _sheet_findings(
     views.append(SheetView(grid, layout, labels_by_table, guesses_by_table, kind.outcome))
     dimension = grid.sheet["dimension"]
     proposal: dict[str, Any] = {"outcome": kind.outcome}
+    if kind.scores:
+        proposal["score"] = round(kind.scores.get(kind.outcome, 0.0), 3)
     if kind.reason:
         proposal["reason"] = kind.reason
     alternatives = [
@@ -338,4 +340,17 @@ def analyze_snapshot(
     }
 
 
-__all__ = ["RULES_VERSION", "analyze_snapshot", "confidence_level", "finding_id"]
+def analyze(
+    snapshot: dict[str, Any], settings: Any = None, progress: ProgressCallback | None = None
+) -> dict[str, Any]:
+    """Rules first, then the language model if one is configured. It's optional (R-11)."""
+    analysis = analyze_snapshot(snapshot, progress)
+    if settings is None:
+        return analysis
+    # Imported here because the model tasks read this package.
+    from daftar_worker.llm.tasks import apply_model
+
+    return apply_model(analysis, snapshot, settings, progress)
+
+
+__all__ = ["RULES_VERSION", "analyze", "analyze_snapshot", "confidence_level", "finding_id"]
