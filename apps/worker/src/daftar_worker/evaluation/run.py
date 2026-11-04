@@ -8,7 +8,7 @@ from typing import Any
 
 from openpyxl.utils import range_boundaries
 
-from daftar_worker.analyser import analyze_snapshot
+from daftar_worker.analyser import analyze
 from daftar_worker.errors import WorkerError
 from daftar_worker.evaluation.labels import (
     SEPARATE_STRATA,
@@ -79,7 +79,7 @@ def _engine_stamp(engines: list[dict[str, Any]]) -> dict[str, list[str]]:
 
 
 def _analyse_workbook(
-    manifest_path: Path, row: ManifestRow
+    manifest_path: Path, row: ManifestRow, settings: Any
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Run the analyser and the engine on a workbook from the set. None if it can't be read."""
     # Imported here because the parity module reads this package's metrics.
@@ -92,11 +92,11 @@ def _analyse_workbook(
         snapshot = read_file(path)
     except WorkerError:
         return None, None
-    return analyze_snapshot(snapshot), run_parity(path, snapshot)
+    return analyze(snapshot, settings), run_parity(path, snapshot)
 
 
 def run_evaluation(
-    labels_dir: Path, manifest_path: Path, split: str, analyses_dir: Path | None
+    labels_dir: Path, manifest_path: Path, split: str, analyses_dir: Path | None, settings: Any = None
 ) -> dict[str, Any]:
     all_rows = read_manifest(manifest_path)
     frozen = check_frozen(all_rows, manifest_path)
@@ -111,7 +111,7 @@ def run_evaluation(
     engines: list[dict[str, Any]] = []
     for row in rows:
         if analyses_dir is None:
-            analysis, parity = _analyse_workbook(manifest_path, row)
+            analysis, parity = _analyse_workbook(manifest_path, row, settings)
         else:
             analysis = _read_json(analyses_dir / f"{row.id}.json")
             parity = _read_json(analyses_dir / f"{row.id}.parity.json")

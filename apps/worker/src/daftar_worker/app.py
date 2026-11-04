@@ -15,8 +15,9 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from starlette.datastructures import UploadFile
 
-from daftar_worker.analyser import analyze_snapshot
+from daftar_worker.analyser import analyze
 from daftar_worker.errors import ErrorCode, WorkerError
+from daftar_worker.llm.client import settings_from_env
 from daftar_worker.reader import read_file
 from daftar_worker.reader.limits import MAX_FILE_BYTES
 
@@ -79,7 +80,7 @@ class Jobs:
         self._jobs: dict[str, dict[str, Any]] = {}
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="analyse")
 
-    def _run(self, job_id: str, snapshot: dict[str, Any]) -> None:
+    def _run(self, job_id: str, snapshot: dict[str, Any], settings: Any) -> None:
         job = self._jobs[job_id]
         job["status"] = "running"
 
@@ -87,21 +88,21 @@ class Jobs:
             job["progress"] = round(share, 3)
 
         try:
-            job["result"] = analyze_snapshot(snapshot, on_progress)
+            job["result"] = analyze(snapshot, settings, on_progress)
             job["progress"] = 1.0
             job["status"] = "done"
         except Exception as error:
             job["error"] = WorkerError("unreadable", type(error).__name__).to_json()
             job["status"] = "failed"
 
-    def start(self, snapshot: dict[str, Any]) -> str:
+    def start(self, snapshot: dict[str, Any], settings: Any = None) -> str:
         job_id = uuid.uuid4().hex
         with self._lock:
             finished = [key for key, job in self._jobs.items() if job["status"] in ("done", "failed")]
             while len(self._jobs) >= MAX_JOBS and finished:
                 del self._jobs[finished.pop(0)]
             self._jobs[job_id] = {"status": "queued", "progress": 0.0}
-        self._pool.submit(self._run, job_id, snapshot)
+        self._pool.submit(self._run, job_id, snapshot, settings)
         return job_id
 
     def get(self, job_id: str) -> dict[str, Any] | None:
@@ -153,7 +154,7 @@ async def read(request: Request) -> dict[str, Any]:
 
 
 @app.post("/v1/analyze")
-async def analyze(request: Request) -> JSONResponse:
+async def start_analysis(request: Request) -> JSONResponse:
     try:
         body = await request.json()
     except ValueError as error:
@@ -165,8 +166,9 @@ async def analyze(request: Request) -> JSONResponse:
     snapshot = await run_in_threadpool(snapshots.load, sha256)
     if snapshot is None:
         return JSONResponse(WorkerError("unreadable").to_json(), status_code=404)
-    # WP-8 adds the language model. Until then "on" gives the rules-only result (R-11).
-    return JSONResponse({"jobId": jobs.start(snapshot)}, status_code=202)
+    # With no model configured, "on" gives the rules-only result (R-11).
+    settings = settings_from_env() if llm == "on" else None
+    return JSONResponse({"jobId": jobs.start(snapshot, settings)}, status_code=202)
 
 
 @app.get("/v1/jobs/{job_id}")
