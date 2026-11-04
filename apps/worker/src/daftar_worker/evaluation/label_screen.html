@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Daftar labels</title>
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; font: 13px system-ui, "Segoe UI", "Noto Sans Arabic", sans-serif; color: #1f2933; background: #f5f6f8; }
+#app { height: 100%; display: flex; flex-direction: column; }
+button { font: inherit; padding: 3px 9px; border: 1px solid #b6bec8; border-radius: 4px; background: #fff; cursor: pointer; }
+button:hover { background: #eef1f5; }
+button.primary { background: #1d6f42; border-color: #1d6f42; color: #fff; }
+button.danger { color: #a51d24; }
+button:disabled { opacity: .45; cursor: default; }
+input, select { font: inherit; padding: 2px 4px; border: 1px solid #b6bec8; border-radius: 3px; background: #fff; max-width: 100%; }
+input.bad { border-color: #c62828; background: #fdecec; }
+kbd { font-size: 11px; color: #5b6673; margin-left: 3px; }
+a { color: #1a5fb4; }
+.bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #fff; border-bottom: 1px solid #d5dae1; flex-wrap: wrap; }
+.grow { flex: 1; }
+.muted { color: #5b6673; }
+.pill { padding: 1px 7px; border-radius: 9px; font-size: 12px; background: #e4e7eb; }
+.pill.reviewed { background: #cdeed9; color: #14532d; }
+.pill.draft { background: #fdeac4; color: #7a4d00; }
+.tabs { display: flex; gap: 2px; padding: 4px 8px 0; background: #e9ecf0; overflow-x: auto; flex: none; }
+.tab { padding: 3px 10px; border: 1px solid #c7ced6; border-bottom: none; border-radius: 4px 4px 0 0; background: #f4f5f7; cursor: pointer; white-space: nowrap; }
+.tab.on { background: #fff; font-weight: 600; }
+.tab small { color: #5b6673; font-weight: 400; margin-left: 4px; }
+.main { flex: 1; display: flex; min-height: 0; }
+.left { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#scroller { flex: 1; overflow: auto; position: relative; background: #fff; }
+#spacer { position: relative; user-select: none; cursor: cell; }
+.cell { position: absolute; padding: 0 4px; line-height: 23px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-right: 1px solid #e3e6ea; border-bottom: 1px solid #e3e6ea; z-index: 2; pointer-events: none; }
+.cell.num { text-align: right; }
+.cell.formula { color: #0b5394; }
+.cell.note::after { content: ""; position: absolute; top: 0; right: 0; border: 3px solid #c62828; border-left-color: transparent; border-bottom-color: transparent; }
+.head { position: absolute; background: #eceff3; border-right: 1px solid #cbd1d9; border-bottom: 1px solid #cbd1d9; text-align: center; line-height: 23px; z-index: 6; color: #47525e; cursor: pointer; overflow: hidden; white-space: nowrap; }
+.head.hiddenrc { color: #a51d24; font-style: italic; }
+.head.is-header { background: #bcd7fb; font-weight: 700; }
+.head.is-total { background: #fde2a7; font-weight: 700; }
+.corner { z-index: 7; cursor: default; }
+.box { position: absolute; z-index: 1; pointer-events: none; }
+.box.table { background: #e8f2ff; }
+.box.header { background: #bcd7fb; }
+.box.total { background: #fde2a7; }
+.box.title { background: #e6dcf7; }
+.box.notes { background: #ececec; }
+.box.input { background: #d7f3e3; }
+.box.output { background: #fbd9e4; }
+.box.active { background: none; outline: 2px solid #1a5fb4; z-index: 3; }
+.box.sel { background: rgba(29, 111, 66, .12); outline: 2px solid #1d6f42; z-index: 4; }
+#panel { width: 400px; flex: none; overflow: auto; background: #fff; border-left: 1px solid #d5dae1; padding: 8px 10px 40px; }
+#panel h3 { margin: 14px 0 5px; font-size: 13px; }
+#panel h3:first-child { margin-top: 0; }
+.row { display: flex; align-items: center; gap: 6px; margin: 3px 0; flex-wrap: wrap; }
+.help { color: #5b6673; font-size: 12px; margin: 2px 0 6px; }
+.card { border: 1px solid #d5dae1; border-radius: 5px; padding: 6px 8px; margin: 5px 0; cursor: pointer; }
+.card.on { border-color: #1a5fb4; box-shadow: 0 0 0 1px #1a5fb4; cursor: default; }
+.fields { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.fields td { padding: 1px 3px; vertical-align: middle; }
+.fields input { width: 118px; }
+.sample { color: #5b6673; font-size: 11px; max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.problems { margin: 4px 0; padding-left: 16px; }
+.problems li { margin: 2px 0; }
+.problem { color: #a51d24; }
+.warning { color: #7a4d00; }
+.banner { background: #fdecec; color: #a51d24; padding: 5px 10px; border-bottom: 1px solid #f3b6b6; }
+.legend span { padding: 0 5px; border-radius: 2px; margin-right: 3px; font-size: 11px; }
+#inspect { padding: 4px 10px; background: #fafbfc; border-top: 1px solid #d5dae1; min-height: 24px; font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+table.list { border-collapse: collapse; margin: 14px; background: #fff; }
+table.list th, table.list td { border: 1px solid #d5dae1; padding: 5px 10px; text-align: left; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+const W = 130, H = 24, RH = 50, CH = 24;
+const KINDS = {
+  register: "A list of things: one row is one client, student, item or contract.",
+  ledger: "A list of dated money movements: one row is one payment, sale or expense.",
+  tracker: "A list of jobs that move through statuses: one row is one job.",
+  formulaModel: "A calculation: you fill in some cells and others work out the answer. Not a list.",
+  referenceList: "A short lookup list that other sheets use: prices, codes, categories.",
+  notConverted: "Not data for the app. Say why below."
+};
+const REASONS = ["form", "report", "chartOrPivotOnly", "empty", "outOfScope"];
+const TYPES = ["text", "longtext", "integer", "decimal", "money", "percent", "date", "datetime", "boolean", "choice", "multichoice", "phone", "email", "link", "computed"];
+const OPERATORS = ["none", "unpivot", "transpose", "fillMerged", "splitStacked"];
+const REGIONS = { title: "Title", notes: "Notes", inputBlock: "Inputs", outputBlock: "Outputs" };
+const REGION_CLASS = { title: "title", notes: "notes", inputBlock: "input", outputBlock: "output" };
+const RANGE = /^[A-Z]{1,3}[1-9][0-9]*(:[A-Z]{1,3}[1-9][0-9]*)?$/;
+
+const app = document.getElementById("app");
+let state = null;
+
+function el(tag, props, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props || {})) {
+    if (key === "class") node.className = value;
+    else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+    else if (key === "disabled" || key === "selected" || key === "checked") node[key] = value;
+    else if (value !== undefined && value !== null) node.setAttribute(key, value);
+  }
+  for (const child of children.flat()) {
+    if (child === null || child === undefined) continue;
+    // Always a text node. A workbook's cells and sheet names never become markup.
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+function select(options, value, onchange, extra) {
+  return el("select", { onchange: (event) => onchange(event.target.value), ...(extra || {}) },
+    options.map((option) => el("option", { value: option, selected: option === value }, option)));
+}
+async function api(method, path, body) {
+  const response = await fetch(path, {
+    method,
+    headers: { "X-Daftar-Label": "1", ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  const data = await response.json().catch(() => ({}));
+  return { ok: response.ok, status: response.status, data };
+}
+
+const letter = (number) => {
+  let text = "";
+  for (let rest = number; rest > 0; rest = Math.floor((rest - 1) / 26)) text = String.fromCharCode(65 + (rest - 1) % 26) + text;
+  return text;
+};
+const number = (text) => [...text].reduce((total, char) => total * 26 + char.charCodeAt(0) - 64, 0);
+function parseRange(text) {
+  const match = /^([A-Z]+)([0-9]+)(?::([A-Z]+)([0-9]+))?$/.exec(text);
+  if (!match) return null;
+  const c1 = number(match[1]), r1 = +match[2], c2 = match[3] ? number(match[3]) : c1, r2 = match[4] ? +match[4] : r1;
+  return { c1: Math.min(c1, c2), r1: Math.min(r1, r2), c2: Math.max(c1, c2), r2: Math.max(r1, r2) };
+}
+const rangeText = (box) => box.c1 === box.c2 && box.r1 === box.r2 ? `${letter(box.c1)}${box.r1}` : `${letter(box.c1)}${box.r1}:${letter(box.c2)}${box.r2}`;
+const parseRows = (text) => [...new Set(text.split(/[\s,;]+/).filter(Boolean).map(Number))].sort((a, b) => a - b);
+
+/* ---- the list of workbooks ---- */
+async function showList() {
+  state = null;
+  const { ok, data } = await api("GET", "/api/workbooks");
+  if (!ok) { app.replaceChildren(el("div", { class: "banner" }, data.detail || "Can't read the manifest.")); return; }
+  const minutes = (entry) => Object.entries(entry.seconds).map(([who, seconds]) => `${who}: ${Math.round(seconds / 60)} min`).join(", ");
+  app.replaceChildren(
+    el("div", { class: "bar" }, el("b", {}, "Daftar labels"), el("span", { class: "muted" }, `labelling as ${data.who}`)),
+    el("table", { class: "list" },
+      el("tr", {}, ["Workbook", "Split", "Stratum", "Language", "Status", "Time", "Source"].map((name) => el("th", {}, name))),
+      data.workbooks.map((item) => el("tr", {},
+        el("td", {}, el("a", { href: `#/w/${encodeURIComponent(item.id)}` }, item.id)),
+        el("td", {}, item.split), el("td", {}, item.stratum), el("td", {}, item.language),
+        el("td", {}, el("span", { class: `pill ${item.status}` }, item.status)),
+        el("td", {}, minutes(item)), el("td", { class: "muted" }, item.source)))));
+}
+
+/* ---- one workbook ---- */
+async function showWorkbook(id) {
+  state = null; // The old page is going away, and anything still queued must not draw on it.
+  app.replaceChildren(el("div", { class: "bar" }, `Reading ${id}…`));
+  const { ok, data } = await api("GET", `/api/workbooks/${encodeURIComponent(id)}`);
+  if (!ok) {
+    app.replaceChildren(el("div", { class: "bar" }, el("a", { href: "#/" }, "← All workbooks")), el("div", { class: "banner" }, data.detail || "Can't open this workbook."));
+    return;
+  }
+  state = {
+    id, split: data.split, fileName: data.fileName, label: data.label,
+    sheets: data.sheets.map(prepareSheet), sheet: 0, table: {}, selection: null, anchor: null, dragging: false,
+    pendingFrom: null, undo: [], dirty: false, timer: null, saving: false, problems: [], warnings: [], error: null, lastActive: Date.now()
+  };
+  buildPage();
+  renderAll();
+}
+function prepareSheet(sheet) {
+  const cells = new Map();
+  let maxRow = 0, maxCol = 0;
+  for (const cell of sheet.cells) {
+    cells.set(`${cell.r},${cell.c}`, cell);
+    maxRow = Math.max(maxRow, cell.r);
+    maxCol = Math.max(maxCol, cell.c);
+  }
+  const merges = sheet.merges.map(parseRange).filter(Boolean);
+  const covered = new Set();
+  for (const box of merges) {
+    for (let r = box.r1; r <= box.r2 && r - box.r1 < 500; r++) for (let c = box.c1; c <= box.c2 && c - box.c1 < 100; c++) covered.add(`${r},${c}`);
+    maxRow = Math.max(maxRow, box.r2);
+    maxCol = Math.max(maxCol, box.c2);
+  }
+  const marked = (ranges) => {
+    const columns = new Set();
+    for (const range of ranges) {
+      const box = parseRange(range);
+      if (box) for (let c = box.c1; c <= box.c2 && c - box.c1 < 200; c++) columns.add(c);
+    }
+    return columns;
+  };
+  return { ...sheet, cellMap: cells, mergeBoxes: merges, covered, maxRow: Math.max(maxRow + 5, 30), maxCol: Math.max(maxCol + 2, 8),
+    hiddenRowSet: new Set(sheet.hiddenRows), hiddenColumnSet: new Set(sheet.hiddenColumns.map((item) => typeof item === "string" ? number(item) : item)),
+    listColumns: marked(sheet.listRanges), colourColumns: marked(sheet.colourRanges) };
+}
+const currentSheet = () => state.sheets[state.sheet];
+const currentLabel = () => state.label.sheets.find((item) => item.name === currentSheet().name);
+// Only a real date loses its T. Any other text is shown exactly as the workbook holds it.
+const shown = (value) => {
+  if (value === null || value === undefined) return "";
+  const text = String(value);
+  return /^\d{4}-\d{2}-\d{2}T/.test(text) ? text.replace(/T00:00:00(\.0+)?Z?$/, "").replace("T", " ") : text;
+};
+const cellText = (sheet, r, c) => {
+  const cell = sheet.cellMap.get(`${r},${c}`);
+  return cell ? shown(cell.v).replace(/\s+/g, " ").trim() : "";
+};
+const activeTable = () => {
+  const tables = currentLabel().tables;
+  const index = Math.min(state.table[state.sheet] ?? 0, tables.length - 1);
+  return index >= 0 ? tables[index] : null;
+};
+
+/* ---- changes ---- */
+function change(apply) {
+  state.undo.push(JSON.stringify({ sheets: state.label.sheets, relations: state.label.relations, workbook: state.label.workbook }));
+  if (state.undo.length > 60) state.undo.shift();
+  apply();
+  touched();
+}
+function touched() {
+  if (state.label.status === "reviewed") state.label.status = "draft"; // An edit needs a fresh review.
+  state.dirty = true;
+  state.lastActive = Date.now();
+  clearTimeout(state.timer);
+  state.timer = setTimeout(save, 600);
+  renderAll();
+}
+function undo() {
+  const last = state.undo.pop();
+  if (!last) return;
+  Object.assign(state.label, JSON.parse(last));
+  touched();
+}
+async function save(wanted) {
+  clearTimeout(state.timer);
+  const current = state;
+  const body = { status: wanted || "draft", workbook: current.label.workbook, sheets: current.label.sheets, relations: current.label.relations };
+  current.dirty = false;
+  current.saving = true;
+  renderTop();
+  const { ok, data, status } = await api("PUT", `/api/workbooks/${encodeURIComponent(current.id)}/label`, body);
+  current.saving = false;
+  if (!data.saved) {
+    current.dirty = true;
+    current.error = status === 422 ? "Not saved: the label breaks the format. See Problems." : `Not saved (${status}).`;
+    current.problems = data.problems || [data.detail || "Unknown error"];
+  } else {
+    current.error = null;
+    current.problems = data.problems;
+    current.warnings = data.warnings;
+    if (!current.dirty) current.label.status = data.status;
+  }
+  if (state === current) renderAll();
+  return ok;
+}
+
+/* ---- actions on the selection ---- */
+function headerName(sheet, rows, column) {
+  const parts = rows.map((row) => cellText(sheet, row, column)).filter(Boolean);
+  return parts.join(" / ") || letter(column);
+}
+function refreshNames(table, oldRows) {
+  const sheet = currentSheet();
+  for (const field of table.fields) {
+    // Anything but the name the old header gave is someone's own, so it stays.
+    if (field.name === headerName(sheet, oldRows, number(field.column))) field.name = headerName(sheet, table.headerRows, number(field.column));
+  }
+}
+function fieldsFor(box, keep, rows) {
+  const sheet = currentSheet();
+  const known = new Map((keep || []).map((field) => [field.column, field]));
+  const out = [];
+  for (let c = box.c1; c <= box.c2; c++) {
+    const name = letter(c);
+    out.push(known.get(name) || { column: name, name: headerName(sheet, rows, c), type: "text" });
+  }
+  return out;
+}
+function newTable() {
+  const box = state.selection;
+  if (!box) return;
+  change(() => {
+    const sheetLabel = currentLabel();
+    if (sheetLabel.kind === "notConverted") { sheetLabel.kind = "register"; delete sheetLabel.reason; }
+    const headerRows = [box.r1];
+    sheetLabel.tables.push({ range: rangeText(box), headerRows, fields: fieldsFor(box, [], headerRows) });
+    state.table[state.sheet] = sheetLabel.tables.length - 1;
+  });
+}
+function setRange() {
+  const table = activeTable();
+  if (!table || !state.selection) return;
+  const box = state.selection;
+  change(() => { table.range = rangeText(box); table.fields = fieldsFor(box, table.fields, table.headerRows); });
+}
+function toggleRows(key) {
+  const table = activeTable();
+  if (!table || !state.selection) return;
+  const { r1, r2 } = state.selection;
+  change(() => {
+    const oldRows = [...(table.headerRows || [])];
+    const rows = new Set(table[key] || []);
+    const on = rows.has(r1);
+    for (let r = r1; r <= r2; r++) if (on) rows.delete(r); else rows.add(r);
+    table[key] = [...rows].sort((a, b) => a - b);
+    if (key === "totalRows" && !table.totalRows.length) delete table.totalRows;
+    if (key === "headerRows") refreshNames(table, oldRows);
+  });
+}
+function addRegion(type) {
+  if (!state.selection) return;
+  const range = rangeText(state.selection);
+  change(() => currentLabel().regions.push({ range, type }));
+}
+function selectionColumn() {
+  return state.selection ? { sheet: currentSheet().name, column: letter(state.selection.c1) } : null;
+}
+function relationEnd() {
+  const here = selectionColumn();
+  if (!here) return;
+  if (!state.pendingFrom) { state.pendingFrom = here; renderAll(); return; }
+  const from = state.pendingFrom;
+  state.pendingFrom = null;
+  change(() => state.label.relations.push({ from, to: here }));
+}
+
+/* ---- page ---- */
+function buildPage() {
+  app.replaceChildren(
+    el("div", { class: "bar", id: "top" }),
+    el("div", { id: "banner" }),
+    el("div", { class: "tabs", id: "tabs" }),
+    el("div", { class: "main" },
+      el("div", { class: "left" },
+        el("div", { class: "bar", id: "tools" }),
+        el("div", { id: "scroller" }, el("div", { id: "spacer" })),
+        el("div", { id: "inspect" })),
+      el("div", { id: "panel" })));
+  const scroller = document.getElementById("scroller");
+  let frame = 0;
+  scroller.addEventListener("scroll", () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(renderGrid); });
+  const spacer = document.getElementById("spacer");
+  spacer.addEventListener("mousedown", onDown);
+  new ResizeObserver(() => { if (state) renderGrid(); }).observe(scroller);
+}
+function pointAt(event) {
+  const rect = document.getElementById("spacer").getBoundingClientRect();
+  const sheet = currentSheet();
+  return {
+    x: event.clientX - rect.left, y: event.clientY - rect.top,
+    c: Math.min(sheet.maxCol, Math.max(1, Math.floor((event.clientX - rect.left - RH) / W) + 1)),
+    r: Math.min(sheet.maxRow, Math.max(1, Math.floor((event.clientY - rect.top - CH) / H) + 1))
+  };
+}
+function onDown(event) {
+  const scroller = document.getElementById("scroller");
+  const point = pointAt(event);
+  state.lastActive = Date.now();
+  const onColumnHead = event.clientY - scroller.getBoundingClientRect().top < CH;
+  const onRowHead = event.clientX - scroller.getBoundingClientRect().left < RH;
+  const sheet = currentSheet();
+  const used = parseRange(sheet.dimension || "A1") || { c1: 1, r1: 1, c2: 1, r2: 1 };
+  if (onColumnHead && onRowHead) return;
+  if (onColumnHead) state.selection = { c1: point.c, c2: point.c, r1: used.r1, r2: used.r2 };
+  else if (onRowHead) state.selection = { c1: used.c1, c2: used.c2, r1: point.r, r2: point.r };
+  else {
+    if (event.shiftKey && state.anchor) state.selection = { c1: Math.min(state.anchor.c, point.c), c2: Math.max(state.anchor.c, point.c), r1: Math.min(state.anchor.r, point.r), r2: Math.max(state.anchor.r, point.r) };
+    else { state.anchor = point; state.selection = { c1: point.c, c2: point.c, r1: point.r, r2: point.r }; state.dragging = true; }
+  }
+  event.preventDefault();
+  renderTools();
+  renderGrid();
+  renderInspect(point);
+}
+function onMove(event) {
+  if (!state || !state.dragging) return;
+  const scroller = document.getElementById("scroller");
+  const box = scroller.getBoundingClientRect();
+  if (event.clientY > box.bottom - 24) scroller.scrollTop += H;
+  if (event.clientY < box.top + CH + 12) scroller.scrollTop -= H;
+  if (event.clientX > box.right - 24) scroller.scrollLeft += W;
+  if (event.clientX < box.left + RH + 12) scroller.scrollLeft -= W;
+  const point = pointAt(event);
+  const anchor = state.anchor;
+  state.selection = { c1: Math.min(anchor.c, point.c), c2: Math.max(anchor.c, point.c), r1: Math.min(anchor.r, point.r), r2: Math.max(anchor.r, point.r) };
+  renderTools();
+  renderGrid();
+}
+function renderInspect(point) {
+  const target = document.getElementById("inspect");
+  const cell = currentSheet().cellMap.get(`${point.r},${point.c}`);
+  const ref = `${letter(point.c)}${point.r}`;
+  if (!cell) { target.textContent = ref; return; }
+  const parts = [ref, `value: ${cell.v}`, `type: ${cell.t}`];
+  if (cell.f) parts.push(`formula: ${cell.f}`);
+  if (cell.fmt) parts.push(`format: ${cell.fmt}`);
+  if (cell.fill) parts.push(`fill: ${cell.fill}`);
+  if (cell.note) parts.push(`comment: ${cell.note}`);
+  target.textContent = parts.join("   ·   ");
+  target.title = target.textContent;
+}
+function renderAll() {
+  if (!state) return;
+  renderTop();
+  renderTabs();
+  renderTools();
+  renderGrid();
+  renderPanel();
+}
+function renderTop() {
+  const label = state.label;
+  document.getElementById("top").replaceChildren(
+    el("a", { href: "#/" }, "← All workbooks"),
+    el("b", {}, state.id),
+    el("span", { class: `pill ${label.status}` }, label.status),
+    el("span", { class: "muted" }, `${state.split} split${state.split === "test" ? ", starts blank" : ", starts from the analyser's guesses"}`),
+    el("span", { class: "muted" }, `${label.formulaCount} formula results kept`),
+    el("a", { href: `/api/workbooks/${encodeURIComponent(state.id)}/file` }, "Open the original"),
+    el("span", { class: "grow" }),
+    el("span", { class: "muted" }, state.saving ? "Saving…" : state.dirty ? "Unsaved" : "Saved"),
+    el("button", { onclick: undo, disabled: !state.undo.length }, "Undo"),
+    el("button", { class: "primary", onclick: () => save("reviewed") }, "Mark reviewed"));
+  document.getElementById("banner").replaceChildren(...(state.error ? [el("div", { class: "banner" }, state.error)] : []));
+}
+function renderTabs() {
+  document.getElementById("tabs").replaceChildren(...state.sheets.map((sheet, index) => {
+    const entry = state.label.sheets.find((item) => item.name === sheet.name);
+    return el("div", { class: `tab${index === state.sheet ? " on" : ""}`, onclick: () => {
+      state.sheet = index; state.selection = null; state.anchor = null;
+      document.getElementById("scroller").scrollTo(0, 0);
+      renderAll();
+    } }, sheet.name, sheet.state !== "visible" ? " (hidden)" : "", el("small", {}, entry ? entry.kind : "?"));
+  }));
+}
+function renderTools() {
+  const has = !!state.selection, table = activeTable();
+  const button = (text, key, action, enabled) => el("button", { onclick: action, disabled: !enabled }, text, key ? el("kbd", {}, key) : null);
+  document.getElementById("tools").replaceChildren(
+    el("input", { value: has ? rangeText(state.selection) : "", placeholder: "A1:D20", size: 11, title: "Selection. Type a range, or drag. Shift-click extends.", onchange: (event) => {
+      const box = parseRange(event.target.value.trim().toUpperCase());
+      if (box) { state.selection = box; state.anchor = { c: box.c1, r: box.r1 }; renderTools(); renderGrid(); }
+    } }),
+    button("New table", "T", newTable, has),
+    button("Set table range", "R", setRange, has && table),
+    button("Header row", "H", () => toggleRows("headerRows"), has && table),
+    button("Total row", "O", () => toggleRows("totalRows"), has && table),
+    button("Title", "1", () => addRegion("title"), has),
+    button("Notes", "2", () => addRegion("notes"), has),
+    button("Inputs", "3", () => addRegion("inputBlock"), has),
+    button("Outputs", "4", () => addRegion("outputBlock"), has),
+    button(state.pendingFrom ? `Relation to here (from ${state.pendingFrom.sheet}!${state.pendingFrom.column})` : "Relation from here", "L", relationEnd, has),
+    ...(state.pendingFrom ? [el("button", { onclick: () => { state.pendingFrom = null; renderTools(); } }, "Cancel")] : []));
+}
+function renderGrid() {
+  const scroller = document.getElementById("scroller"), spacer = document.getElementById("spacer");
+  if (!state || !scroller || !spacer) return;
+  const sheet = currentSheet(), labelSheet = currentLabel();
+  const width = RH + sheet.maxCol * W, height = CH + sheet.maxRow * H;
+  spacer.style.width = `${width}px`;
+  spacer.style.height = `${height}px`;
+  const top = scroller.scrollTop, left = scroller.scrollLeft, viewW = scroller.clientWidth, viewH = scroller.clientHeight;
+  const r1 = Math.max(1, Math.floor((top) / H)), r2 = Math.min(sheet.maxRow, Math.ceil((top + viewH) / H) + 1);
+  const c1 = Math.max(1, Math.floor((left) / W)), c2 = Math.min(sheet.maxCol, Math.ceil((left + viewW) / W) + 1);
+  const x = (c) => RH + (c - 1) * W, y = (r) => CH + (r - 1) * H;
+  const nodes = [];
+  const place = (node, l, t, w, h) => { node.style.left = `${l}px`; node.style.top = `${t}px`; node.style.width = `${w}px`; node.style.height = `${h}px`; return node; };
+  const box = (kind, c1b, r1b, c2b, r2b) => {
+    if (c2b < c1 || c1b > c2 || r2b < r1 || r1b > r2) return;
+    nodes.push(place(el("div", { class: `box ${kind}` }), x(c1b), y(r1b), (c2b - c1b + 1) * W, (r2b - r1b + 1) * H));
+  };
+  for (const region of labelSheet.regions) {
+    const area = parseRange(region.range);
+    if (area) box(REGION_CLASS[region.type], area.c1, area.r1, area.c2, area.r2);
+  }
+  const active = activeTable();
+  for (const table of labelSheet.tables) {
+    const area = parseRange(table.range);
+    if (!area) continue;
+    box("table", area.c1, area.r1, area.c2, area.r2);
+    for (const row of table.headerRows) box("header", area.c1, row, area.c2, row);
+    for (const row of table.totalRows || []) box("total", area.c1, row, area.c2, row);
+    if (table === active) box("active", area.c1, area.r1, area.c2, area.r2);
+  }
+  if (state.selection) box("sel", state.selection.c1, state.selection.r1, state.selection.c2, state.selection.r2);
+  const drawCell = (cell, spanW, spanH) => {
+    const text = shown(cell.v);
+    const node = el("div", { class: `cell${cell.t === "n" ? " num" : ""}${cell.f ? " formula" : ""}${cell.note ? " note" : ""}`, dir: "auto" }, text);
+    if (cell.fill) node.style.background = cell.fill;
+    if (cell.bold) node.style.fontWeight = "700";
+    nodes.push(place(node, x(cell.c), y(cell.r), spanW, spanH));
+  };
+  for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) {
+    if (sheet.covered.has(`${r},${c}`)) continue;
+    const cell = sheet.cellMap.get(`${r},${c}`);
+    if (cell) drawCell(cell, W, H);
+  }
+  for (const merge of sheet.mergeBoxes) {
+    if (merge.c2 < c1 || merge.c1 > c2 || merge.r2 < r1 || merge.r1 > r2) continue;
+    const cell = sheet.cellMap.get(`${merge.r1},${merge.c1}`);
+    if (cell) drawCell(cell, (merge.c2 - merge.c1 + 1) * W, (merge.r2 - merge.r1 + 1) * H);
+  }
+  // The headers stay in view by following the scroll position.
+  for (let c = c1; c <= c2; c++) {
+    const marks = (sheet.listColumns.has(c) ? " ▾" : "") + (sheet.colourColumns.has(c) ? " ◐" : "");
+    nodes.push(place(el("div", { class: `head${sheet.hiddenColumnSet.has(c) ? " hiddenrc" : ""}` }, letter(c) + marks), x(c), top, W, CH));
+  }
+  // A sheet's own colours cover the tints, so the row numbers carry these marks too.
+  const headers = new Set(labelSheet.tables.flatMap((table) => table.headerRows));
+  const totals = new Set(labelSheet.tables.flatMap((table) => table.totalRows || []));
+  for (let r = r1; r <= r2; r++) {
+    const mark = headers.has(r) ? " is-header" : totals.has(r) ? " is-total" : "";
+    nodes.push(place(el("div", { class: `head${sheet.hiddenRowSet.has(r) ? " hiddenrc" : ""}${mark}` }, r), left, y(r), RH, H));
+  }
+  nodes.push(place(el("div", { class: "head corner" }), left, top, RH, CH));
+  spacer.replaceChildren(...nodes);
+}
+function firstValue(table, column) {
+  const sheet = currentSheet(), area = parseRange(table.range);
+  if (!area) return "";
+  const skip = new Set([...table.headerRows, ...(table.totalRows || [])]);
+  for (let r = area.r1; r <= area.r2 && r - area.r1 < 200; r++) {
+    if (skip.has(r)) continue;
+    const text = cellText(sheet, r, number(column));
+    if (text) return text;
+  }
+  return "";
+}
+function renderPanel() {
+  const panel = document.getElementById("panel"), keep = panel.scrollTop;
+  const entry = currentLabel(), sheet = currentSheet();
+  const groups = [...new Set(state.label.sheets.map((item) => item.periodGroup).filter(Boolean))];
+  const parts = [
+    el("h3", {}, `Sheet: ${sheet.name}`),
+    el("div", { class: "row" }, "Kind", select(Object.keys(KINDS), entry.kind, (value) => change(() => {
+      entry.kind = value;
+      if (value === "notConverted") { entry.reason = entry.reason || "outOfScope"; entry.tables = []; } else delete entry.reason;
+    })),
+      entry.kind === "notConverted" ? select(REASONS, entry.reason, (value) => change(() => { entry.reason = value; })) : null),
+    el("div", { class: "help" }, KINDS[entry.kind]),
+    el("div", { class: "row" }, "Part of a series of tabs",
+      el("input", { value: entry.periodGroup || "", list: "groups", placeholder: "none", size: 14, onchange: (event) => change(() => {
+        const value = event.target.value.trim();
+        if (value) entry.periodGroup = value; else delete entry.periodGroup;
+      }) }),
+      el("datalist", { id: "groups" }, groups.map((name) => el("option", { value: name })))),
+    el("div", { class: "help" }, "Give monthly or yearly tabs that hold the same table one shared name."),
+    el("h3", {}, `Tables (${entry.tables.length})`)
+  ];
+  if (!entry.tables.length) parts.push(el("div", { class: "help" }, entry.kind === "notConverted" ? "None needed." : "Select the whole table, headers included, then press New table."));
+  entry.tables.forEach((table, index) => parts.push(renderTable(table, index)));
+  parts.push(el("h3", {}, `Regions (${entry.regions.length})`));
+  entry.regions.forEach((region, index) => parts.push(el("div", { class: "row" },
+    el("span", {}, REGIONS[region.type]), el("code", {}, region.range),
+    el("button", { class: "danger", onclick: () => change(() => entry.regions.splice(index, 1)) }, "Remove"))));
+  parts.push(el("h3", {}, `Relations in this workbook (${state.label.relations.length})`),
+    el("div", { class: "help" }, "Select a cell in the column that points, press L. Go to the column it points to, press L again."));
+  state.label.relations.forEach((relation, index) => parts.push(el("div", { class: "row" },
+    el("span", {}, `${relation.from.sheet}!${relation.from.column} → ${relation.to.sheet}!${relation.to.column}`),
+    el("button", { class: "danger", onclick: () => change(() => state.label.relations.splice(index, 1)) }, "Remove"))));
+  parts.push(el("h3", {}, "Workbook"),
+    el("div", { class: "row" }, "Notes", el("input", { value: (state.label.workbook || {}).notes || "", size: 34, onchange: (event) => change(() => {
+      state.label.workbook = { ...(state.label.workbook || {}), notes: event.target.value };
+    }) })));
+  if (state.problems.length || state.warnings.length) {
+    parts.push(el("h3", {}, "Problems"),
+      el("ul", { class: "problems" },
+        state.problems.map((text) => el("li", { class: "problem" }, text)),
+        state.warnings.map((text) => el("li", { class: "warning" }, text))));
+  }
+  parts.push(el("div", { class: "help legend" }, "Colours: ",
+    el("span", { style: "background:#bcd7fb" }, "header"), el("span", { style: "background:#e8f2ff" }, "table"),
+    el("span", { style: "background:#fde2a7" }, "total"), el("span", { style: "background:#e6dcf7" }, "title"),
+    el("span", { style: "background:#ececec" }, "notes"), el("span", { style: "background:#d7f3e3" }, "inputs"),
+    el("span", { style: "background:#fbd9e4" }, "outputs")),
+    el("div", { class: "help" }, "Column marks: ▾ has a dropdown list, ◐ has automatic colours. Blue text is a formula."));
+  panel.replaceChildren(...parts);
+  panel.scrollTop = keep;
+}
+function renderTable(table, index) {
+  const entry = currentLabel(), on = table === activeTable();
+  const choose = () => { state.table[state.sheet] = index; renderAll(); };
+  if (!on) return el("div", { class: "card", onclick: choose }, `Table ${index + 1}: ${table.range}, ${table.fields.length} fields`);
+  const rowsInput = (key, placeholder) => el("input", { value: (table[key] || []).join(", "), placeholder, size: 9, onchange: (event) => {
+    const rows = parseRows(event.target.value);
+    if (rows.some((row) => !Number.isInteger(row) || row < 1)) { event.target.classList.add("bad"); return; }
+    change(() => {
+      const oldRows = [...table.headerRows];
+      if (rows.length || key === "headerRows") table[key] = rows; else delete table[key];
+      if (key === "headerRows") refreshNames(table, oldRows);
+    });
+  } });
+  return el("div", { class: "card on" },
+    el("div", { class: "row" }, el("b", {}, `Table ${index + 1}`),
+      el("input", { value: table.range, size: 11, onchange: (event) => {
+        const text = event.target.value.trim().toUpperCase(), box = parseRange(text);
+        if (!RANGE.test(text) || !box) { event.target.classList.add("bad"); return; }
+        change(() => { table.range = text; table.fields = fieldsFor(box, table.fields, table.headerRows); });
+      } }),
+      el("span", { class: "grow" }),
+      el("button", { class: "danger", onclick: () => change(() => entry.tables.splice(index, 1)) }, "Delete")),
+    el("div", { class: "row" }, "Header rows", rowsInput("headerRows", "1"), "Totals", rowsInput("totalRows", "none")),
+    el("div", { class: "row" }, "Shape", select(OPERATORS, table.operator || "none", (value) => change(() => {
+      if (value === "none") delete table.operator; else table.operator = value;
+    }))),
+    el("table", { class: "fields" }, table.fields.map((field) => el("tr", {},
+      el("td", { class: "muted" }, field.column),
+      el("td", {}, el("input", { value: field.name, title: "Filled from the header. It isn't scored, so leave it unless it's wrong.", onchange: (event) => change(() => { field.name = event.target.value.trim() || field.column; }) })),
+      el("td", {}, select(TYPES, field.type, (value) => change(() => { field.type = value; }))),
+      el("td", { class: "sample", title: firstValue(table, field.column), dir: "auto" }, firstValue(table, field.column))))));
+}
+
+/* ---- keys, time, routes ---- */
+window.addEventListener("keydown", (event) => {
+  if (!state) return;
+  state.lastActive = Date.now();
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") { event.preventDefault(); undo(); return; }
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(event.target.tagName) || event.ctrlKey || event.metaKey || event.altKey) return;
+  const actions = { t: newTable, r: setRange, h: () => toggleRows("headerRows"), o: () => toggleRows("totalRows"),
+    1: () => addRegion("title"), 2: () => addRegion("notes"), 3: () => addRegion("inputBlock"), 4: () => addRegion("outputBlock"), l: relationEnd };
+  const action = actions[event.key.toLowerCase()];
+  if (action) { event.preventDefault(); action(); }
+});
+window.addEventListener("mousemove", (event) => {
+  if (!state) return;
+  state.lastActive = Date.now();
+  onMove(event);
+});
+window.addEventListener("mouseup", () => { if (state) state.dragging = false; });
+window.addEventListener("beforeunload", (event) => { if (state && state.dirty) event.preventDefault(); });
+// Time counts only while someone is working, so a coffee break doesn't inflate the estimate.
+setInterval(() => {
+  if (state && !document.hidden && Date.now() - state.lastActive < 120000) api("POST", `/api/workbooks/${encodeURIComponent(state.id)}/time`, { seconds: 15 });
+}, 15000);
+async function route() {
+  if (state && state.dirty) await save();
+  const match = /^#\/w\/(.+)$/.exec(location.hash);
+  if (match) await showWorkbook(decodeURIComponent(match[1])); else await showList();
+}
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>

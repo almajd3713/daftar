@@ -6,9 +6,10 @@ from pathlib import Path
 import subprocess
 from typing import Any
 
-from openpyxl.utils import range_boundaries
+from openpyxl.utils import column_index_from_string, range_boundaries
 
 from daftar_worker.analyser import analyze
+from daftar_worker.analyser.grid import Grid, text_of
 from daftar_worker.errors import WorkerError
 from daftar_worker.evaluation.labels import (
     SEPARATE_STRATA,
@@ -233,12 +234,31 @@ def workbook_path(manifest_path: Path, row: ManifestRow) -> Path | None:
     return None
 
 
+def _header_name(grid: Grid, header_rows: list[int], column: str) -> str:
+    """The name a person would read. Names aren't scored, so nobody should have to retype them."""
+    number = column_index_from_string(column)
+    parts = [text_of(grid.get(row, number)) for row in header_rows]
+    return " / ".join(part for part in parts if part) or column
+
+
+def _series_of(pairs: set[tuple[str, str]]) -> dict[str, str]:
+    """Join the analyser's pairs of tabs into named series, each named after its first tab."""
+    groups: dict[str, set[str]] = {}
+    for first, second in pairs:
+        merged = {first, second} | groups.get(first, set()) | groups.get(second, set())
+        for name in merged:
+            groups[name] = merged
+    return {name: min(members) for name, members in groups.items()}
+
+
 def draft_label(row: ManifestRow, snapshot: dict[str, Any], analysis: dict[str, Any] | None) -> dict[str, Any]:
     """Build a draft for a person to correct. Formula results come from the original file."""
     predictions = from_analysis(analysis) if analysis else Predictions()
+    series = _series_of(predictions.period_pairs)
     sheets = []
     for sheet in snapshot["sheets"]:
         name = sheet["name"]
+        grid = Grid(sheet)
         tables = []
         for table_range in predictions.tables.get(name, []):
             _, low, _, high = range_boundaries(table_range)
@@ -248,7 +268,7 @@ def draft_label(row: ManifestRow, snapshot: dict[str, Any], analysis: dict[str, 
                 if owner == name and int(low) <= number <= int(high)
             )
             fields = [
-                {"column": item.column, "name": item.column, "type": item.type or "text"}
+                {"column": item.column, "name": _header_name(grid, header_rows, item.column), "type": item.type or "text"}
                 for item in predictions.fields
                 if item.sheet == name and item.low_row <= int(high) and item.high_row >= int(low)
             ]
@@ -263,6 +283,8 @@ def draft_label(row: ManifestRow, snapshot: dict[str, Any], analysis: dict[str, 
         }
         if kind == "notConverted":
             entry["reason"] = "outOfScope"
+        if name in series:
+            entry["periodGroup"] = series[name]
         sheets.append(entry)
     kinds = {item["kind"] for item in snapshot["unsupported"]}
     return {
@@ -293,6 +315,9 @@ def write_drafts(
     rows = [row for row in read_manifest(manifest_path) if row.split == split]
     if not rows:
         raise EvalError(f"the {split} split has no workbooks")
+    if split == "test" and analyses_dir is not None:
+        # Correcting the analyser's guesses pulls a person towards them, and this split is what we publish.
+        raise EvalError("test labels start blank: leave out --analyses")
     outcome: dict[str, list[str]] = {"written": [], "alreadyLabelled": [], "missingWorkbook": [], "unreadable": []}
     output.mkdir(parents=True, exist_ok=True)
     for row in rows:

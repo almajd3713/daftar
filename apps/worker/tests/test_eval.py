@@ -558,7 +558,7 @@ def test_prelabel_writes_a_draft_a_person_must_review(tmp_path: Path) -> None:
         {
             "range": "A2:C4",
             "headerRows": [2],
-            "fields": [{"column": "B", "name": "B", "type": "money"}],
+            "fields": [{"column": "B", "name": "Montant", "type": "money"}],
         }
     ]
     # The oracle comes from the file itself.
