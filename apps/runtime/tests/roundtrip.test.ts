@@ -63,6 +63,8 @@ async function bootApp(spec: DaftarSpec, url: string | undefined): Promise<{ bas
     base,
     close: async () => {
       await app.close();
+      // Dropping the database ends its connections, so the pool must be closed first.
+      await db.destroy().catch(() => undefined);
       await drop();
     },
   };
