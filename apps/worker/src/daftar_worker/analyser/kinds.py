@@ -26,6 +26,11 @@ AMOUNT_TYPES = {"money", "decimal"}
 CELL_REF = re.compile(r"\$?[A-Z]{1,3}\$?[0-9]+")
 SHEET_REF = re.compile(r"(?:'((?:[^']|'')+)'|([^\s'!(),=+\-*/&<>]+))!")
 MIN_FORMULAS_FOR_MODEL = 2
+MODEL_BEATS_SCATTER = 0.75
+MIN_SCATTERED_BLOCKS = 3
+MAX_SCATTERED_ROWS = 20
+MAX_SCATTERED_SHARE = 0.8
+REPORT_FIGURES_SHARE = 0.3
 
 
 @dataclass
@@ -85,7 +90,8 @@ def _table_scores(
     status = [
         column
         for column, guess in guesses.items()
-        if guess.type == "choice" and (STATUS_HINT.search(labels.get(column, "")) or column in (coloured or ()))
+        if guess.type == "choice"
+        and (STATUS_HINT.search(labels.get(column, "")) or column in (coloured or ()))
     ]
     assignee = any(ASSIGNEE_HINT.search(label) for label in labels.values())
 
@@ -137,7 +143,8 @@ def score_sheet(
     if any(item["kind"] == "macro" and item.get("sheet") == grid.name for item in unsupported):
         return KindResult("notConverted", "outOfScope", 0.95, {}, facts)
     has_visuals = any(
-        item["kind"] in ("chart", "pivot") and item.get("sheet") == grid.name for item in unsupported
+        item["kind"] in ("chart", "pivot") and item.get("sheet") == grid.name
+        for item in unsupported
     )
     if facts["cells"] == 0:
         if has_visuals:
@@ -163,17 +170,25 @@ def score_sheet(
     index = sizes.index(max(sizes))
     table = layout.tables[index]
     coloured = coloured_by_table[index] if coloured_by_table else set()
-    scores = _table_scores(table, guesses_by_table[index], labels_by_table[index], references, grid.name, coloured)
+    scores = _table_scores(
+        table, guesses_by_table[index], labels_by_table[index], references, grid.name, coloured
+    )
     facts["largestTable"] = table.rect.a1
 
     # A small grid of formulas beside labels is a calculation, even when it parses as a table.
-    data_cells = sum(len(grid.row_cells(row, table.rect.left, table.rect.right)) for row in table.data_rows())
+    data_cells = sum(
+        len(grid.row_cells(row, table.rect.left, table.rect.right)) for row in table.data_rows()
+    )
     model_share = len(formulas) / max(data_cells, 1)
     if chains >= MIN_FORMULAS_FOR_MODEL and model_share >= 0.3 and table.rect.height <= 30:
         scores["formulaModel"] = 0.75 + min(chains * 0.02, 0.15)
     # A sheet of mostly totals and subtotals summarises other data: it's a report.
     if len(table.total_rows) >= 2 and len(table.total_rows) * 2 > len(table.data_rows()):
         scores["report"] = 0.8
+
+    scattered = _scattered_reason(grid, layout, formulas)
+    if scattered is not None and scores.get("formulaModel", 0) < MODEL_BEATS_SCATTER:
+        return KindResult("notConverted", scattered, 0.6, scores, {**facts, "scattered": True})
 
     best = max(sorted(scores), key=lambda name: scores[name])
     top = scores[best]
@@ -182,6 +197,28 @@ def score_sheet(
     if best == "report":
         return KindResult("notConverted", "report", round(confidence, 3), scores, facts)
     return KindResult(best, None, round(confidence, 3), scores, facts)
+
+
+def _scattered_reason(grid: Grid, layout: SheetLayout, formulas: list[Any]) -> str | None:
+    """Mostly loose labels around a few short tables: a form to fill in, or a report laid out to read.
+
+    A list has its rows in one block. Here much of the sheet sits outside any table and no table runs
+    long, so whatever tables the cut found are fragments of a layout.
+    """
+    cells = [cell for cell in grid.cells.values() if not cell.is_empty]
+    if not cells or len(layout.other_blocks) < MIN_SCATTERED_BLOCKS:
+        return None
+    if max(len(table.data_rows()) for table in layout.tables) > MAX_SCATTERED_ROWS:
+        return None
+    in_tables = sum(
+        len(grid.row_cells(row, table.rect.left, table.rect.right))
+        for table in layout.tables
+        for row in range(table.rect.top, table.rect.bottom + 1)
+    )
+    if in_tables / len(cells) > MAX_SCATTERED_SHARE:
+        return None
+    figures = sum(cell.is_number or bool(cell.formula) for cell in cells) / len(cells)
+    return "report" if figures >= REPORT_FIGURES_SHARE or formulas else "form"
 
 
 def resolve_validation(
@@ -195,7 +232,9 @@ def resolve_validation(
 ) -> dict[str, Any] | None:
     """The list validation covering a column, with its values and any other sheet it draws on."""
     for validation in validations:
-        if validation.get("type") != "list" or not _covers(validation["ranges"], column, top, bottom):
+        if validation.get("type") != "list" or not _covers(
+            validation["ranges"], column, top, bottom
+        ):
             continue
         source = str(validation.get("formula1") or "").strip().lstrip("=")
         if source.startswith('"'):
@@ -221,7 +260,9 @@ def _covers(ranges: list[str], column: int, top: int, bottom: int) -> bool:
     return False
 
 
-def _values_from_range(source: str, grids: dict[str, Grid], own_sheet: str) -> dict[str, Any] | None:
+def _values_from_range(
+    source: str, grids: dict[str, Grid], own_sheet: str
+) -> dict[str, Any] | None:
     sheet_name, _, reference = source.rpartition("!")
     sheet_name = sheet_name.strip("'").replace("''", "'") or own_sheet
     match = re.fullmatch(r"\$?([A-Z]+)\$?([0-9]+)(?::\$?([A-Z]+)\$?([0-9]+))?", reference)

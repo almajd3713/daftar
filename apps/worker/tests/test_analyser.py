@@ -728,3 +728,148 @@ def test_analyses_with_no_engine_results_read_as_not_run(tmp_path: Path) -> None
     report = run_evaluation(root / "labels", root / "manifest.csv", "dev", analyses)
     assert report["parityNotRun"] == ["wb"]
     assert report["overall"]["metrics"]["parity.share"]["value"] is None
+
+
+def _tables(path: Path) -> list[dict[str, Any]]:
+    return [item["proposal"] for item in by_kind(analyze_snapshot(read_file(path)), "table")]
+
+
+def test_a_blank_row_under_the_header_stays_in_the_table(tmp_path: Path) -> None:
+    path = _write(tmp_path / "b.xlsx", {
+        "A1": ["Nom", "Qté", "Prix"],
+        "A3": ["Vis", 2, 10.5],
+        "A4": ["Clou", 3, 4.5],
+    }, header_bold=True)  # fmt: skip
+    table = _tables(path)[0]
+    assert (table["range"], table["headerRows"], table["dataRange"]) == ("A1:C4", [1], "A3:C4")
+
+
+def test_groups_under_one_header_are_one_table_without_their_labels_as_records(tmp_path: Path) -> None:
+    path = _write(tmp_path / "g.xlsx", {
+        "A1": ["Nom", "Qté", "Prix"],
+        "A2": ["Atelier"],
+        "A3": ["Vis", 2, 10.5],
+        "A4": ["Clou", 3, 4.5],
+        "A6": ["Bureau"],
+        "A7": ["Encre", 1, 7.5],
+    }, header_bold=True)  # fmt: skip
+    tables = _tables(path)
+    assert [item["range"] for item in tables] == ["A1:C7"]
+    assert tables[0]["noteRows"] == [2, 6]
+
+
+def test_a_new_header_under_a_table_starts_a_new_table(tmp_path: Path) -> None:
+    path = _write(tmp_path / "n.xlsx", {
+        "A1": ["Nom", "Qté", "Prix"],
+        "A2": ["Vis", 2, 10.5],
+        "A3": ["Clou", 3, 4.5],
+        "A5": ["Client", "Ville", "Solde"],
+        "A6": ["Amine", "Blida", 100.5],
+        "A7": ["Sara", "Oran", 200.5],
+    })  # fmt: skip
+    assert [item["range"] for item in _tables(path)] == ["A1:C3", "A5:C7"]
+
+
+def test_a_title_block_above_a_full_header_is_not_the_table(tmp_path: Path) -> None:
+    path = _write(tmp_path / "t.xlsx", {
+        "A1": ["Société", "Atlas"],
+        "A2": ["Rapport"],
+        "A3": ["Nom", "Qté", "Prix", "Ville", "Total"],
+        "A4": ["Vis", 2, 10.5, "Blida", 21.0],
+        "A5": ["Clou", 3, 4.5, "Oran", 13.5],
+    })  # fmt: skip
+    table = _tables(path)[0]
+    assert (table["range"], table["headerRows"]) == ("A3:E5", [3])
+
+
+def test_a_row_of_dates_heads_the_figures_under_it(tmp_path: Path) -> None:
+    months = [datetime(2026, month, 1) for month in (1, 2, 3)]
+    path = _write(tmp_path / "d.xlsx", {
+        "B1": months,
+        "A3": [1, 10.5, 20.5, 30.5],
+        "A4": [2, 11.5, 21.5, 31.5],
+    })  # fmt: skip
+    table = _tables(path)[0]
+    assert table["headerRows"] == [1]
+    assert table["range"] == "A1:D4"
+
+
+def test_columns_laid_out_with_spacers_are_one_table(tmp_path: Path) -> None:
+    path = _write(tmp_path / "s.xlsx", {
+        "A1": ["Nom", None, "Qté", None, "Prix", None, "Total"],
+        "A2": ["Vis", None, 2, None, 10.5, None, 21.0],
+        "A3": ["Clou", None, 3, None, 4.5, None, 13.5],
+    }, header_bold=True)  # fmt: skip
+    assert [item["range"] for item in _tables(path)] == ["A1:G3"]
+
+
+def test_figures_with_no_labels_of_their_own_belong_to_the_block_on_their_left(tmp_path: Path) -> None:
+    path = _write(tmp_path / "f.xlsx", {
+        "A1": ["Nom", "Jan", None, "Fév", "Mar"],
+        "A2": ["Vis", 1.5, None, 2.5, 3.5],
+        "A3": ["Clou", 4.5, None, 5.5, 6.5],
+    }, header_bold=True)  # fmt: skip
+    assert [item["range"] for item in _tables(path)] == ["A1:E3"]
+
+
+def test_tables_with_their_own_labels_stay_apart_across_a_spacer(tmp_path: Path) -> None:
+    path = _write(tmp_path / "p.xlsx", {
+        "A1": ["Nom", "Qté", None, "Client", "Solde"],
+        "A2": ["Vis", 2, None, "Amine", 100.5],
+        "A3": ["Clou", 3, None, "Sara", 200.5],
+    }, header_bold=True)  # fmt: skip
+    assert [item["range"] for item in _tables(path)] == ["A1:B3", "D1:E3"]
+
+
+def test_a_thin_text_scrap_beside_a_wide_table_is_not_a_table(tmp_path: Path) -> None:
+    path = _write(tmp_path / "x.xlsx", {
+        "A1": ["Ville", "Blida"],
+        "A2": ["Agence", "Centre"],
+        "A3": ["Mois", "Mars"],
+        "A5": ["Nom", "Qté", "Prix", "Ville", "Total"],
+        "A6": ["Vis", 2, 10.5, "Blida", 21.0],
+        "A7": ["Clou", 3, 4.5, "Oran", 13.5],
+    })  # fmt: skip
+    assert [item["range"] for item in _tables(path)] == ["A5:E7"]
+
+
+def test_loose_labels_around_short_blocks_read_as_a_form(tmp_path: Path) -> None:
+    path = _write(tmp_path / "form.xlsx", {
+        "A1": ["Demande"],
+        "A3": ["Nom"],
+        "C3": ["Service"],
+        "A5": ["Adresse"],
+        "C5": ["Motif"],
+        "A7": ["Date"],
+        "C7": ["Signature"],
+        "A9": ["Observations"],
+        "A11": ["Article", "Code"],
+        "A12": ["Vis", "V1"],
+        "A13": ["Clou", "C1"],
+    })  # fmt: skip
+    sheet = analyze_snapshot(read_file(path))["sheets"][0]
+    assert (sheet["outcome"], sheet.get("reason")) == ("notConverted", "form")
+
+
+def test_a_long_list_with_notes_around_it_stays_a_list(tmp_path: Path) -> None:
+    rows: dict[str, list[Any]] = {
+        "A1": ["Note"], "A3": ["Note"], "A5": ["Note"], "A7": ["Note"], "A9": ["Nom", "Qté"],
+    }  # fmt: skip
+    rows |= {f"A{row}": [f"Article {row}", row] for row in range(10, 40)}
+    assert [item["range"] for item in _tables(_write(tmp_path / "l.xlsx", rows))] == ["A9:B39"]
+
+
+def test_stacked_documents_with_the_same_header_stay_apart(tmp_path: Path) -> None:
+    path = _write(tmp_path / "inv.xlsx", {
+        "A1": ["Article", "Qté", "Prix", "Montant"],
+        "A2": ["Vis", 2, 10.5, 21.0],
+        "A3": ["Clou", 3, 4.5, 13.5],
+        "D5": ["Facture"],
+        "D6": ["A102"],
+        "A7": ["Article", "Qté", "Prix", "Montant"],
+        "A8": ["Encre", 1, 7.5, 7.5],
+        "A9": ["Colle", 2, 2.5, 5.0],
+    })  # fmt: skip
+    ranges = [item["range"] for item in _tables(path)]
+    assert ranges[0] == "A1:D3"
+    assert ranges[1].endswith("D9")

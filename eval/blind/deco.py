@@ -3,6 +3,10 @@
     uv run python eval/blind/deco.py sample
     uv run python eval/blind/deco.py label --model opus
     uv run python eval/blind/deco.py score --tags opus sonnet
+    uv run python eval/blind/deco.py rules --split tune
+
+Rule changes are tuned on the "tune" split only. "holdout" holds a fixed share of DECO plus the agents'
+30 workbooks, and is measured to report progress, never to choose a rule.
 
 DECO has no licence file (OQ-5), and its Enron workbooks can hold personal data, so everything stays in
 eval/private/deco/. Output is counts only, with no cell text. Workbooks that look personal are skipped
@@ -10,15 +14,19 @@ before an agent sees them, and DECO's annotation sheets are removed from what th
 """
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor
+from collections import Counter
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+import hashlib
 import json
 from pathlib import Path
+import pickle
 import random
 import re
 import subprocess
 from typing import Any
 
 from openpyxl import load_workbook
+from openpyxl.utils import range_boundaries
 from run import as_predictions, ask_agent, final_event, lines_read, outside_paths, prepare, render
 
 from daftar_worker.analyser import analyze_snapshot
@@ -37,6 +45,7 @@ PERSONAL = re.compile(
 )
 MAX_LINES = 900
 SEED = 20261104
+HOLDOUT_SHARE = 77  # of 256, about 30%
 QUOTAS = {"completed": 20, "not_applicable/form_template": 5, "not_applicable/report_balance": 5}
 Gold = dict[str, Any]
 
@@ -81,10 +90,10 @@ def gold_of(path: Path) -> Gold:
             )
     for parent, cells in heads:
         if parent in tables:
-            first, last = (
-                int(re.sub(r"\D", "", part)) for part in (cells + ":" + cells).split(":")[:2]
-            )
-            tables[parent]["headerRows"].extend(range(first, last + 1))
+            left, first, right, last = (int(value or 0) for value in range_boundaries(cells))
+            # A tall, thin header is DECO's label column down the side, not a header row.
+            if right - left + 1 >= last - first + 1:
+                tables[parent]["headerRows"].extend(range(first, last + 1))
     sheets: dict[str, Any] = {}
     for name, status in statuses.items():
         sheets[name] = {
@@ -131,6 +140,114 @@ def sample() -> None:
                 chosen += 1
     SAMPLE.write_text(json.dumps(picked, indent=1) + "\n", encoding="utf-8")
     print(f"picked {len(picked)}, skipped {skipped}")
+
+
+def split_of(path: Path, sampled: set[str]) -> str:
+    """Fixed by file name, so a workbook never changes side."""
+    if str(path.relative_to(DECO)) in sampled:
+        return "holdout"
+    return "holdout" if hashlib.sha256(path.name.encode()).digest()[0] < HOLDOUT_SHARE else "tune"
+
+
+def snapshot_cached(path: Path) -> dict[str, Any]:
+    cached = DECO / "cache" / (hashlib.sha256(path.name.encode()).hexdigest() + ".pickle")
+    if cached.exists():
+        return dict(pickle.loads(cached.read_bytes()))  # noqa: S301 - written by this script, private folder
+    snapshot = clean_snapshot(path)
+    cached.parent.mkdir(exist_ok=True)
+    cached.write_bytes(pickle.dumps(snapshot))
+    return snapshot
+
+
+def rule_result(path: Path) -> dict[str, Any] | None:
+    """One workbook's tables and headers against DECO's. Ranges and counts only, no cell text."""
+    try:
+        gold, snapshot = gold_of(path), snapshot_cached(path)
+        found = from_analysis(analyze_snapshot(snapshot))
+    except Exception as error:  # noqa: BLE001 - counted and reported, not hidden
+        return {"file": path.name, "failed": type(error).__name__}
+    names = {sheet["name"] for sheet in snapshot["sheets"]}
+    sheets = []
+    for name, sheet in gold.items():
+        if name in names:
+            sheets.append(
+                {
+                    "name": name,
+                    "status": sheet["status"],
+                    "gold": [t["range"] for t in sheet["tables"]],
+                    "goldHeaders": sorted(
+                        {row for t in sheet["tables"] for row in t["headerRows"]}
+                    ),
+                    "found": found.tables.get(name, []),
+                    "foundHeaders": sorted(
+                        row for owner, row in found.header_rows if owner == name
+                    ),
+                    "outcome": found.outcomes.get(name),
+                }
+            )
+    return {"file": path.name, "sheets": sheets}
+
+
+def error_class(sheet: dict[str, Any]) -> str:
+    gold, found = sheet["gold"], sheet["found"]
+    if sorted(gold) == sorted(found):
+        return "exact"
+    if match_tables(gold, found, 2) == len(gold) == len(found):
+        return "near"
+    if not found:
+        return "none found"
+    if len(found) > len(gold):
+        return "too many"
+    if len(found) < len(gold):
+        return "too few"
+    return "same count, wrong ranges"
+
+
+def rules(split: str, write: Path | None) -> None:
+    sampled = {item["path"] for item in json.loads(SAMPLE.read_text(encoding="utf-8"))}
+    paths = [
+        path
+        for folder in ("completed", "not_applicable/form_template", "not_applicable/report_balance")
+        for path in sorted((DECO / "x" / folder).glob("*.xlsx"))
+        if split_of(path, sampled) == split
+    ]
+    with ProcessPoolExecutor() as pool:
+        results = [item for item in pool.map(rule_result, paths, chunksize=4) if item is not None]
+    failed = [item for item in results if "failed" in item]
+    sheets = [sheet for item in results if "sheets" in item for sheet in item["sheets"]]
+    done = [sheet for sheet in sheets if sheet["status"] == "completed"]
+    tallies = {"tp": 0, "fp": 0, "fn": 0, "exactTp": 0, "hTp": 0, "hFp": 0, "hFn": 0}
+    for sheet in done:
+        near, exact = (
+            match_tables(sheet["gold"], sheet["found"], 2),
+            match_tables(sheet["gold"], sheet["found"], 0),
+        )
+        tallies["tp"] += near
+        tallies["exactTp"] += exact
+        tallies["fp"] += len(sheet["found"]) - near
+        tallies["fn"] += len(sheet["gold"]) - near
+        gold_rows, found_rows = set(sheet["goldHeaders"]), set(sheet["foundHeaders"])
+        tallies["hTp"] += len(gold_rows & found_rows)
+        tallies["hFp"] += len(found_rows - gold_rows)
+        tallies["hFn"] += len(gold_rows - found_rows)
+    gold_total = tallies["tp"] + tallies["fn"]
+    found_total = tallies["tp"] + tallies["fp"]
+    print(f"{split}: {len(paths)} workbooks, {len(failed)} failed, {len(done)} table sheets")
+    print(f"tables near f1 {2 * tallies['tp'] / max(1, gold_total + found_total):.3f}")
+    print(f"tables exact f1 {2 * tallies['exactTp'] / max(1, gold_total + found_total):.3f}")
+    header_total = 2 * tallies["hTp"] + tallies["hFp"] + tallies["hFn"]
+    print(f"headers f1 {2 * tallies['hTp'] / max(1, header_total):.3f}")
+    print("sheets by result:", dict(Counter(error_class(sheet) for sheet in done).most_common()))
+    print(
+        "sheet outcome when no table found:",
+        dict(Counter(sheet["outcome"] for sheet in done if not sheet["found"]).most_common()),
+    )
+    aside = [sheet for sheet in sheets if sheet["status"] != "completed"]
+    print(
+        f"set-aside sheets left with no table: {sum(not sheet['found'] for sheet in aside)}/{len(aside)}"
+    )
+    if write:
+        write.write_text(json.dumps(results, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def label_one(item: dict[str, Any], model: str) -> str:
@@ -298,6 +415,9 @@ def main() -> None:
     run.add_argument("--workers", type=int, default=4)
     report = commands.add_parser("score")
     report.add_argument("--tags", nargs="+", required=True)
+    check = commands.add_parser("rules")
+    check.add_argument("--split", choices=("tune", "holdout"), required=True)
+    check.add_argument("--write", type=Path)
     args = parser.parse_args()
     if args.command == "sample":
         sample()
@@ -306,6 +426,8 @@ def main() -> None:
         with ThreadPoolExecutor(args.workers) as pool:
             outcomes = list(pool.map(lambda item: label_one(item, args.model), picked))
         print({outcome: outcomes.count(outcome) for outcome in set(outcomes)})
+    elif args.command == "rules":
+        rules(args.split, args.write)
     else:
         score(args.tags)
 
