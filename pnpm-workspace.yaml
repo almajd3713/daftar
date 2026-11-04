@@ -4,10 +4,22 @@ packages:
 
 catalog:
   "@eslint/js": 10.0.1
+  "@nestjs/common": 12.3.2
+  "@nestjs/core": 12.3.2
+  "@nestjs/platform-express": 12.3.2
+  "@node-rs/argon2": 2.2.2
+  "@types/express": 5.0.6
   "@types/node": 26.6.6
+  "@types/pg": 8.23.1
   ajv: 8.20.0
+  cookie: 1.1.1
   eslint: 10.14.0
+  formualizer: 0.13.0
   json-schema-to-typescript: 16.0.0
+  kysely: 0.29.8
+  pg: 8.23.1
+  reflect-metadata: 0.2.2
+  rxjs: 7.8.2
   typescript: 6.0.3
   typescript-eslint: 8.72.1
   vitest: 5.1.0

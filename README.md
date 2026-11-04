@@ -12,6 +12,7 @@ The plan is in [`docs/03-blueprint.md`](docs/03-blueprint.md). The research note
 |---|---|
 | `packages/spec` | The app spec: one JSON Schema, TypeScript types and validators in both languages, and example specs |
 | `apps/worker` | The Python worker: reads, analyses, exports and diffs workbooks |
+| `apps/runtime` | The NestJS runtime: serves any valid spec on Postgres, with roles, history and computed fields |
 | `eval` | The labelled evaluation set and its rules: see [`eval/README.md`](eval/README.md) |
 | `compose.dev.yaml` | Dev stack: Postgres and the worker image, with LibreOffice installed |
 
@@ -23,7 +24,10 @@ You need Node 26, pnpm 11, Python 3.12 with uv, and Docker.
 pnpm install
 uv sync
 
-# TypeScript checks
+# TypeScript checks. Build first: the runtime imports the built spec package.
+# The runtime's tests need Postgres:
+docker run -d --name daftar-test-pg -e POSTGRES_PASSWORD=test -p 127.0.0.1:5434:5432 postgres:16-alpine
+pnpm -r build
 pnpm -r lint
 pnpm -r typecheck
 pnpm -r test

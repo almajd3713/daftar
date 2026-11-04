@@ -1,0 +1,2849 @@
+{
+ "record": {
+  "col_a": 7.5,
+  "col_b": -2.0,
+  "col_c": "Bonjour le Monde",
+  "col_d": null,
+  "col_e": true,
+  "col_f": 46037.0,
+  "col_g": 3.0
+ },
+ "now": "2025-12-09T12:00:00Z",
+ "cases": [
+  {
+   "formula": "=A2+G2",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "add",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": 10.5
+  },
+  {
+   "formula": "=A2-G2",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "sub",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": 4.5
+  },
+  {
+   "formula": "=A2*G2",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "mul",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": 22.5
+  },
+  {
+   "formula": "=A2/G2",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "div",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": 2.5
+  },
+  {
+   "formula": "=G2^2",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "pow",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2.0
+     }
+    ]
+   },
+   "value": 9.0
+  },
+  {
+   "formula": "=-A2",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "neg",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     }
+    ]
+   },
+   "value": -7.5
+  },
+  {
+   "formula": "=A2%",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "pct",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     }
+    ]
+   },
+   "value": 0.075
+  },
+  {
+   "formula": "=C2&\"!\"",
+   "expr": {
+    "kind": "op",
+    "valueType": "text",
+    "op": "concat",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "!"
+     }
+    ]
+   },
+   "value": "Bonjour le Monde!"
+  },
+  {
+   "formula": "=A2&G2",
+   "expr": {
+    "kind": "op",
+    "valueType": "text",
+    "op": "concat",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": "7.53"
+  },
+  {
+   "formula": "=A2=7.5",
+   "expr": {
+    "kind": "op",
+    "valueType": "boolean",
+    "op": "eq",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 7.5
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=A2<>7.5",
+   "expr": {
+    "kind": "op",
+    "valueType": "boolean",
+    "op": "ne",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 7.5
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=A2<G2",
+   "expr": {
+    "kind": "op",
+    "valueType": "boolean",
+    "op": "lt",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=A2<=7.5",
+   "expr": {
+    "kind": "op",
+    "valueType": "boolean",
+    "op": "le",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 7.5
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=A2>G2",
+   "expr": {
+    "kind": "op",
+    "valueType": "boolean",
+    "op": "gt",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=A2>=8",
+   "expr": {
+    "kind": "op",
+    "valueType": "boolean",
+    "op": "ge",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 8.0
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=C2=\"BONJOUR LE MONDE\"",
+   "expr": {
+    "kind": "op",
+    "valueType": "boolean",
+    "op": "eq",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "BONJOUR LE MONDE"
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=D2+1",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "add",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "any",
+      "field": "col_d"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": 1.0
+  },
+  {
+   "formula": "=D2=\"\"",
+   "expr": {
+    "kind": "op",
+    "valueType": "boolean",
+    "op": "eq",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "any",
+      "field": "col_d"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": ""
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=D2=0",
+   "expr": {
+    "kind": "op",
+    "valueType": "boolean",
+    "op": "eq",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "any",
+      "field": "col_d"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 0.0
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=E2+1",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "add",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "boolean",
+      "field": "col_e"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": 2.0
+  },
+  {
+   "formula": "=\"3\"+1",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "add",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "3"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": 4.0
+  },
+  {
+   "formula": "=\"x\"+1",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "add",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "x"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "error": "#VALUE!"
+  },
+  {
+   "formula": "=A2/0",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "div",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 0.0
+     }
+    ]
+   },
+   "error": "#DIV/0!"
+  },
+  {
+   "formula": "=A2/D2",
+   "expr": {
+    "kind": "op",
+    "valueType": "number",
+    "op": "div",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "any",
+      "field": "col_d"
+     }
+    ]
+   },
+   "error": "#DIV/0!"
+  },
+  {
+   "formula": "=ABS(B2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "ABS",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_b"
+     }
+    ]
+   },
+   "value": 2.0
+  },
+  {
+   "formula": "=INT(A2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "INT",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     }
+    ]
+   },
+   "value": 7.0
+  },
+  {
+   "formula": "=INT(B2-0.5)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "INT",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "number",
+      "op": "sub",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_b"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 0.5
+       }
+      ]
+     }
+    ]
+   },
+   "value": -3.0
+  },
+  {
+   "formula": "=SQRT(G2*3)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "SQRT",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "number",
+      "op": "mul",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_g"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 3.0
+       }
+      ]
+     }
+    ]
+   },
+   "value": 3.0
+  },
+  {
+   "formula": "=SQRT(B2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "SQRT",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_b"
+     }
+    ]
+   },
+   "error": "#NUM!"
+  },
+  {
+   "formula": "=POWER(G2,3)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "POWER",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 3.0
+     }
+    ]
+   },
+   "value": 27.0
+  },
+  {
+   "formula": "=MOD(A2,2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "MOD",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2.0
+     }
+    ]
+   },
+   "value": 1.5
+  },
+  {
+   "formula": "=MOD(-7,3)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "MOD",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "number",
+      "op": "neg",
+      "args": [
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 7.0
+       }
+      ]
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 3.0
+     }
+    ]
+   },
+   "value": 2.0
+  },
+  {
+   "formula": "=MOD(A2,0)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "MOD",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 0.0
+     }
+    ]
+   },
+   "error": "#DIV/0!"
+  },
+  {
+   "formula": "=ROUND(2.5,0)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "ROUND",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2.5
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 0.0
+     }
+    ]
+   },
+   "value": 3.0
+  },
+  {
+   "formula": "=ROUND(-2.5,0)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "ROUND",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "number",
+      "op": "neg",
+      "args": [
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 2.5
+       }
+      ]
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 0.0
+     }
+    ]
+   },
+   "value": -3.0
+  },
+  {
+   "formula": "=ROUND(1.005,2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "ROUND",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.005
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2.0
+     }
+    ]
+   },
+   "value": 1.01
+  },
+  {
+   "formula": "=ROUND(1234.5,-2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "ROUND",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1234.5
+     },
+     {
+      "kind": "op",
+      "valueType": "number",
+      "op": "neg",
+      "args": [
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 2.0
+       }
+      ]
+     }
+    ]
+   },
+   "value": 1200.0
+  },
+  {
+   "formula": "=ROUNDUP(1.21,1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "ROUNDUP",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.21
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": 1.3
+  },
+  {
+   "formula": "=ROUNDDOWN(1.29,1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "ROUNDDOWN",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.29
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": 1.2
+  },
+  {
+   "formula": "=ROUNDUP(-1.21,1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "ROUNDUP",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "number",
+      "op": "neg",
+      "args": [
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.21
+       }
+      ]
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": -1.3
+  },
+  {
+   "formula": "=MROUND(17,5)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "MROUND",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 17.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 5.0
+     }
+    ]
+   },
+   "value": 15.0
+  },
+  {
+   "formula": "=MROUND(18,5)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "MROUND",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 18.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 5.0
+     }
+    ]
+   },
+   "value": 20.0
+  },
+  {
+   "formula": "=CEILING(7.1,1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "CEILING",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 7.1
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": 8.0
+  },
+  {
+   "formula": "=FLOOR(7.9,1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "FLOOR",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 7.9
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": 7.0
+  },
+  {
+   "formula": "=CEILING(7,2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "CEILING",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 7.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2.0
+     }
+    ]
+   },
+   "value": 8.0
+  },
+  {
+   "formula": "=SUM(A2,G2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "SUM",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": 10.5
+  },
+  {
+   "formula": "=SUM(A2:B2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "SUM",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_b"
+     }
+    ]
+   },
+   "value": 5.5
+  },
+  {
+   "formula": "=SUM(A2:C2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "SUM",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_b"
+     },
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     }
+    ]
+   },
+   "value": 5.5
+  },
+  {
+   "formula": "=MIN(A2:B2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "MIN",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_b"
+     }
+    ]
+   },
+   "value": -2.0
+  },
+  {
+   "formula": "=MAX(A2:B2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "MAX",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_b"
+     }
+    ]
+   },
+   "value": 7.5
+  },
+  {
+   "formula": "=AVERAGE(A2,G2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "AVERAGE",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": 5.25
+  },
+  {
+   "formula": "=COUNT(A2:D2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "COUNT",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_b"
+     },
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "field",
+      "valueType": "any",
+      "field": "col_d"
+     }
+    ]
+   },
+   "value": 2.0
+  },
+  {
+   "formula": "=COUNTA(A2:D2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "COUNTA",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_b"
+     },
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "field",
+      "valueType": "any",
+      "field": "col_d"
+     }
+    ]
+   },
+   "value": 3.0
+  },
+  {
+   "formula": "=PRODUCT(A2,G2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "PRODUCT",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": 22.5
+  },
+  {
+   "formula": "=IF(A2>1,G2,0)",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "IF",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "gt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 0.0
+     }
+    ]
+   },
+   "value": 3.0
+  },
+  {
+   "formula": "=IF(A2<1,G2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "IF",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "lt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=IF(A2>1,\"oui\",\"non\")",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "IF",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "gt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "oui"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "non"
+     }
+    ]
+   },
+   "value": "oui"
+  },
+  {
+   "formula": "=IF(A2>1,1,1/0)",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "IF",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "gt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     },
+     {
+      "kind": "op",
+      "valueType": "number",
+      "op": "div",
+      "args": [
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 0.0
+       }
+      ]
+     }
+    ]
+   },
+   "value": 1.0
+  },
+  {
+   "formula": "=IFS(A2<1,1,A2<10,2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "IFS",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "lt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     },
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "lt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 10.0
+       }
+      ]
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2.0
+     }
+    ]
+   },
+   "value": 2.0
+  },
+  {
+   "formula": "=IFS(A2<1,1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "IFS",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "lt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "error": "#N/A"
+  },
+  {
+   "formula": "=AND(A2>1,G2>1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "AND",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "gt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     },
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "gt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_g"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=AND(A2>1,G2<1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "AND",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "gt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     },
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "lt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_g"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=OR(A2<1,G2>1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "OR",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "lt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     },
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "gt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_g"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=OR(A2<1,G2<1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "OR",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "lt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     },
+     {
+      "kind": "op",
+      "valueType": "boolean",
+      "op": "lt",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_g"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=NOT(E2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "NOT",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "boolean",
+      "field": "col_e"
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=TRUE()",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "TRUE",
+    "args": []
+   },
+   "value": true
+  },
+  {
+   "formula": "=FALSE()",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "FALSE",
+    "args": []
+   },
+   "value": false
+  },
+  {
+   "formula": "=IFERROR(A2/0,9)",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "IFERROR",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "number",
+      "op": "div",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 0.0
+       }
+      ]
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 9.0
+     }
+    ]
+   },
+   "value": 9.0
+  },
+  {
+   "formula": "=IFERROR(A2,9)",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "IFERROR",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 9.0
+     }
+    ]
+   },
+   "value": 7.5
+  },
+  {
+   "formula": "=IFNA(NA(),9)",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "IFNA",
+    "args": [
+     {
+      "kind": "call",
+      "valueType": "any",
+      "fn": "NA",
+      "args": []
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 9.0
+     }
+    ]
+   },
+   "value": 9.0
+  },
+  {
+   "formula": "=NA()",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "NA",
+    "args": []
+   },
+   "error": "#N/A"
+  },
+  {
+   "formula": "=SWITCH(G2,1,10,3,30)",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "SWITCH",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 10.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 3.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 30.0
+     }
+    ]
+   },
+   "value": 30.0
+  },
+  {
+   "formula": "=SWITCH(G2,1,10,99)",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "SWITCH",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 10.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 99.0
+     }
+    ]
+   },
+   "value": 99.0
+  },
+  {
+   "formula": "=SWITCH(G2,1,10)",
+   "expr": {
+    "kind": "call",
+    "valueType": "any",
+    "fn": "SWITCH",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 10.0
+     }
+    ]
+   },
+   "error": "#N/A"
+  },
+  {
+   "formula": "=ISBLANK(D2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "ISBLANK",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "any",
+      "field": "col_d"
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=ISBLANK(A2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "ISBLANK",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=ISNUMBER(A2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "ISNUMBER",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=ISNUMBER(C2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "ISNUMBER",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=ISTEXT(C2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "ISTEXT",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=ISERROR(A2/0)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "ISERROR",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "number",
+      "op": "div",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 0.0
+       }
+      ]
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=ISERROR(A2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "ISERROR",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=ISNA(NA())",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "ISNA",
+    "args": [
+     {
+      "kind": "call",
+      "valueType": "any",
+      "fn": "NA",
+      "args": []
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=ISNA(A2/0)",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "ISNA",
+    "args": [
+     {
+      "kind": "op",
+      "valueType": "number",
+      "op": "div",
+      "args": [
+       {
+        "kind": "field",
+        "valueType": "number",
+        "field": "col_a"
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 0.0
+       }
+      ]
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=CONCATENATE(C2,\" \",G2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "CONCATENATE",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": " "
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_g"
+     }
+    ]
+   },
+   "value": "Bonjour le Monde 3"
+  },
+  {
+   "formula": "=CONCAT(C2,\"-\",A2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "CONCAT",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "-"
+     },
+     {
+      "kind": "field",
+      "valueType": "number",
+      "field": "col_a"
+     }
+    ]
+   },
+   "value": "Bonjour le Monde-7.5"
+  },
+  {
+   "formula": "=LEFT(C2,7)",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "LEFT",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 7.0
+     }
+    ]
+   },
+   "value": "Bonjour"
+  },
+  {
+   "formula": "=RIGHT(C2,5)",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "RIGHT",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 5.0
+     }
+    ]
+   },
+   "value": "Monde"
+  },
+  {
+   "formula": "=MID(C2,9,2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "MID",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 9.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2.0
+     }
+    ]
+   },
+   "value": "le"
+  },
+  {
+   "formula": "=LEFT(C2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "LEFT",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     }
+    ]
+   },
+   "value": "B"
+  },
+  {
+   "formula": "=LEN(C2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "LEN",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     }
+    ]
+   },
+   "value": 16.0
+  },
+  {
+   "formula": "=TRIM(\"  a   b  \")",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "TRIM",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "  a   b  "
+     }
+    ]
+   },
+   "value": "a b"
+  },
+  {
+   "formula": "=UPPER(C2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "UPPER",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     }
+    ]
+   },
+   "value": "BONJOUR LE MONDE"
+  },
+  {
+   "formula": "=LOWER(C2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "LOWER",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     }
+    ]
+   },
+   "value": "bonjour le monde"
+  },
+  {
+   "formula": "=PROPER(\"bonJOUR le monde\")",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "PROPER",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "bonJOUR le monde"
+     }
+    ]
+   },
+   "value": "Bonjour Le Monde"
+  },
+  {
+   "formula": "=SUBSTITUTE(C2,\"o\",\"0\")",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "SUBSTITUTE",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "o"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "0"
+     }
+    ]
+   },
+   "value": "B0nj0ur le M0nde"
+  },
+  {
+   "formula": "=SUBSTITUTE(C2,\"o\",\"0\",2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "SUBSTITUTE",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "o"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "0"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2.0
+     }
+    ]
+   },
+   "value": "Bonj0ur le Monde"
+  },
+  {
+   "formula": "=REPLACE(C2,1,7,\"Salut\")",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "REPLACE",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 7.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "Salut"
+     }
+    ]
+   },
+   "value": "Salut le Monde"
+  },
+  {
+   "formula": "=FIND(\"le\",C2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "FIND",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "le"
+     },
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     }
+    ]
+   },
+   "value": 9.0
+  },
+  {
+   "formula": "=FIND(\"LE\",C2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "FIND",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "LE"
+     },
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     }
+    ]
+   },
+   "error": "#VALUE!"
+  },
+  {
+   "formula": "=SEARCH(\"LE\",C2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "SEARCH",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "LE"
+     },
+     {
+      "kind": "field",
+      "valueType": "text",
+      "field": "col_c"
+     }
+    ]
+   },
+   "value": 9.0
+  },
+  {
+   "formula": "=VALUE(\"12.5\")",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "VALUE",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "12.5"
+     }
+    ]
+   },
+   "value": 12.5
+  },
+  {
+   "formula": "=EXACT(\"a\",\"a\")",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "EXACT",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "a"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "a"
+     }
+    ]
+   },
+   "value": true
+  },
+  {
+   "formula": "=EXACT(\"a\",\"A\")",
+   "expr": {
+    "kind": "call",
+    "valueType": "boolean",
+    "fn": "EXACT",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "a"
+     },
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "A"
+     }
+    ]
+   },
+   "value": false
+  },
+  {
+   "formula": "=REPT(\"ab\",2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "text",
+    "fn": "REPT",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "text",
+      "value": "ab"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2.0
+     }
+    ]
+   },
+   "value": "abab"
+  },
+  {
+   "formula": "=DATE(2026,1,15)",
+   "expr": {
+    "kind": "call",
+    "valueType": "date",
+    "fn": "DATE",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2026.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 15.0
+     }
+    ]
+   },
+   "value": 46037.0
+  },
+  {
+   "formula": "=DATE(2026,14,1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "date",
+    "fn": "DATE",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2026.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 14.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": 46419.0
+  },
+  {
+   "formula": "=DATE(2026,1,32)",
+   "expr": {
+    "kind": "call",
+    "valueType": "date",
+    "fn": "DATE",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2026.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 32.0
+     }
+    ]
+   },
+   "value": 46054.0
+  },
+  {
+   "formula": "=YEAR(F2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "YEAR",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "date",
+      "field": "col_f"
+     }
+    ]
+   },
+   "value": 2026.0
+  },
+  {
+   "formula": "=MONTH(F2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "MONTH",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "date",
+      "field": "col_f"
+     }
+    ]
+   },
+   "value": 1.0
+  },
+  {
+   "formula": "=DAY(F2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "DAY",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "date",
+      "field": "col_f"
+     }
+    ]
+   },
+   "value": 15.0
+  },
+  {
+   "formula": "=HOUR(0.5)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "HOUR",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 0.5
+     }
+    ]
+   },
+   "value": 12.0
+  },
+  {
+   "formula": "=MINUTE(0.75)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "MINUTE",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 0.75
+     }
+    ]
+   },
+   "value": 0.0
+  },
+  {
+   "formula": "=SECOND(0.5)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "SECOND",
+    "args": [
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 0.5
+     }
+    ]
+   },
+   "value": 0.0
+  },
+  {
+   "formula": "=WEEKDAY(F2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "WEEKDAY",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "date",
+      "field": "col_f"
+     }
+    ]
+   },
+   "value": 5.0
+  },
+  {
+   "formula": "=WEEKDAY(F2,2)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "WEEKDAY",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "date",
+      "field": "col_f"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 2.0
+     }
+    ]
+   },
+   "value": 4.0
+  },
+  {
+   "formula": "=WEEKDAY(F2,3)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "WEEKDAY",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "date",
+      "field": "col_f"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 3.0
+     }
+    ]
+   },
+   "value": 3.0
+  },
+  {
+   "formula": "=EDATE(F2,1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "date",
+    "fn": "EDATE",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "date",
+      "field": "col_f"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": 46068.0
+  },
+  {
+   "formula": "=EDATE(F2,-1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "date",
+    "fn": "EDATE",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "date",
+      "field": "col_f"
+     },
+     {
+      "kind": "op",
+      "valueType": "number",
+      "op": "neg",
+      "args": [
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       }
+      ]
+     }
+    ]
+   },
+   "value": 46006.0
+  },
+  {
+   "formula": "=EDATE(DATE(2026,1,31),1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "date",
+    "fn": "EDATE",
+    "args": [
+     {
+      "kind": "call",
+      "valueType": "date",
+      "fn": "DATE",
+      "args": [
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 2026.0
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 1.0
+       },
+       {
+        "kind": "literal",
+        "valueType": "number",
+        "value": 31.0
+       }
+      ]
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": 46081.0
+  },
+  {
+   "formula": "=EOMONTH(F2,0)",
+   "expr": {
+    "kind": "call",
+    "valueType": "date",
+    "fn": "EOMONTH",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "date",
+      "field": "col_f"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 0.0
+     }
+    ]
+   },
+   "value": 46053.0
+  },
+  {
+   "formula": "=EOMONTH(F2,1)",
+   "expr": {
+    "kind": "call",
+    "valueType": "date",
+    "fn": "EOMONTH",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "date",
+      "field": "col_f"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 1.0
+     }
+    ]
+   },
+   "value": 46081.0
+  },
+  {
+   "formula": "=DAYS(F2,46000)",
+   "expr": {
+    "kind": "call",
+    "valueType": "number",
+    "fn": "DAYS",
+    "args": [
+     {
+      "kind": "field",
+      "valueType": "date",
+      "field": "col_f"
+     },
+     {
+      "kind": "literal",
+      "valueType": "number",
+      "value": 46000.0
+     }
+    ]
+   },
+   "value": 37.0
+  },
+  {
+   "formula": "=TODAY()",
+   "expr": {
+    "kind": "call",
+    "valueType": "date",
+    "fn": "TODAY",
+    "args": []
+   },
+   "value": 46000.0
+  },
+  {
+   "formula": "=NOW()",
+   "expr": {
+    "kind": "call",
+    "valueType": "date",
+    "fn": "NOW",
+    "args": []
+   },
+   "value": 46000.5
+  }
+ ]
+}

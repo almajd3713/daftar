@@ -11,4 +11,5 @@
 !packages/spec/README.md
 !packages/spec/python/**
 !packages/spec/schema/**
+!packages/spec/fixtures/expression-cases.json
 **/__pycache__
