@@ -1,0 +1,9 @@
+# A server with a domain: HTTPS from a public certificate, renewed automatically.
+{
+	admin off
+	email {$DAFTAR_ACME_EMAIL}
+}
+
+{$DAFTAR_HOST} {
+	reverse_proxy runtime:3000
+}

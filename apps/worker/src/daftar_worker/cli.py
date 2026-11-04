@@ -88,11 +88,19 @@ def _project(args: argparse.Namespace) -> int:
     action = args.action
     try:
         if action == "init":
-            result = project_init(Path(args.file), folder, None if args.no_llm else settings_from_env())
+            result = project_init(
+                Path(args.file), folder, None if args.no_llm else settings_from_env()
+            )
         elif action == "decide":
-            result = project_decide(folder, args.accept or [], args.reject or [], args.accept_high, args.by)
+            result = project_decide(
+                folder, args.accept or [], args.reject or [], args.accept_high, args.by
+            )
         elif action == "reanalyze":
-            result = project_reanalyze(folder, Path(args.file) if args.file else None, None if args.no_llm else settings_from_env())
+            result = project_reanalyze(
+                folder,
+                Path(args.file) if args.file else None,
+                None if args.no_llm else settings_from_env(),
+            )
         else:
             result = project_generate(folder)
     except WorkerError as error:
@@ -108,7 +116,15 @@ def _project(args: argparse.Namespace) -> int:
 
 def _bundle(args: argparse.Namespace) -> int:
     try:
-        result = build_bundle(Path(args.project), Path(args.output), args.tag, Path(args.images) if args.images else None)
+        result = build_bundle(
+            Path(args.project),
+            Path(args.output),
+            args.tag,
+            Path(args.images) if args.images else None,
+            args.target,
+            args.host,
+            args.email,
+        )
     except BundleError as error:
         print(error, file=sys.stderr)
         return EXIT_VALIDATION
@@ -144,7 +160,10 @@ def _parity(args: argparse.Namespace) -> int:
         records.append({"file": str(path), **record})
     report = aggregate_parity(records)
     output = Path(args.output)
-    _write_atomic(output / "parity.json", _dump({"aggregate": report, "skipped": skipped, "workbooks": records}))
+    _write_atomic(
+        output / "parity.json",
+        _dump({"aggregate": report, "skipped": skipped, "workbooks": records}),
+    )
     _write_atomic(output / "parity.md", render_parity(report, skipped))
     return 0
 
@@ -213,7 +232,9 @@ def main(argv: list[str] | None = None) -> int:
     project.add_argument("--file", help="the workbook, for init and reanalyze")
     project.add_argument("--accept", action="append", metavar="ID")
     project.add_argument("--reject", action="append", metavar="ID")
-    project.add_argument("--accept-high", action="store_true", help="accept what the analyser is sure of")
+    project.add_argument(
+        "--accept-high", action="store_true", help="accept what the analyser is sure of"
+    )
     project.add_argument("--by", default="operator")
     project.add_argument("--no-llm", action="store_true")
     project.set_defaults(run=_project)
@@ -221,6 +242,13 @@ def main(argv: list[str] | None = None) -> int:
     bundle.add_argument("project")
     bundle.add_argument("-o", "--output", required=True)
     bundle.add_argument("--tag", help="the image tag to pin, by default this version")
+    bundle.add_argument(
+        "--target", choices=("local", "lan", "vps"), default="local", help="where it runs (OQ-1)"
+    )
+    bundle.add_argument("--host", help="lan: this machine's address or name; vps: its domain")
+    bundle.add_argument(
+        "--email", help="vps: where the certificate authority writes about renewals"
+    )
     bundle.add_argument("--images", help="a file from deploy/build-images.sh to put in the folder")
     bundle.set_defaults(run=_bundle)
     parity = commands.add_parser("parity", help="compare recomputed formulas with Excel's results")
@@ -231,10 +259,16 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("--labels", required=True, metavar="DIR")
     evaluate.add_argument("--split", required=True, choices=("dev", "test"))
     evaluate.add_argument("-o", "--output", required=True, metavar="DIR")
-    evaluate.add_argument("--analyses", metavar="DIR", help="existing C-2 analyses, <id>.json; default: run the analyser")
+    evaluate.add_argument(
+        "--analyses",
+        metavar="DIR",
+        help="existing C-2 analyses, <id>.json; default: run the analyser",
+    )
     evaluate.add_argument("--manifest", help="default: manifest.csv beside the labels folder")
     evaluate.add_argument("--prelabel", action="store_true", help="write draft labels to -o")
-    evaluate.add_argument("--no-llm", action="store_true", help="rules only, even if a model is set")
+    evaluate.add_argument(
+        "--no-llm", action="store_true", help="rules only, even if a model is set"
+    )
     evaluate.add_argument("--freeze", action="store_true", help="record the test split as frozen")
     evaluate.set_defaults(run=_eval)
     label = commands.add_parser("label", help="correct labels in a screen on this machine")

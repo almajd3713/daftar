@@ -1,0 +1,14 @@
+#!/bin/sh
+# Copies the backups away from this machine, to DAFTAR_OFFSITE in .env: a second disk or user@server:path.
+# Run it from cron, after the daily backup: 0 3 * * * /path/to/offsite
+set -eu
+cd "$(dirname "$0")"
+target="$(sed -n 's/^DAFTAR_OFFSITE=//p' .env)"
+if [ -z "$target" ]; then
+  echo "Set DAFTAR_OFFSITE in .env: a folder on a second disk, or user@server:path." >&2
+  exit 2
+fi
+command -v rsync >/dev/null || { echo "rsync is needed: install it first." >&2; exit 2; }
+# .env and the certificate data aren't needed to bring the data back, so only the dumps travel.
+rsync -a --chmod=D700,F600 --include='daftar-*.dump' --exclude='*' backups/ "$target/"
+echo "Copied to $target"

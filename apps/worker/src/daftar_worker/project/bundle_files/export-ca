@@ -1,0 +1,7 @@
+#!/bin/sh
+# Writes the root certificate that every phone and PC at the firm must install once.
+set -eu
+cd "$(dirname "$0")"
+docker compose exec -T proxy cat /data/caddy/pki/authorities/local/root.crt > daftar-root-ca.crt
+[ -s daftar-root-ca.crt ] || { echo "No certificate yet: open the app once, then try again." >&2; exit 1; }
+echo daftar-root-ca.crt
