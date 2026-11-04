@@ -84,10 +84,14 @@ def test_compose_has_no_credentials_or_floating_images(project: Path, tmp_path: 
     assert secrets and all(value.startswith("${") for value in secrets)
 
 
-def test_it_listens_on_this_machine_until_tls_is_decided(project: Path, tmp_path: Path) -> None:
+def test_the_default_listens_on_this_machine_over_plain_http(project: Path, tmp_path: Path) -> None:
     output = tmp_path / "bundle"
     build_bundle(project, output, "1")
-    assert "DAFTAR_BIND=127.0.0.1" in (output / ".env").read_text(encoding="utf-8")
+    assert '"127.0.0.1:${DAFTAR_PORT:-8080}:80"' in (output / "compose.yaml").read_text(
+        encoding="utf-8"
+    )
+    assert "auto_https off" in (output / "Caddyfile").read_text(encoding="utf-8")
+    assert not (output / "export-ca").exists()
 
 
 def test_a_bundle_is_never_rebuilt_over_its_secrets(project: Path, tmp_path: Path) -> None:
@@ -128,3 +132,47 @@ def test_the_client_worker_loads_no_analyser_or_model_code() -> None:
         [sys.executable, "-c", script], capture_output=True, text=True, check=False
     )
     assert done.returncode == 0, done.stdout + done.stderr
+
+
+def test_a_box_at_the_firm_has_a_private_ca_and_its_export(project: Path, tmp_path: Path) -> None:
+    output = tmp_path / "bundle"
+    assert build_bundle(project, output, "1", target="lan", host="192.168.1.20")["target"] == "lan"
+    assert "tls internal" in (output / "Caddyfile").read_text(encoding="utf-8")
+    assert "DAFTAR_HOST=192.168.1.20" in (output / ".env").read_text(encoding="utf-8")
+    assert (output / "export-ca").stat().st_mode & 0o100
+    for language in ("fr", "ar"):
+        text = (output / f"README.{language}.md").read_text(encoding="utf-8")
+        assert "192.168.1.20" in text and "export-ca" in text
+        assert "{{" not in text
+
+
+def test_a_server_gets_a_public_certificate_and_says_who_can_reach_the_data(
+    project: Path, tmp_path: Path
+) -> None:
+    output = tmp_path / "bundle"
+    build_bundle(project, output, "1", target="vps", host="app.example.dz", email="ops@example.dz")
+    caddy = (output / "Caddyfile").read_text(encoding="utf-8")
+    assert "tls internal" not in caddy and "auto_https off" not in caddy
+    assert "DAFTAR_ACME_EMAIL=ops@example.dz" in (output / ".env").read_text(encoding="utf-8")
+    assert not (output / "export-ca").exists()
+    assert "registre" in (output / "README.fr.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("target", "host", "email", "message"),
+    [
+        ("lan", None, None, "needs --host"),
+        ("vps", None, "a@b.dz", "needs --host"),
+        ("vps", "192.168.1.20", "a@b.dz", "isn't a domain"),
+        ("vps", "app.example.dz", None, "needs --email"),
+        ("lan", "bad host\nDAFTAR_SECRET=x", None, "isn't an address"),
+        ("local", "app.example.dz", None, "takes no --host"),
+        ("mars", None, None, "unknown target"),
+    ],
+)
+def test_it_refuses_a_target_it_cant_set_up(
+    project: Path, tmp_path: Path, target: str, host: str | None, email: str | None, message: str
+) -> None:
+    with pytest.raises(BundleError, match=message):
+        build_bundle(project, tmp_path / "bundle", "1", target=target, host=host, email=email)
+    assert not (tmp_path / "bundle").exists()

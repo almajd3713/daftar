@@ -1,0 +1,9 @@
+# Plain HTTP, reachable from this machine only. For a preview, before a target is chosen.
+{
+	admin off
+	auto_https off
+}
+
+:80 {
+	reverse_proxy runtime:3000
+}

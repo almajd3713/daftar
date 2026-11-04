@@ -6,9 +6,14 @@ services:
     image: {{CADDY_IMAGE}}
     restart: unless-stopped
     ports:
-      - "${DAFTAR_BIND:-127.0.0.1}:${DAFTAR_PORT:-8080}:80"
+{{PORTS}}
+    environment:
+      DAFTAR_HOST: ${DAFTAR_HOST:-}
+      DAFTAR_ACME_EMAIL: ${DAFTAR_ACME_EMAIL:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The certificates. On a firm's box this also holds the private CA that phones trust.
+      - caddy-data:/data
     depends_on:
       runtime:
         condition: service_healthy
@@ -85,3 +90,4 @@ services:
 
 volumes:
   postgres-data:
+  caddy-data:

@@ -8,9 +8,11 @@ Il faut Docker et Docker Compose sur la machine.
 ./start
 ```
 
-Ouvrez ensuite <http://127.0.0.1:8080>. Au premier démarrage, créez le compte du propriétaire : vos données importées sont déjà chargées.
+{{ACCESS}}
 
-**Pour l'instant, l'application n'est accessible que depuis cette machine.** L'accès depuis d'autres appareils demande une connexion sécurisée (TLS), qui dépend de l'endroit où l'application sera installée.
+Au premier démarrage, créez le compte du propriétaire : vos données importées sont déjà chargées.
+
+**N'utilisez jamais `docker compose down -v` : cela efface toutes les données.**
 
 ## Sauvegarder
 
@@ -18,7 +20,15 @@ Ouvrez ensuite <http://127.0.0.1:8080>. Au premier démarrage, créez le compte 
 ./backup
 ```
 
-Une sauvegarde est aussi faite chaque jour dans `backups/`, et les 14 dernières sont gardées. **Copiez ce dossier ailleurs régulièrement** : s'il reste sur la même machine, une panne de disque emporte tout.
+Une sauvegarde est aussi faite chaque jour dans `backups/`, et les 14 dernières sont gardées.
+
+**Une sauvegarde restée sur la même machine ne protège pas d'une panne.** {{OFFSITE}} Indiquez la destination dans `DAFTAR_OFFSITE`, dans le fichier `.env`, puis lancez chaque jour :
+
+```sh
+./offsite
+```
+
+Ces sauvegardes contiennent toutes vos données : gardez-les dans un endroit protégé.
 
 ## Restaurer
 
@@ -30,4 +40,4 @@ Une sauvegarde est aussi faite chaque jour dans `backups/`, et les 14 dernières
 
 ## Gardez ce dossier en lieu sûr
 
-Le fichier `.env` contient les mots de passe de l'application. Ne le partagez pas et ne le perdez pas : sans lui, les comptes de vos utilisateurs ne fonctionnent plus, même après une restauration.
+Le fichier `.env` contient les mots de passe de l'application : ne le partagez pas. Si la machine est perdue, une nouvelle installation et une sauvegarde suffisent à tout retrouver, avec les mêmes comptes. Il faudra seulement se reconnecter.

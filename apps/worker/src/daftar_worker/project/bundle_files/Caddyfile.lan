@@ -1,0 +1,10 @@
+# A box at the firm: HTTPS from a private CA, which works with no internet. ./export-ca gives its root.
+{
+	admin off
+	default_sni {$DAFTAR_HOST}
+}
+
+https://{$DAFTAR_HOST} {
+	tls internal
+	reverse_proxy runtime:3000
+}
