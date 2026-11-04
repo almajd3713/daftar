@@ -303,7 +303,7 @@ def test_a_correct_label_has_nothing_to_say() -> None:
 
 def test_the_real_batch_is_listed_and_every_file_matches() -> None:
     root = Path(__file__).resolve().parents[3] / "eval"
-    if not (root / "manifest.csv").exists():
+    if not (root / "workbooks").exists():
         pytest.skip("the worker image doesn't carry the evaluation set")
     rows = read_manifest(root / "manifest.csv")
     assert rows
