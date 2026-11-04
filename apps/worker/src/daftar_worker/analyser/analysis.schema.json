@@ -89,7 +89,11 @@
         { "if": { "properties": { "kind": { "const": "totalRow" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalTotalRow" } } } },
         { "if": { "properties": { "kind": { "const": "fieldType" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalFieldType" } } } },
         { "if": { "properties": { "kind": { "const": "choiceList" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalChoiceList" } } } },
-        { "if": { "properties": { "kind": { "const": "unsupported" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalUnsupported" } } } }
+        { "if": { "properties": { "kind": { "const": "unsupported" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalUnsupported" } } } },
+        { "if": { "properties": { "kind": { "const": "computedField" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalComputedField" } } } },
+        { "if": { "properties": { "kind": { "const": "calculator" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalCalculator" } } } },
+        { "if": { "properties": { "kind": { "const": "relation" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalRelation" } } } },
+        { "if": { "properties": { "kind": { "const": "anomaly" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalAnomaly" } } } }
       ]
     },
     "proposalSheetKind": {
@@ -190,6 +194,81 @@
             "properties": { "value": { "type": "string" }, "count": { "type": "integer", "minimum": 0 } }
           }
         }
+      }
+    },
+    "proposalComputedField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "column", "key", "name", "excel", "deps", "store", "eval", "coverage", "functions", "check", "engineSupported"],
+      "description": "`key` and the keys in `deps` and `expr` are provisional, col_<letter>. WP-12 maps them to spec keys. `expr` is C-3's expression tree.",
+      "properties": {
+        "table": { "$ref": "#/$defs/range" },
+        "column": { "$ref": "#/$defs/column" },
+        "key": { "type": "string" },
+        "name": { "type": "string", "minLength": 1 },
+        "excel": { "type": "string", "minLength": 1 },
+        "deps": { "type": "array", "items": { "type": "string" } },
+        "store": { "type": "boolean" },
+        "eval": { "enum": ["translated", "engine"] },
+        "expr": { "type": "object" },
+        "resultType": { "enum": ["text", "integer", "decimal", "money", "percent", "date", "datetime", "boolean"] },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["matching", "total"],
+          "properties": { "matching": { "type": "integer" }, "total": { "type": "integer" } }
+        },
+        "check": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["checked", "agreed"],
+          "description": "Rows where the translation was run against Excel's stored result.",
+          "properties": { "checked": { "type": "integer" }, "agreed": { "type": "integer" } }
+        },
+        "functions": { "type": "array", "items": { "type": "string" } },
+        "reasons": { "type": "array", "items": { "type": "string" }, "description": "Why it stays with the engine." },
+        "engineSupported": { "type": "boolean" },
+        "missingFunctions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "proposalCalculator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inputs", "outputs", "cells", "testCases"],
+      "properties": {
+        "inputs": { "type": "array", "items": { "type": "object" } },
+        "outputs": { "type": "array", "items": { "type": "object" } },
+        "cells": { "type": "array", "items": { "type": "object" } },
+        "testCases": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "proposalRelation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "evidence"],
+      "properties": {
+        "from": { "$ref": "#/$defs/columnRef" },
+        "to": { "$ref": "#/$defs/columnRef" },
+        "evidence": { "enum": ["lookupFormula", "keyInclusion"] },
+        "resultColumns": { "type": "array", "items": { "$ref": "#/$defs/column" } }
+      }
+    },
+    "columnRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sheet", "column"],
+      "properties": { "sheet": { "type": "string" }, "column": { "$ref": "#/$defs/column" } }
+    },
+    "proposalAnomaly": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "table", "column", "cells", "count"],
+      "properties": {
+        "kind": { "enum": ["inconsistentFormula"] },
+        "table": { "$ref": "#/$defs/range" },
+        "column": { "$ref": "#/$defs/column" },
+        "cells": { "type": "array", "items": { "$ref": "#/$defs/range" } },
+        "count": { "type": "integer", "minimum": 1 }
       }
     },
     "proposalUnsupported": {

@@ -9,10 +9,11 @@ import tempfile
 from typing import Any
 
 from daftar_worker.analyser import analyze_snapshot
-from daftar_worker.census import render_markdown, run_census
+from daftar_worker.census import iter_files, render_markdown, run_census
 from daftar_worker.errors import MESSAGES, WorkerError
 from daftar_worker.evaluation.labels import EvalError, freeze_test_split, read_manifest
 from daftar_worker.evaluation.run import render_report, run_evaluation, write_drafts
+from daftar_worker.formulas.parity import aggregate_parity, render_parity, run_parity
 from daftar_worker.reader import read_file
 
 
@@ -72,6 +73,38 @@ def _census(args: argparse.Namespace) -> int:
     return 0
 
 
+def _parity(args: argparse.Namespace) -> int:
+    missing = [path for path in args.paths if not Path(path).exists()]
+    if missing:
+        print(f"not found: {', '.join(missing)}", file=sys.stderr)
+        return EXIT_UNREADABLE
+    records = []
+    skipped = {"notExcel": 0, "noFormulas": 0, "unreadable": 0}
+    seen: set[str] = set()
+    for path in iter_files(args.paths):
+        try:
+            snapshot = read_file(path)
+        except WorkerError:
+            skipped["unreadable"] += 1
+            continue
+        sha256 = snapshot["source"]["sha256"]
+        if sha256 in seen:
+            continue
+        seen.add(sha256)
+        results_from = snapshot["source"]["resultsFrom"]
+        if results_from != "excel":
+            skipped["noFormulas" if results_from == "none" else "notExcel"] += 1
+            continue
+        record = run_parity(path, snapshot)
+        record.pop("results")  # Cell values: the report keeps counts and function names only.
+        records.append({"file": str(path), **record})
+    report = aggregate_parity(records)
+    output = Path(args.output)
+    _write_atomic(output / "parity.json", _dump({"aggregate": report, "skipped": skipped, "workbooks": records}))
+    _write_atomic(output / "parity.md", render_parity(report, skipped))
+    return 0
+
+
 def _eval_command(args: argparse.Namespace) -> int:
     labels = Path(args.labels)
     manifest = Path(args.manifest) if args.manifest else labels.parent / "manifest.csv"
@@ -116,6 +149,10 @@ def main(argv: list[str] | None = None) -> int:
     census.add_argument("paths", nargs="+", metavar="PATH")
     census.add_argument("-o", "--output", required=True)
     census.set_defaults(run=_census)
+    parity = commands.add_parser("parity", help="compare recomputed formulas with Excel's results")
+    parity.add_argument("paths", nargs="+", metavar="PATH")
+    parity.add_argument("-o", "--output", required=True, metavar="DIR")
+    parity.set_defaults(run=_parity)
     evaluate = commands.add_parser("eval", help="score analyses against labels")
     evaluate.add_argument("--labels", required=True, metavar="DIR")
     evaluate.add_argument("--split", required=True, choices=("dev", "test"))

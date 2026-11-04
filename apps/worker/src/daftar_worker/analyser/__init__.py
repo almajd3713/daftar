@@ -19,7 +19,10 @@ RULES_VERSION = "1"
 HIGH_CONFIDENCE = 0.85
 LOW_CONFIDENCE = 0.6
 TOTAL_ROW_SCORES = {"formula": 0.95, "keyword": 0.8, "arithmetic": 0.7, "afterTotal": 0.65}
-KIND_ORDER = ("sheetKind", "table", "header", "totalRow", "fieldType", "choiceList", "unsupported")
+KIND_ORDER = (
+    "sheetKind", "table", "header", "totalRow", "fieldType", "choiceList",
+    "computedField", "calculator", "relation", "anomaly", "unsupported",
+)  # fmt: skip
 ProgressCallback = Callable[[float], None]
 
 
@@ -198,7 +201,11 @@ def _sheet_findings(
     defined: dict[str, str],
     unsupported: list[dict[str, Any]],
     references: int,
+    verify: bool,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    # Imported here because the formula modules read this package's grid.
+    from daftar_worker.analyser.formula_findings import calculator_findings, table_formula_findings
+
     labels_by_table = [flatten_headers(grid, table) for table in layout.tables]
     guesses_by_table = [
         _table_guesses(grid, table, labels, grids, defined)
@@ -229,6 +236,9 @@ def _sheet_findings(
     if kind.outcome != "notConverted":
         for table, labels, guesses in zip(layout.tables, labels_by_table, guesses_by_table, strict=True):
             findings += _table_findings(grid, table, labels, guesses)
+            findings += table_formula_findings(_finding, grid, table, labels, guesses, verify)
+    if kind.outcome == "formulaModel":
+        findings += calculator_findings(_finding, grid, grids, verify)
     entry: dict[str, Any] = {
         "name": grid.name,
         "outcome": kind.outcome,
@@ -277,6 +287,8 @@ def analyze_snapshot(
             defined,
             snapshot["unsupported"],
             references.get(grid.name, 0),
+            # Stored results can only check a translation if Excel produced them.
+            snapshot["source"]["resultsFrom"] == "excel",
         )
         sheets.append(entry)
         findings += sheet_findings

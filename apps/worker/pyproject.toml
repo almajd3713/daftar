@@ -12,6 +12,7 @@ dependencies = [
     "daftar-spec",
     "defusedxml>=0.7,<1",
     "fastapi>=0.115,<1",
+    "formualizer==0.13.0",
     "olefile>=0.47,<1",
     "openpyxl==3.1.5",
     "python-multipart>=0.0.20,<1",
