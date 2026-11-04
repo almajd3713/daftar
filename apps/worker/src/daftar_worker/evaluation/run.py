@@ -33,6 +33,7 @@ METRIC_NAMES = {
     "relations.precision": "Relations: precision",
     "relations.recall": "Relations: recall",
     "relations.f1": "Relations: F1",
+    "periodTabs.f1": "Monthly tabs grouped: F1",
     "kind.accuracy": "Sheet kind: accuracy",
     "parity.share": "Formulas equal to Excel",
 }

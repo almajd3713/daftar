@@ -93,7 +93,10 @@
         { "if": { "properties": { "kind": { "const": "computedField" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalComputedField" } } } },
         { "if": { "properties": { "kind": { "const": "calculator" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalCalculator" } } } },
         { "if": { "properties": { "kind": { "const": "relation" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalRelation" } } } },
-        { "if": { "properties": { "kind": { "const": "anomaly" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalAnomaly" } } } }
+        { "if": { "properties": { "kind": { "const": "anomaly" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalAnomaly" } } } },
+        { "if": { "properties": { "kind": { "const": "entityMerge" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalEntityMerge" } } } },
+        { "if": { "properties": { "kind": { "const": "periodUnion" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalPeriodUnion" } } } },
+        { "if": { "properties": { "kind": { "const": "statusColours" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalStatusColours" } } } }
       ]
     },
     "proposalSheetKind": {
@@ -249,8 +252,9 @@
       "properties": {
         "from": { "$ref": "#/$defs/columnRef" },
         "to": { "$ref": "#/$defs/columnRef" },
-        "evidence": { "enum": ["lookupFormula", "keyInclusion"] },
-        "resultColumns": { "type": "array", "items": { "$ref": "#/$defs/column" } }
+        "evidence": { "enum": ["lookupFormula", "validationList", "keyInclusion"] },
+        "resultColumns": { "type": "array", "items": { "$ref": "#/$defs/column" } },
+        "inclusion": { "type": "number", "minimum": 0, "maximum": 1 }
       }
     },
     "columnRef": {
@@ -269,6 +273,44 @@
         "column": { "$ref": "#/$defs/column" },
         "cells": { "type": "array", "items": { "$ref": "#/$defs/range" } },
         "count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "proposalEntityMerge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "columns", "distinct", "rows", "clusters", "attributes"],
+      "description": "A proposal only. `clusters` lists spellings of one name; nothing is merged unless a person accepts.",
+      "properties": {
+        "name": { "type": "string" },
+        "columns": { "type": "array", "items": { "type": "object" } },
+        "distinct": { "type": "integer" },
+        "rows": { "type": "integer" },
+        "clusters": { "type": "array", "items": { "type": "object" } },
+        "attributes": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "proposalPeriodUnion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["granularity", "tabs", "columns", "identicalColumns"],
+      "description": "`period` is YYYY-MM, YYYY-Qn or YYYY; a leading - means the tab name gave no year.",
+      "properties": {
+        "granularity": { "enum": ["month", "quarter", "year"] },
+        "tabs": { "type": "array", "items": { "type": "object" } },
+        "columns": { "type": "array", "items": { "type": "string" } },
+        "identicalColumns": { "type": "boolean" }
+      }
+    },
+    "proposalStatusColours": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "column", "name", "source", "choices"],
+      "properties": {
+        "table": { "$ref": "#/$defs/range" },
+        "column": { "$ref": "#/$defs/column" },
+        "name": { "type": "string" },
+        "source": { "enum": ["conditionalFormat", "fill"] },
+        "choices": { "type": "array", "items": { "type": "object" } }
       }
     },
     "proposalUnsupported": {

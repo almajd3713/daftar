@@ -73,6 +73,7 @@ def _table_scores(
     labels: dict[int, str],
     references: int,
     sheet_name: str,
+    coloured: set[int] | None = None,
 ) -> dict[str, float]:
     types = [guess.type for guess in guesses.values()]
     has_date = any(kind in ("date", "datetime") for kind in types)
@@ -84,7 +85,7 @@ def _table_scores(
     status = [
         column
         for column, guess in guesses.items()
-        if guess.type == "choice" and STATUS_HINT.search(labels.get(column, ""))
+        if guess.type == "choice" and (STATUS_HINT.search(labels.get(column, "")) or column in (coloured or ()))
     ]
     assignee = any(ASSIGNEE_HINT.search(label) for label in labels.values())
 
@@ -127,6 +128,7 @@ def score_sheet(
     labels_by_table: list[dict[int, str]],
     unsupported: list[dict[str, Any]],
     references: int,
+    coloured_by_table: list[set[int]] | None = None,
 ) -> KindResult:
     facts: dict[str, Any] = {
         "cells": sum(1 for cell in grid.cells.values() if not cell.is_empty),
@@ -160,7 +162,8 @@ def score_sheet(
     sizes = [table.rect.width * table.rect.height for table in layout.tables]
     index = sizes.index(max(sizes))
     table = layout.tables[index]
-    scores = _table_scores(table, guesses_by_table[index], labels_by_table[index], references, grid.name)
+    coloured = coloured_by_table[index] if coloured_by_table else set()
+    scores = _table_scores(table, guesses_by_table[index], labels_by_table[index], references, grid.name, coloured)
     facts["largestTable"] = table.rect.a1
 
     # A small grid of formulas beside labels is a calculation, even when it parses as a table.

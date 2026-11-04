@@ -157,6 +157,8 @@ class _Translator:
         result_sheet, result_column = self._column_of(result_range)
         if sheet in (None, self.sheet) or result_sheet != sheet:
             raise _Untranslatable("lookupNotAnotherSheet")
+        if sheet.startswith("["):  # [1]Feuil1 is a sheet in another file: no relation there.
+            raise _Untranslatable("lookupIntoAnotherFile")
         source = self.node(key)
         if source["kind"] != "field":
             raise _Untranslatable("lookupKeyNotAField")

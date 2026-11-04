@@ -187,6 +187,62 @@ def calculator(sheet: str, inputs: list[str], outputs: list[str]) -> Explanation
     }
 
 
+def entity_merge(name: str, sheets: list[str], distinct: int, clusters: list[dict[str, Any]]) -> Explanation:
+    where_fr = ", ".join(f"« {sheet} »" for sheet in dict.fromkeys(sheets))
+    where_ar = "، ".join(f"«{sheet}»" for sheet in dict.fromkeys(sheets))
+    if clusters:
+        first = clusters[0]
+        sample = " / ".join(str(item["value"]) for item in first["variants"][:3])
+        return {
+            "fr": f"« {name} » revient dans {where_fr} : {distinct} valeurs, dont {len(clusters)} écrites de plusieurs façons ({sample}). En faire une seule liste ?",
+            "ar": f"«{name}» يتكرر في {where_ar}: {distinct} قيمة، منها {len(clusters)} مكتوبة بعدة طرق ({sample}). هل نجعلها قائمة واحدة؟",
+        }
+    return {
+        "fr": f"« {name} » revient dans {where_fr} : {distinct} valeurs. En faire une liste à part ?",
+        "ar": f"«{name}» يتكرر في {where_ar}: {distinct} قيمة. هل نجعلها قائمة منفصلة؟",
+    }
+
+
+def relation_from_validation(sheet: str, source: str, to_sheet: str, target: str) -> Explanation:
+    return {
+        "fr": f"La colonne {source} de « {sheet} » a une liste déroulante tirée de la colonne {target} de « {to_sheet} ». En faire un lien entre les deux listes ?",
+        "ar": f"العمود {source} في «{sheet}» له قائمة منسدلة من العمود {target} في «{to_sheet}». هل نجعله رابطا بين القائمتين؟",
+    }
+
+
+def relation_from_inclusion(sheet: str, source: str, to_sheet: str, target: str, inclusion: float) -> Explanation:
+    share = round(inclusion * 100)
+    return {
+        "fr": f"{share} % des valeurs de la colonne {source} de « {sheet} » se trouvent dans la colonne {target} de « {to_sheet} », où chacune est unique. Est-ce un lien entre les deux listes ?",
+        "ar": f"{share}% من قيم العمود {source} في «{sheet}» موجودة في العمود {target} من «{to_sheet}»، حيث كل قيمة فريدة. هل هذا رابط بين القائمتين؟",
+    }
+
+
+def period_union(sheets: list[str], granularity: str, columns: int) -> Explanation:
+    unit_fr = {"month": "mois", "quarter": "trimestre", "year": "année"}[granularity]
+    unit_ar = {"month": "الشهر", "quarter": "الفصل", "year": "السنة"}[granularity]
+    names = ", ".join(sheets[:4]) + ("…" if len(sheets) > 4 else "")
+    return {
+        "fr": f"{len(sheets)} feuilles ({names}) ont les mêmes {columns} colonnes. En faire une seule liste, avec un champ {unit_fr} ?",
+        "ar": f"{len(sheets)} أوراق ({names}) لها نفس الأعمدة وعددها {columns}. هل نجعلها قائمة واحدة مع حقل {unit_ar}؟",
+    }
+
+
+def status_colours(name: str, choices: list[dict[str, Any]], source: str) -> Explanation:
+    sample = ", ".join(str(item["value"]) for item in choices[:5] if item["value"] is not None)
+    how_fr = "des couleurs automatiques" if source == "conditionalFormat" else "des couleurs de cellule"
+    how_ar = "ألوانا تلقائية" if source == "conditionalFormat" else "ألوان الخلايا"
+    if not sample:
+        return {
+            "fr": f"« {name} » utilise {len(choices)} couleurs sans texte. Que veut dire chaque couleur ?",
+            "ar": f"«{name}» يستعمل {len(choices)} ألوان بدون نص. ماذا يعني كل لون؟",
+        }
+    return {
+        "fr": f"« {name} » utilise {how_fr} pour {len(choices)} états ({sample}). En faire des choix colorés ?",
+        "ar": f"«{name}» يستعمل {how_ar} لـ{len(choices)} حالات ({sample}). هل نجعلها اختيارات ملونة؟",
+    }
+
+
 UNSUPPORTED_NAMES: dict[str, tuple[str, str]] = {
     "pivot": ("un tableau croisé dynamique", "جدول محوري"),
     "chart": ("un graphique", "رسم بياني"),
