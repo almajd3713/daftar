@@ -224,6 +224,12 @@ def test_other_lookup_shapes_give_the_same_relation(formula: str) -> None:
     assert (lookup.from_column, lookup.to_sheet, lookup.key_column, lookup.result_column) == (1, "Prix", 1, 3)
 
 
+def test_a_lookup_into_another_file_isnt_a_relation() -> None:
+    translation = _translate("=VLOOKUP(A2,'[1]May 2021'!$A:$C,3,FALSE)")
+    assert translation.expr is None
+    assert translation.lookups == []
+
+
 def test_approximate_lookup_isnt_a_relation_or_a_translation() -> None:
     translation = _translate("=VLOOKUP(A2,Prix!$A:$C,3,TRUE)")
     assert translation.expr is None

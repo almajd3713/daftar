@@ -13,7 +13,7 @@ from typing import Any
 from openpyxl.utils import range_boundaries
 
 from daftar_worker.census import analyse_formula
-from daftar_worker.evaluation.predictions import Predictions
+from daftar_worker.evaluation.predictions import Predictions, sheet_pairs
 
 
 BOOTSTRAP_REPS = 2000
@@ -186,6 +186,13 @@ def score_workbook(
     }
     _set_tallies(tallies, "relations", gold_relations, predictions.relations)
 
+    groups: dict[str, list[str]] = {}
+    for sheet in label["sheets"]:
+        if sheet.get("periodGroup"):
+            groups.setdefault(sheet["periodGroup"], []).append(sheet["name"])
+    gold_pairs = {pair for names in groups.values() for pair in sheet_pairs(sorted(names))}
+    _set_tallies(tallies, "periodTabs", gold_pairs, predictions.period_pairs)
+
     _score_fields(tallies, label, predictions)
     if in_parity:
         _score_parity(tallies, label, predictions.results)
@@ -210,7 +217,7 @@ def compute_metrics(scores: Iterable[WorkbookScore]) -> dict[str, float | None]:
     for score in scores:
         tallies.update(score.tallies)
     metrics: dict[str, float | None] = {}
-    for name in ("tables.exact", "tables.near", "headers", "relations"):
+    for name in ("tables.exact", "tables.near", "headers", "relations", "periodTabs"):
         metrics.update(_precision_recall_f1(tallies, name))
     per_type = [
         tallies[name.replace(".total", ".correct")] / count

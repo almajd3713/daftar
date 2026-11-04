@@ -30,8 +30,14 @@ class Predictions:
     header_rows: set[tuple[str, int]] = field(default_factory=set)
     fields: list[PredictedField] = field(default_factory=list)
     relations: set[tuple[str, str, str, str]] = field(default_factory=set)
+    period_pairs: set[tuple[str, str]] = field(default_factory=set)
     # Sheet and cell to the value it evaluated to, for the formula metric.
     results: dict[tuple[str, str], Any] = field(default_factory=dict)
+
+
+def sheet_pairs(names: list[str]) -> set[tuple[str, str]]:
+    """Sheets grouped as one table, as pairs, so a partly right group gets partial credit."""
+    return {(left, right) for index, left in enumerate(names) for right in names[index + 1 :]}
 
 
 def _is_rejected(finding: dict[str, Any]) -> bool:
@@ -72,6 +78,9 @@ def from_analysis(analysis: dict[str, Any], parity: dict[str, Any] | None = None
             predictions.relations.add(
                 (source.get("sheet"), source.get("column"), target.get("sheet"), target.get("column"))
             )
+        elif kind == "periodUnion":
+            names = sorted(tab["sheet"] for tab in proposal.get("tabs", []))
+            predictions.period_pairs.update(sheet_pairs(names))
     for result in (parity or {}).get("results", []):
         predictions.results[(result["sheet"], result["ref"])] = result["value"]
     return predictions

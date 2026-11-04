@@ -12,6 +12,7 @@ from daftar_worker.analyser.grid import Grid, a1_range
 from daftar_worker.analyser.kinds import referenced_sheets, resolve_validation, score_sheet
 from daftar_worker.analyser.regions import SheetLayout, Table, detect_layout, flatten_headers
 from daftar_worker.analyser.types import TypeGuess, infer_type
+from daftar_worker.analyser.workbook_view import SheetView
 
 
 RULES_VERSION = "1"
@@ -21,7 +22,8 @@ LOW_CONFIDENCE = 0.6
 TOTAL_ROW_SCORES = {"formula": 0.95, "keyword": 0.8, "arithmetic": 0.7, "afterTotal": 0.65}
 KIND_ORDER = (
     "sheetKind", "table", "header", "totalRow", "fieldType", "choiceList",
-    "computedField", "calculator", "relation", "anomaly", "unsupported",
+    "computedField", "calculator", "relation", "statusColours", "entityMerge", "periodUnion",
+    "anomaly", "unsupported",
 )  # fmt: skip
 ProgressCallback = Callable[[float], None]
 
@@ -195,6 +197,7 @@ def _table_findings(
 
 
 def _sheet_findings(
+    views: list[SheetView],
     grid: Grid,
     layout: SheetLayout,
     grids: dict[str, Grid],
@@ -203,15 +206,18 @@ def _sheet_findings(
     references: int,
     verify: bool,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    # Imported here because the formula modules read this package's grid.
+    # Imported here because these modules read this package's grid.
     from daftar_worker.analyser.formula_findings import calculator_findings, table_formula_findings
+    from daftar_worker.analyser.statuses import coloured_columns
 
     labels_by_table = [flatten_headers(grid, table) for table in layout.tables]
     guesses_by_table = [
         _table_guesses(grid, table, labels, grids, defined)
         for table, labels in zip(layout.tables, labels_by_table, strict=True)
     ]
-    kind = score_sheet(grid, layout, guesses_by_table, labels_by_table, unsupported, references)
+    coloured = [coloured_columns(grid, table) for table in layout.tables]
+    kind = score_sheet(grid, layout, guesses_by_table, labels_by_table, unsupported, references, coloured)
+    views.append(SheetView(grid, layout, labels_by_table, guesses_by_table, kind.outcome))
     dimension = grid.sheet["dimension"]
     proposal: dict[str, Any] = {"outcome": kind.outcome}
     if kind.reason:
@@ -276,11 +282,19 @@ def analyze_snapshot(
     grids = {sheet["name"]: Grid(sheet) for sheet in snapshot["sheets"]}
     defined = {item["name"]: item["ref"] for item in snapshot["definedNames"] if "scope" not in item}
     references = referenced_sheets(snapshot)
+    # Imported here because these modules read this package's explanations and grid.
+    from daftar_worker.analyser.entities import entity_findings
+    from daftar_worker.analyser.periods import period_findings
+    from daftar_worker.analyser.relations import relation_findings
+    from daftar_worker.analyser.statuses import status_findings
+
     sheets: list[dict[str, Any]] = []
     findings: list[dict[str, Any]] = []
+    views: list[SheetView] = []
     total = max(len(grids), 1)
     for position, grid in enumerate(grids.values(), start=1):
         entry, sheet_findings = _sheet_findings(
+            views,
             grid,
             detect_layout(grid),
             grids,
@@ -294,6 +308,17 @@ def analyze_snapshot(
         findings += sheet_findings
         if progress:
             progress(position / total)
+    # Periods first: tabs of one series are one table, so they can't relate to each other.
+    periods = period_findings(_finding, views)
+    across = [
+        *relation_findings(_finding, views, findings, periods),
+        *status_findings(_finding, views),
+        *entity_findings(_finding, views),
+        *periods,
+    ]
+    for entry in sheets:
+        entry["findingIds"] += [item["id"] for item in across if item["sheet"] == entry["name"]]
+    findings += across
     findings += _unsupported_findings(snapshot)
     by_sheet = {name: index for index, name in enumerate(grids)}
     findings.sort(
