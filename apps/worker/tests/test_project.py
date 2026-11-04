@@ -473,3 +473,14 @@ def test_generated_fixture_is_current(tmp_path: Path) -> None:
     for key, rows in seed.items():
         expected = "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows)
         assert (FIXTURE / "seed" / f"{key}.jsonl").read_text(encoding="utf-8") == expected
+
+
+def test_a_retyped_key_finds_the_targets_own_spelling() -> None:
+    from daftar_worker.project.generate import _closest_key  # noqa: PLC0415
+
+    known = ["Abdelkader Benali", "Samia Hamdi", "Rachid Zerrouki"]
+    assert _closest_key("ABDELKADER BENALI", known) == "Abdelkader Benali"
+    assert _closest_key("Abdelkader Benalli", known) == "Abdelkader Benali"
+    assert _closest_key("Nora Saidi", known) == "Nora Saidi"
+    assert _closest_key("Ali", ["Ali B", "Ali C"]) == "Ali"
+    assert _closest_key(12, [12]) == 12

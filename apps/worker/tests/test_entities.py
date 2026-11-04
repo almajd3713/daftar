@@ -15,7 +15,7 @@ from daftar_worker.analyser.periods import Period, parse_period
 from daftar_worker.evaluation.metrics import compute_metrics, score_workbook
 from daftar_worker.evaluation.predictions import from_analysis
 from daftar_worker.reader import read_file
-from daftar_worker.sheet.names import fingerprint, same_with_initial, tokens
+from daftar_worker.sheet.names import fingerprint, same_with_initial, spelling_similarity, tokens
 
 
 SCHEMA = json.loads(Path(analyser.__file__).with_name("analysis.schema.json").read_text(encoding="utf-8"))
@@ -509,3 +509,90 @@ def test_analysis_stays_identical_across_runs(tmp_path: Path) -> None:
     path = tutoring(tmp_path / "t.xlsx")
     snapshot = read_file(path)
     assert json.dumps(analyze_snapshot(snapshot)) == json.dumps(analyze_snapshot(snapshot))
+
+
+def _book_of(path: Path, first: dict[str, list[list[Any]]]) -> Path:
+    book = xlsxwriter.Workbook(str(path))
+    for name, rows in first.items():
+        sheet = book.add_worksheet(name)
+        for row_number, row in enumerate(rows):
+            for column, value in enumerate(row):
+                if isinstance(value, str) and value.startswith("="):
+                    sheet.write_formula(row_number, column, value, None, 1)
+                elif value is not None:
+                    sheet.write(row_number, column, value)
+    book.close()
+    return path
+
+
+def _relations(path: Path) -> dict[tuple[str, str, str, str], str]:
+    found = {}
+    for item in by_kind(analyze_snapshot(read_file(path)), "relation"):
+        proposal = item["proposal"]
+        key = (proposal["from"]["sheet"], proposal["from"]["column"], proposal["to"]["sheet"], proposal["to"]["column"])
+        found[key] = proposal["evidence"]
+    return found
+
+
+def test_sumifs_ties_the_rows_it_adds_to_the_sheet_holding_it(tmp_path: Path) -> None:
+    path = _book_of(tmp_path / "s.xlsx", {
+        "Commandes": [
+            ["Commande", "Article", "Reçu"],
+            ["C1", "Vis", "=SUMIFS(Lignes!C:C,Lignes!A:A,A2,Lignes!B:B,B2)"],
+            ["C1", "Clou", "=SUMIFS(Lignes!C:C,Lignes!A:A,A3,Lignes!B:B,B3)"],
+            ["C2", "Vis", "=SUMIFS(Lignes!C:C,Lignes!A:A,A4,Lignes!B:B,B4)"],
+        ],
+        "Lignes": [["Commande", "Article", "Qté"], ["C1", "Vis", 2.5], ["C1", "Clou", 3.5], ["C2", "Vis", 1.5]],
+    })  # fmt: skip
+    relations = _relations(path)
+    assert relations[("Lignes", "A", "Commandes", "A")] == "aggregateFormula"
+    assert relations[("Lignes", "B", "Commandes", "B")] == "aggregateFormula"
+
+
+def test_retyped_names_link_when_the_column_names_the_sheet(tmp_path: Path) -> None:
+    path = _book_of(tmp_path / "n.xlsx", {
+        "Suivi": [
+            ["Dossier", "Client", "Montant"],
+            ["D1", "Abdelkader Benali", 10.5],
+            ["D2", "Samia Hamdi", 20.5],
+            ["D3", "Abdelkader Benalli", 30.5],
+            ["D4", "Rachid Zerrouki", 40.5],
+            ["D5", "Cafe Palmier", 50.5],
+        ],
+        "Clients": [
+            ["Code", "Nom", "Ville"],
+            ["Z1", "Abdelkader Benali", "Blida"],
+            ["Z2", "Samia Hamdi", "Oran"],
+            ["Z3", "Rachid Zerrouki", "Alger"],
+            ["Z4", "Cafe Palmier", "Tizi"],
+            ["Z5", "Nora Saidi", "Bejaia"],
+        ],
+    })  # fmt: skip
+    assert _relations(path)[("Suivi", "B", "Clients", "B")] == "keyInclusion"
+
+
+def test_names_that_merely_look_alike_dont_link(tmp_path: Path) -> None:
+    path = _book_of(tmp_path / "x.xlsx", {
+        "Suivi": [
+            ["Dossier", "Client", "Montant"],
+            ["D1", "Karim Bensalah", 10.5],
+            ["D2", "Lina Mansouri", 20.5],
+            ["D3", "Yacine Toumi", 30.5],
+            ["D4", "Meriem Haddad", 40.5],
+            ["D5", "Sofiane Rahal", 50.5],
+        ],
+        "Clients": [
+            ["Code", "Nom"],
+            ["Z1", "Abdelkader Benali"],
+            ["Z2", "Samia Hamdi"],
+            ["Z3", "Rachid Zerrouki"],
+            ["Z4", "Cafe Palmier"],
+            ["Z5", "Nora Saidi"],
+        ],
+    })  # fmt: skip
+    assert ("Suivi", "B", "Clients", "B") not in _relations(path)
+
+
+def test_a_name_with_words_left_out_counts_as_the_same_spelling() -> None:
+    assert spelling_similarity(fingerprint("Ecole Al Amal"), fingerprint("Ecole Al Amal Privee")) == 100
+    assert spelling_similarity(fingerprint("Karim"), fingerprint("Karim Bensalah")) < 88

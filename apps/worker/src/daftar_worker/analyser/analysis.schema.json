@@ -266,7 +266,7 @@
       "properties": {
         "from": { "$ref": "#/$defs/columnRef" },
         "to": { "$ref": "#/$defs/columnRef" },
-        "evidence": { "enum": ["lookupFormula", "validationList", "keyInclusion"] },
+        "evidence": { "enum": ["lookupFormula", "validationList", "keyInclusion", "aggregateFormula"] },
         "resultColumns": { "type": "array", "items": { "$ref": "#/$defs/column" } },
         "inclusion": { "type": "number", "minimum": 0, "maximum": 1 }
       }
