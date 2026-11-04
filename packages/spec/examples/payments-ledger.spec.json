@@ -37,7 +37,7 @@
           "precision": 2,
           "computed": {
             "eval": "translated",
-            "excel": "=E2-F2",
+            "excel": "=D3-E3",
             "deps": ["amount_due", "amount_paid"],
             "store": true,
             "expr": {
@@ -60,7 +60,7 @@
           "level": 1,
           "computed": {
             "eval": "engine",
-            "excel": "=MROUND(F2-G2,10)",
+            "excel": "=MROUND(E3-F3,10)",
             "deps": ["amount_paid", "cost"],
             "store": true
           }
