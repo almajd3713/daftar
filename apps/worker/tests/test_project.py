@@ -10,12 +10,13 @@ import xlsxwriter
 
 from daftar_spec import validate_spec
 from daftar_worker.analyser import analyze_snapshot
-from daftar_worker.analyser.grid import Cell
 from daftar_worker.cli import main
 from daftar_worker.project.decisions import accept_high_confidence, decide, match_key, reapply
 from daftar_worker.project.files import project_generate, project_init, project_reanalyze
-from daftar_worker.project.generate import Generator, convert_value, parse_number, slug
+from daftar_worker.project.generate import Generator, slug
 from daftar_worker.reader import read_file
+from daftar_worker.sheet.grid import Cell
+from daftar_worker.sheet.values import convert_value, parse_number
 
 
 FIXTURE = Path(__file__).resolve().parents[3] / "packages" / "spec" / "fixtures" / "generated"

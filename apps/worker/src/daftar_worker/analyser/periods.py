@@ -8,9 +8,9 @@ from typing import Any
 from rapidfuzz import fuzz
 
 from daftar_worker.analyser import explain
-from daftar_worker.analyser.names import fingerprint
 from daftar_worker.analyser.regions import Table
 from daftar_worker.analyser.workbook_view import SheetView
+from daftar_worker.sheet.names import fingerprint
 
 
 MONTHS: dict[str, int] = {}

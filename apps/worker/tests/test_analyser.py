@@ -14,7 +14,6 @@ from xlsxwriter.utility import xl_cell_to_rowcol
 
 from daftar_worker import analyser
 from daftar_worker.analyser import analyze_snapshot, confidence_level, finding_id
-from daftar_worker.analyser.grid import Cell
 from daftar_worker.analyser.types import infer_type, is_phone
 from daftar_worker.app import app
 from daftar_worker.cli import main
@@ -22,6 +21,7 @@ from daftar_worker.evaluation.metrics import compute_metrics, score_workbook
 from daftar_worker.evaluation.predictions import from_analysis
 from daftar_worker.evaluation.run import run_evaluation
 from daftar_worker.reader import read_file
+from daftar_worker.sheet.grid import Cell
 
 
 SCHEMA = json.loads((Path(analyser.__file__).with_name("analysis.schema.json")).read_text(encoding="utf-8"))

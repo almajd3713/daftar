@@ -4,14 +4,10 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 import re
 
-from daftar_worker.analyser.grid import Cell, Grid, Rect, a1_range, column_index, text_of
+from daftar_worker.sheet.grid import Cell, Grid, Rect, a1_range, column_index, text_of
+from daftar_worker.sheet.values import TOTAL_WORDS
 
 
-TOTAL_WORDS = re.compile(
-    r"^\s*(?:sous[- ]?tota(?:l|ux)|s/\s?total|total\s+g[ée]n[ée]ral|grand\s+total|tota(?:l|ux)|subtotal|sum"
-    r"|somme|cumul|(?:ال)?مجموع|(?:ال)?[إا]جمالي)(?:\s|:|$)",
-    re.IGNORECASE,
-)
 AGGREGATE = re.compile(
     r"^=\s*(SUM|SUBTOTAL|AVERAGE|COUNT|COUNTA|MAX|MIN|PRODUCT)\s*\((?:\s*[0-9]+\s*,)?\s*"
     r"\$?([A-Z]{1,3})\$?([0-9]+)\s*:\s*\$?([A-Z]{1,3})\$?([0-9]+)\s*\)\s*$",

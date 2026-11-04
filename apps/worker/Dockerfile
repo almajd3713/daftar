@@ -18,6 +18,25 @@ USER daftar
 ENV DAFTAR_REQUIRE_LIBREOFFICE=1 UV_NO_SYNC=1
 CMD ["uv", "run", "--frozen", "pytest", "apps/worker/tests", "-q"]
 
+# The worker in a client bundle (D-9, C-8): export and re-import, with no analyser, Studio code or model.
+FROM base AS client
+RUN rm -rf apps/worker/tests eval \
+    apps/worker/src/daftar_worker/analyser \
+    apps/worker/src/daftar_worker/llm \
+    apps/worker/src/daftar_worker/evaluation \
+    apps/worker/src/daftar_worker/project \
+    apps/worker/src/daftar_worker/census.py \
+    apps/worker/src/daftar_worker/app.py \
+    apps/worker/src/daftar_worker/cli.py \
+    && uv sync --frozen --no-dev --no-editable --package daftar-worker \
+    && rm -f .venv/bin/daftar
+USER daftar
+ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
+EXPOSE 8000
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"
+CMD ["uvicorn", "daftar_worker.client_app:app", "--host", "0.0.0.0", "--port", "8000"]
+
 FROM base AS runtime
 RUN rm -rf apps/worker/tests eval && uv sync --frozen --no-dev --no-editable --package daftar-worker
 USER daftar

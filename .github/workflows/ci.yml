@@ -85,3 +85,13 @@ jobs:
         run: docker compose -f compose.dev.yaml exec -T worker python -c "import daftar_spec; daftar_spec.load_schema()"
       - if: always()
         run: docker compose -f compose.dev.yaml down -v
+
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv sync --locked
+      - run: deploy/build-images.sh e2e
+      # A clean machine's first start, owner setup, then backup, wipe and restore.
+      - run: uv run python deploy/e2e.py --tag e2e

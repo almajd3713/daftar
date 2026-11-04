@@ -6,7 +6,8 @@ from datetime import date
 import re
 from typing import Any
 
-from daftar_worker.analyser.grid import Cell, text_of
+from daftar_worker.sheet.grid import Cell, text_of
+from daftar_worker.sheet.values import TEXT_DATE, normal_text
 
 
 # Column names that make an otherwise plain number more specific.
@@ -22,11 +23,9 @@ CURRENCY_FORMAT = re.compile(r'(\bDA\b|"DA"|DZD|د\.?ج|\[\$[^\]]*(DA|DZD|د\.?�
 DATE_FORMAT_CODES = re.compile(r"[dmyhs]", re.IGNORECASE)
 FORMAT_LITERAL = re.compile(r'"[^"]*"|\\.|\[[^\]]*\]')
 
-DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
 PHONE = re.compile(r"^(\+213|00213|0)[5-7][0-9]{8}$")
 LANDLINE = re.compile(r"^(\+213|00213|0)[2-4][0-9]{7,8}$")
 EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
-TEXT_DATE = re.compile(r"^([0-9]{1,2})[/.\-]([0-9]{1,2})[/.\-]([0-9]{4}|[0-9]{2})$")
 TEXT_DATETIME = re.compile(r"^([0-9]{1,2})[/.\-]([0-9]{1,2})[/.\-]([0-9]{4}|[0-9]{2})\s+[0-9]{1,2}:[0-9]{2}")
 TEXT_MONEY = re.compile(r"^(-?[0-9][0-9 .,  ]*)\s*(DA|DZD|د\.?ج\.?|دج)$", re.IGNORECASE)
 TEXT_PERCENT = re.compile(r"^-?[0-9]+([.,][0-9]+)?\s*%$")
@@ -74,10 +73,6 @@ def _is_valid_date(day: int, month: int, year: int) -> bool:
     except ValueError:
         return False
     return 1900 <= year <= 2100
-
-
-def normal_text(cell: Cell) -> str:
-    return text_of(cell).translate(DIGITS).strip()
 
 
 def _phone_digits(text: str) -> str:

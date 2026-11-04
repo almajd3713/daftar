@@ -9,7 +9,6 @@ from typing import Any
 from openpyxl.utils import column_index_from_string, range_boundaries
 
 from daftar_worker.analyser import analyze
-from daftar_worker.analyser.grid import Grid, text_of
 from daftar_worker.errors import WorkerError
 from daftar_worker.evaluation.labels import (
     SEPARATE_STRATA,
@@ -22,6 +21,7 @@ from daftar_worker.evaluation.labels import (
 from daftar_worker.evaluation.metrics import WorkbookScore, score_workbook, summarise
 from daftar_worker.evaluation.predictions import Predictions, from_analysis
 from daftar_worker.reader import read_file
+from daftar_worker.sheet.grid import Grid, text_of
 
 
 METRIC_NAMES = {

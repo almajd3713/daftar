@@ -5,12 +5,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from daftar_worker.analyser.grid import Cell, Grid, a1
 from daftar_worker.analyser.types import TypeGuess
 from daftar_worker.formulas.engine import is_supported
 from daftar_worker.formulas.evaluate import Evaluator, ExcelError, to_serial
 from daftar_worker.formulas.references import relative_form
 from daftar_worker.formulas.translate import Lookup, field_key, translate
+from daftar_worker.sheet.grid import Cell, Grid, a1
 
 
 COPIED_SHARE = 0.8

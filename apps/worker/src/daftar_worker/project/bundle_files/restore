@@ -1,0 +1,25 @@
+#!/bin/sh
+# Replaces ALL current data with a backup: ./restore backups/FILE.dump
+# Pass --yes to skip the question.
+set -eu
+cd "$(dirname "$0")"
+file="${1:-}"
+if [ -z "$file" ] || [ ! -s "$file" ]; then
+  echo "Usage: ./restore backups/FILE.dump [--yes]. The file must exist and not be empty." >&2
+  exit 2
+fi
+if [ "${2:-}" != "--yes" ]; then
+  printf 'This replaces all current data with %s. Type yes to continue: ' "$file"
+  read -r answer
+  [ "$answer" = "yes" ] || { echo "Nothing changed."; exit 1; }
+fi
+export DAFTAR_UID="$(id -u)" DAFTAR_GID="$(id -g)"
+docker compose up -d --wait postgres
+# Check the file before touching the data.
+docker compose exec -T postgres pg_restore --list < "$file" > /dev/null
+docker compose stop proxy runtime backup
+docker compose exec -T postgres dropdb -U daftar --if-exists --force daftar
+docker compose exec -T postgres createdb -U daftar daftar
+docker compose exec -T postgres pg_restore -U daftar -d daftar --no-owner --exit-on-error < "$file"
+docker compose up -d --wait
+echo "Restored $file"
