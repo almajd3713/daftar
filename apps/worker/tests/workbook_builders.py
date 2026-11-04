@@ -191,3 +191,55 @@ def stale_xls(path: Path, stale_value: float) -> Path:
     book.save(str(path))
     set_stored_results(path, stale_value)
     return path
+
+
+def tutoring_workbook(path: Path) -> Path:
+    """The blueprint's end-to-end workbook. A fixed date makes the file, and so its hash, repeatable."""
+    book = xlsxwriter.Workbook(str(path))
+    book.set_properties({"created": datetime(2026, 1, 1)})
+    bold = book.add_format({"bold": True})
+    money = book.add_format({"num_format": '#,##0 "DA"'})
+    red = book.add_format({"bg_color": "#FF0000"})
+    green = book.add_format({"bg_color": "#00FF00"})
+    parents = ["M. Benali", "Mr Benali", "BENALI", "Mme Saidi", "SAIDI", "Hamdi Karim", "Karim Hamdi", "Kaci Omar"]
+    phones = {"Be": "0550123456", "Sa": "0661234567", "Ha": "0771234567", "Ka": "0552222222"}
+    register = book.add_worksheet("Élèves")
+    register.write_row("A1", ["Matricule", "Élève", "Parent", "Téléphone parent"], bold)
+    for index in range(16):
+        parent = parents[index % len(parents)]
+        tail = parent.split()[-1] if parent[0] == "M" else parent
+        key = next(prefix for prefix in phones if prefix.lower() in tail.lower() or tail.lower().startswith(prefix.lower()))
+        register.write_row(1 + index, 0, [f"E{index:03d}", f"Élève {index}", parent, phones[key]])
+    for tab in ("Janvier 2026", "Février 2026", "Mars 2026"):
+        sheet = book.add_worksheet(tab)
+        sheet.merge_range("A1:E1", f"Paiements {tab}", bold)
+        sheet.write_row("A3", ["Matricule", "Dû", "Payé", "Reste", "Statut"], bold)
+        total_due = total_paid = 0
+        for index in range(12):
+            row = 3 + index
+            due, paid = 3000 + index * 100, 1000 + index * 50
+            total_due, total_paid = total_due + due, total_paid + paid
+            sheet.write_string(row, 0, f"E{index:03d}")
+            sheet.write_number(row, 1, due, money)
+            sheet.write_number(row, 2, paid, money)
+            sheet.write_formula(row, 3, f"=B{row + 1}-C{row + 1}", money, due - paid)
+            sheet.write_string(row, 4, ["Payé", "Impayé"][index % 2])
+        sheet.conditional_format("E4:E15", {"type": "cell", "criteria": "==", "value": '"Impayé"', "format": red})
+        sheet.conditional_format("E4:E15", {"type": "cell", "criteria": "==", "value": '"Payé"', "format": green})
+        sheet.write_string(15, 0, "TOTAL", bold)
+        sheet.write_formula(15, 1, "=SUM(B4:B15)", money, total_due)
+        sheet.write_formula(15, 2, "=SUM(C4:C15)", money, total_paid)
+        sheet.write_formula(15, 3, "=SUM(D4:D15)", money, total_due - total_paid)
+    calc = book.add_worksheet("Calcul")
+    for row, (label, value) in enumerate([("Prix par matière", 3000), ("Nombre de matières", 2), ("Frères et sœurs", 1)], start=1):
+        calc.write_string(f"A{row}", label)
+        calc.write_number(f"B{row}", value)
+    calc.write_string("A4", "Sous-total")
+    calc.write_formula("B4", "=B1*B2", None, 6000)
+    calc.write_string("A5", "Remise")
+    calc.write_formula("B5", "=IF(B3>=1,0.05,0)*B4", None, 300)
+    calc.write_string("A6", "À payer")
+    calc.write_formula("B6", "=B4-B5", None, 5700)
+    book.close()
+    as_saved_by_excel(path)
+    return path

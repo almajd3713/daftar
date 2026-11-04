@@ -130,18 +130,18 @@ function letterIndex(letters: string): number {
 interface Layout {
   sheet: string;
   firstRow: number;
-  firstColumn: number;
-  columns: string[];
+  /** Each field's column number. */
+  columns: Map<string, number>;
 }
 
 function layoutOf(mapping: EntityMapping): Layout {
   const source = mapping.sources[0];
   const start = source?.range ? /^([A-Z]+)/.exec(source.range)?.[1] : undefined;
+  const first = start ? letterIndex(start) : 1;
   return {
     sheet: source?.sheet ?? mapping.entity,
     firstRow: mapping.headerRow + 1,
-    firstColumn: start ? letterIndex(start) : 1,
-    columns: mapping.columns.map((item) => item.field),
+    columns: new Map(mapping.columns.map((item, position) => [item.field, item.column ? letterIndex(item.column) : first + position])),
   };
 }
 
@@ -166,11 +166,10 @@ export async function recomputeEngineFields(tx: Tx, spec: DaftarSpec, entity: En
   const addValues = (other: Entity, otherRows: Record<string, unknown>[], layout: Layout): void => {
     otherRows.forEach((row, index) => {
       const record = recordScalars(other, row);
-      layout.columns.forEach((key, position) => {
+      layout.columns.forEach((position, key) => {
         const field = other.fields.find((item) => item.key === key);
         if (field?.type === "computed" && isEngine(field) && other === entity) return;
-        const value = record[key];
-        cells.push({ sheet: layout.sheet, row: layout.firstRow + index, column: layout.firstColumn + position, value: value ?? null });
+        cells.push({ sheet: layout.sheet, row: layout.firstRow + index, column: position, value: record[key] ?? null });
       });
     });
   };
@@ -183,10 +182,10 @@ export async function recomputeEngineFields(tx: Tx, spec: DaftarSpec, entity: En
   const layout = layoutOf(mapping);
   const targets: { sheet: string; row: number; column: number; key: string; index: number }[] = [];
   for (const field of fields) {
-    const position = layout.columns.indexOf(field.key);
-    if (position < 0) continue;
+    const position = layout.columns.get(field.key);
+    if (position === undefined) continue;
     rows.forEach((_, index) => {
-      const place = { sheet: layout.sheet, row: layout.firstRow + index, column: layout.firstColumn + position };
+      const place = { sheet: layout.sheet, row: layout.firstRow + index, column: position };
       cells.push({ ...place, formula: shiftRows((field.computed as ComputedEngine).excel, index) });
       targets.push({ ...place, key: field.key, index });
     });

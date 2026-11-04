@@ -1,0 +1,946 @@
+{
+ "specVersion": "1.0.0",
+ "app": {
+  "name": {
+   "fr": "centre",
+   "ar": "centre"
+  },
+  "locales": [
+   "fr-DZ",
+   "ar-DZ"
+  ],
+  "defaultLocale": "fr-DZ",
+  "currency": "DZD",
+  "timezone": "Africa/Algiers"
+ },
+ "entities": [
+  {
+   "key": "eleves",
+   "label": {
+    "fr": "Élèves",
+    "ar": "Élèves"
+   },
+   "kind": "register",
+   "naming": {
+    "type": "autonumber",
+    "prefix": "ELEVES-"
+   },
+   "titleField": "matricule",
+   "searchFields": [
+    "matricule",
+    "eleve"
+   ],
+   "personalData": true,
+   "fields": [
+    {
+     "key": "matricule",
+     "label": {
+      "fr": "Matricule",
+      "ar": "Matricule"
+     },
+     "provenance": {
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sheet": "Élèves",
+      "range": "A2:A17",
+      "detector": "fieldType",
+      "confidence": {
+       "level": "medium",
+       "score": 0.8
+      },
+      "decision": "accepted",
+      "decidedBy": "operator",
+      "decidedAt": "2026-11-04T10:00:00+00:00"
+     },
+     "type": "text"
+    },
+    {
+     "key": "eleve",
+     "label": {
+      "fr": "Élève",
+      "ar": "Élève"
+     },
+     "provenance": {
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sheet": "Élèves",
+      "range": "B2:B17",
+      "detector": "fieldType",
+      "confidence": {
+       "level": "medium",
+       "score": 0.8
+      },
+      "decision": "accepted",
+      "decidedBy": "operator",
+      "decidedAt": "2026-11-04T10:00:00+00:00"
+     },
+     "type": "text",
+     "personalData": true
+    },
+    {
+     "key": "parent",
+     "label": {
+      "fr": "Parent",
+      "ar": "Parent"
+     },
+     "provenance": {
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sheet": "Élèves",
+      "range": "C2:C17",
+      "detector": "fieldType",
+      "confidence": {
+       "level": "medium",
+       "score": 0.7
+      },
+      "decision": "accepted",
+      "decidedBy": "operator",
+      "decidedAt": "2026-11-04T10:00:00+00:00"
+     },
+     "type": "link",
+     "personalData": true,
+     "target": "parent",
+     "onDelete": "restrict"
+    },
+    {
+     "key": "telephone_parent",
+     "label": {
+      "fr": "Téléphone parent",
+      "ar": "Téléphone parent"
+     },
+     "provenance": {
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sheet": "Élèves",
+      "range": "D2:D17",
+      "detector": "fieldType",
+      "confidence": {
+       "level": "high",
+       "score": 0.95
+      },
+      "decision": "accepted",
+      "decidedBy": "operator",
+      "decidedAt": "2026-11-04T10:00:00+00:00"
+     },
+     "type": "phone",
+     "personalData": true
+    }
+   ],
+   "retention": {
+    "months": 36,
+    "basis": {
+     "fr": "Durée proposée par défaut : à confirmer avec le responsable du traitement.",
+     "ar": "مدة مقترحة افتراضيا: يجب تأكيدها مع المسؤول عن المعالجة."
+    }
+   },
+   "provenance": {
+    "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sheet": "Élèves",
+    "range": "A1:D17",
+    "detector": "table",
+    "confidence": {
+     "level": "high",
+     "score": 0.9
+    },
+    "decision": "accepted",
+    "decidedBy": "operator",
+    "decidedAt": "2026-11-04T10:00:00+00:00"
+   }
+  },
+  {
+   "key": "paiements",
+   "label": {
+    "fr": "Paiements",
+    "ar": "Paiements"
+   },
+   "kind": "ledger",
+   "naming": {
+    "type": "autonumber",
+    "prefix": "PAIEMENTS-"
+   },
+   "titleField": "matricule",
+   "searchFields": [
+    "matricule"
+   ],
+   "personalData": false,
+   "fields": [
+    {
+     "key": "period",
+     "label": {
+      "fr": "Période",
+      "ar": "الفترة"
+     },
+     "type": "date",
+     "required": true
+    },
+    {
+     "key": "matricule",
+     "label": {
+      "fr": "Matricule",
+      "ar": "Matricule"
+     },
+     "provenance": {
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sheet": "Janvier 2026",
+      "range": "A4:A15",
+      "detector": "fieldType",
+      "confidence": {
+       "level": "medium",
+       "score": 0.8
+      },
+      "decision": "accepted",
+      "decidedBy": "operator",
+      "decidedAt": "2026-11-04T10:00:00+00:00"
+     },
+     "type": "link",
+     "target": "eleves",
+     "onDelete": "restrict"
+    },
+    {
+     "key": "du",
+     "label": {
+      "fr": "Dû",
+      "ar": "Dû"
+     },
+     "provenance": {
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sheet": "Janvier 2026",
+      "range": "B4:B15",
+      "detector": "fieldType",
+      "confidence": {
+       "level": "high",
+       "score": 0.97
+      },
+      "decision": "accepted",
+      "decidedBy": "operator",
+      "decidedAt": "2026-11-04T10:00:00+00:00"
+     },
+     "type": "money",
+     "precision": 2
+    },
+    {
+     "key": "paye",
+     "label": {
+      "fr": "Payé",
+      "ar": "Payé"
+     },
+     "provenance": {
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sheet": "Janvier 2026",
+      "range": "C4:C15",
+      "detector": "fieldType",
+      "confidence": {
+       "level": "high",
+       "score": 0.97
+      },
+      "decision": "accepted",
+      "decidedBy": "operator",
+      "decidedAt": "2026-11-04T10:00:00+00:00"
+     },
+     "type": "money",
+     "precision": 2
+    },
+    {
+     "key": "reste",
+     "label": {
+      "fr": "Reste",
+      "ar": "Reste"
+     },
+     "provenance": {
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sheet": "Janvier 2026",
+      "range": "D4:D15",
+      "detector": "fieldType",
+      "confidence": {
+       "level": "high",
+       "score": 0.9
+      },
+      "decision": "accepted",
+      "decidedBy": "operator",
+      "decidedAt": "2026-11-04T10:00:00+00:00"
+     },
+     "type": "computed",
+     "resultType": "money",
+     "computed": {
+      "eval": "translated",
+      "excel": "=B4-C4",
+      "deps": [
+       "du",
+       "paye"
+      ],
+      "store": true,
+      "expr": {
+       "kind": "op",
+       "valueType": "number",
+       "op": "sub",
+       "args": [
+        {
+         "kind": "field",
+         "valueType": "number",
+         "field": "du"
+        },
+        {
+         "kind": "field",
+         "valueType": "number",
+         "field": "paye"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "key": "statut",
+     "label": {
+      "fr": "Statut",
+      "ar": "Statut"
+     },
+     "provenance": {
+      "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "sheet": "Janvier 2026",
+      "range": "E4:E15",
+      "detector": "fieldType",
+      "confidence": {
+       "level": "medium",
+       "score": 0.7
+      },
+      "decision": "accepted",
+      "decidedBy": "operator",
+      "decidedAt": "2026-11-04T10:00:00+00:00"
+     },
+     "type": "choice",
+     "choices": [
+      {
+       "key": "impaye",
+       "label": {
+        "fr": "Impayé",
+        "ar": "Impayé"
+       },
+       "source": "Impayé",
+       "colour": "#FF0000"
+      },
+      {
+       "key": "paye",
+       "label": {
+        "fr": "Payé",
+        "ar": "Payé"
+       },
+       "source": "Payé",
+       "colour": "#00FF00"
+      }
+     ]
+    }
+   ],
+   "provenance": {
+    "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sheet": "Janvier 2026",
+    "range": "A3:E16",
+    "detector": "table",
+    "confidence": {
+     "level": "high",
+     "score": 0.9
+    },
+    "decision": "accepted",
+    "decidedBy": "operator",
+    "decidedAt": "2026-11-04T10:00:00+00:00"
+   },
+   "period": {
+    "field": "period",
+    "granularity": "month"
+   }
+  },
+  {
+   "key": "parent",
+   "label": {
+    "fr": "Parent",
+    "ar": "Parent"
+   },
+   "kind": "reference",
+   "naming": {
+    "type": "field",
+    "field": "nom"
+   },
+   "titleField": "nom",
+   "searchFields": [
+    "nom"
+   ],
+   "personalData": true,
+   "fields": [
+    {
+     "key": "nom",
+     "label": {
+      "fr": "Nom",
+      "ar": "الاسم"
+     },
+     "type": "text",
+     "required": true,
+     "unique": true,
+     "personalData": true
+    }
+   ],
+   "retention": {
+    "months": 36,
+    "basis": {
+     "fr": "Durée proposée par défaut : à confirmer avec le responsable du traitement.",
+     "ar": "مدة مقترحة افتراضيا: يجب تأكيدها مع المسؤول عن المعالجة."
+    }
+   }
+  }
+ ],
+ "calculators": [
+  {
+   "key": "calcul",
+   "label": {
+    "fr": "Calcul",
+    "ar": "Calcul"
+   },
+   "inputs": [
+    {
+     "key": "input_b1",
+     "label": {
+      "fr": "Prix par matière",
+      "ar": "Prix par matière"
+     },
+     "type": "decimal",
+     "sheet": "Calcul",
+     "cell": "B1",
+     "default": 3000
+    },
+    {
+     "key": "input_b2",
+     "label": {
+      "fr": "Nombre de matières",
+      "ar": "Nombre de matières"
+     },
+     "type": "decimal",
+     "sheet": "Calcul",
+     "cell": "B2",
+     "default": 2
+    },
+    {
+     "key": "input_b3",
+     "label": {
+      "fr": "Frères et sœurs",
+      "ar": "Frères et sœurs"
+     },
+     "type": "decimal",
+     "sheet": "Calcul",
+     "cell": "B3",
+     "default": 1
+    }
+   ],
+   "outputs": [
+    {
+     "key": "output_b6",
+     "label": {
+      "fr": "À payer",
+      "ar": "À payer"
+     },
+     "type": "decimal",
+     "sheet": "Calcul",
+     "cell": "B6"
+    }
+   ],
+   "cells": [
+    {
+     "sheet": "Calcul",
+     "ref": "B1",
+     "v": 3000
+    },
+    {
+     "sheet": "Calcul",
+     "ref": "B2",
+     "v": 2
+    },
+    {
+     "sheet": "Calcul",
+     "ref": "B3",
+     "v": 1
+    },
+    {
+     "sheet": "Calcul",
+     "ref": "B4",
+     "f": "=B1*B2"
+    },
+    {
+     "sheet": "Calcul",
+     "ref": "B5",
+     "f": "=IF(B3>=1,0.05,0)*B4"
+    },
+    {
+     "sheet": "Calcul",
+     "ref": "B6",
+     "f": "=B4-B5"
+    }
+   ],
+   "testCases": [
+    {
+     "inputs": {
+      "input_b1": 3000,
+      "input_b2": 2,
+      "input_b3": 1
+     },
+     "outputs": {
+      "output_b6": 5700
+     }
+    }
+   ],
+   "provenance": {
+    "workbookSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sheet": "Calcul",
+    "range": "B1",
+    "detector": "calculator",
+    "confidence": {
+     "level": "high",
+     "score": 0.9
+    },
+    "decision": "accepted",
+    "decidedBy": "operator",
+    "decidedAt": "2026-11-04T10:00:00+00:00"
+   }
+  }
+ ],
+ "views": [
+  {
+   "key": "eleves_all",
+   "label": {
+    "fr": "Élèves",
+    "ar": "Élèves"
+   },
+   "entity": "eleves",
+   "type": "list",
+   "columns": [
+    "matricule",
+    "eleve",
+    "parent",
+    "telephone_parent"
+   ]
+  },
+  {
+   "key": "paiements_all",
+   "label": {
+    "fr": "Paiements",
+    "ar": "Paiements"
+   },
+   "entity": "paiements",
+   "type": "list",
+   "columns": [
+    "period",
+    "matricule",
+    "du",
+    "paye",
+    "reste",
+    "statut"
+   ],
+   "totals": [
+    "du",
+    "paye",
+    "reste"
+   ]
+  },
+  {
+   "key": "parent_all",
+   "label": {
+    "fr": "Parent",
+    "ar": "Parent"
+   },
+   "entity": "parent",
+   "type": "list",
+   "columns": [
+    "nom"
+   ]
+  }
+ ],
+ "forms": [
+  {
+   "key": "eleves_form",
+   "label": {
+    "fr": "Élèves",
+    "ar": "Élèves"
+   },
+   "entity": "eleves",
+   "sections": [
+    {
+     "key": "main",
+     "label": {
+      "fr": "Élèves",
+      "ar": "Élèves"
+     },
+     "fields": [
+      "matricule",
+      "eleve",
+      "parent",
+      "telephone_parent"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "paiements_form",
+   "label": {
+    "fr": "Paiements",
+    "ar": "Paiements"
+   },
+   "entity": "paiements",
+   "sections": [
+    {
+     "key": "main",
+     "label": {
+      "fr": "Paiements",
+      "ar": "Paiements"
+     },
+     "fields": [
+      "period",
+      "matricule",
+      "du",
+      "paye",
+      "statut"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "parent_form",
+   "label": {
+    "fr": "Parent",
+    "ar": "Parent"
+   },
+   "entity": "parent",
+   "sections": [
+    {
+     "key": "main",
+     "label": {
+      "fr": "Parent",
+      "ar": "Parent"
+     },
+     "fields": [
+      "nom"
+     ]
+    }
+   ]
+  }
+ ],
+ "dashboards": [
+  {
+   "key": "overview",
+   "label": {
+    "fr": "Vue d'ensemble",
+    "ar": "نظرة عامة"
+   },
+   "widgets": [
+    {
+     "key": "eleves_count",
+     "label": {
+      "fr": "Élèves",
+      "ar": "Élèves"
+     },
+     "type": "kpi",
+     "entity": "eleves",
+     "aggregate": "count"
+    },
+    {
+     "key": "paiements_count",
+     "label": {
+      "fr": "Paiements",
+      "ar": "Paiements"
+     },
+     "type": "kpi",
+     "entity": "paiements",
+     "aggregate": "count"
+    },
+    {
+     "key": "paiements_du_sum",
+     "label": {
+      "fr": "Dû",
+      "ar": "Dû"
+     },
+     "type": "kpi",
+     "entity": "paiements",
+     "aggregate": "sum",
+     "field": "du"
+    },
+    {
+     "key": "parent_count",
+     "label": {
+      "fr": "Parent",
+      "ar": "Parent"
+     },
+     "type": "kpi",
+     "entity": "parent",
+     "aggregate": "count"
+    }
+   ]
+  }
+ ],
+ "roles": [
+  {
+   "key": "owner",
+   "label": {
+    "fr": "Propriétaire",
+    "ar": "المالك"
+   },
+   "fieldLevel": 1,
+   "permissions": [
+    {
+     "entity": "eleves",
+     "actions": [
+      "read",
+      "create",
+      "update",
+      "delete",
+      "export",
+      "import",
+      "revert"
+     ],
+     "rowScope": "all"
+    },
+    {
+     "entity": "paiements",
+     "actions": [
+      "read",
+      "create",
+      "update",
+      "delete",
+      "export",
+      "import",
+      "revert"
+     ],
+     "rowScope": "all"
+    },
+    {
+     "entity": "parent",
+     "actions": [
+      "read",
+      "create",
+      "update",
+      "delete",
+      "export",
+      "import",
+      "revert"
+     ],
+     "rowScope": "all"
+    }
+   ]
+  },
+  {
+   "key": "staff",
+   "label": {
+    "fr": "Employé",
+    "ar": "موظف"
+   },
+   "fieldLevel": 0,
+   "permissions": [
+    {
+     "entity": "eleves",
+     "actions": [
+      "read",
+      "create",
+      "update"
+     ],
+     "rowScope": "all"
+    },
+    {
+     "entity": "paiements",
+     "actions": [
+      "read",
+      "create",
+      "update"
+     ],
+     "rowScope": "all"
+    },
+    {
+     "entity": "parent",
+     "actions": [
+      "read",
+      "create",
+      "update"
+     ],
+     "rowScope": "all"
+    }
+   ]
+  },
+  {
+   "key": "accountant",
+   "label": {
+    "fr": "Comptable",
+    "ar": "محاسب"
+   },
+   "fieldLevel": 1,
+   "permissions": [
+    {
+     "entity": "eleves",
+     "actions": [
+      "read",
+      "export"
+     ],
+     "rowScope": "all"
+    },
+    {
+     "entity": "paiements",
+     "actions": [
+      "read",
+      "export"
+     ],
+     "rowScope": "all"
+    },
+    {
+     "entity": "parent",
+     "actions": [
+      "read",
+      "export"
+     ],
+     "rowScope": "all"
+    }
+   ]
+  },
+  {
+   "key": "viewer",
+   "label": {
+    "fr": "Lecteur",
+    "ar": "قارئ"
+   },
+   "fieldLevel": 0,
+   "permissions": [
+    {
+     "entity": "eleves",
+     "actions": [
+      "read"
+     ],
+     "rowScope": "all"
+    },
+    {
+     "entity": "paiements",
+     "actions": [
+      "read"
+     ],
+     "rowScope": "all"
+    },
+    {
+     "entity": "parent",
+     "actions": [
+      "read"
+     ],
+     "rowScope": "all"
+    }
+   ]
+  }
+ ],
+ "workflows": [],
+ "reminders": [],
+ "history": {},
+ "mapping": [
+  {
+   "entity": "eleves",
+   "sources": [
+    {
+     "sheet": "Élèves",
+     "range": "A1:D17"
+    }
+   ],
+   "headerRow": 1,
+   "columns": [
+    {
+     "header": "Matricule",
+     "field": "matricule",
+     "column": "A"
+    },
+    {
+     "header": "Élève",
+     "field": "eleve",
+     "column": "B"
+    },
+    {
+     "header": "Parent",
+     "field": "parent",
+     "column": "C"
+    },
+    {
+     "header": "Téléphone parent",
+     "field": "telephone_parent",
+     "column": "D"
+    }
+   ],
+   "keyColumns": [
+    "matricule"
+   ]
+  },
+  {
+   "entity": "paiements",
+   "sources": [
+    {
+     "sheet": "Janvier 2026",
+     "range": "A3:E16",
+     "period": "2026-01"
+    },
+    {
+     "sheet": "Février 2026",
+     "range": "A3:E16",
+     "period": "2026-02"
+    },
+    {
+     "sheet": "Mars 2026",
+     "range": "A3:E16",
+     "period": "2026-03"
+    }
+   ],
+   "headerRow": 3,
+   "columns": [
+    {
+     "header": "Matricule",
+     "field": "matricule",
+     "column": "A"
+    },
+    {
+     "header": "Dû",
+     "field": "du",
+     "column": "B"
+    },
+    {
+     "header": "Payé",
+     "field": "paye",
+     "column": "C"
+    },
+    {
+     "header": "Reste",
+     "field": "reste",
+     "column": "D"
+    },
+    {
+     "header": "Statut",
+     "field": "statut",
+     "column": "E"
+    }
+   ],
+   "keyColumns": [
+    "matricule"
+   ],
+   "totals": [
+    {
+     "field": "du",
+     "function": "sum"
+    },
+    {
+     "field": "paye",
+     "function": "sum"
+    },
+    {
+     "field": "reste",
+     "function": "sum"
+    }
+   ]
+  },
+  {
+   "entity": "parent",
+   "sources": [
+    {
+     "sheet": "Parent"
+    }
+   ],
+   "headerRow": 1,
+   "columns": [
+    {
+     "header": "Parent",
+     "field": "nom"
+    }
+   ],
+   "keyColumns": [
+    "nom"
+   ]
+  }
+ ]
+}

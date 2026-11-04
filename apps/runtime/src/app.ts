@@ -15,6 +15,7 @@ import type { Db } from "./db.js";
 import { loadEngine } from "./expr/engine.js";
 import { RecordService } from "./records/service.js";
 import { migrateOnBoot } from "./schema/migrate.js";
+import { loadSeedOnce } from "./seed.js";
 
 @Module({})
 class ApiModule {
@@ -39,6 +40,8 @@ export interface AppOptions {
   db: Db;
   config: Pick<Config, "secret" | "timezone" | "processor">;
   clock?: () => Date;
+  /** The accepted import data (C-8), loaded once on first start. */
+  seedDir?: string;
 }
 
 export async function createApp(options: AppOptions): Promise<INestApplication> {
@@ -46,13 +49,15 @@ export async function createApp(options: AppOptions): Promise<INestApplication> 
   const clock = options.clock ?? (() => new Date());
   await loadEngine();
   await migrateOnBoot(db, spec);
+  const records = new RecordService(db, spec, clock);
+  if (options.seedDir) await loadSeedOnce(db, spec, records, options.seedDir);
   const runtime: Runtime = {
     spec,
     db,
     config,
     clock,
     auth: new AuthService(db, spec, config.secret),
-    records: new RecordService(db, spec, clock),
+    records,
   };
   const app = await NestFactory.create<NestExpressApplication>(ApiModule.with(runtime), { logger: ["error"] });
   app.set("trust proxy", 1);

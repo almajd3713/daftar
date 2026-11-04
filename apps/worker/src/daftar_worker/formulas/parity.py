@@ -143,6 +143,7 @@ def run_parity(path: str | Path, snapshot: dict[str, Any]) -> dict[str, Any]:
     causes: Counter[str] = Counter()
     wrong_functions: Counter[str] = Counter()
     results: list[dict[str, Any]] = []
+    mismatches: dict[str, list[str]] = {}
     with tempfile.TemporaryDirectory(prefix="daftar-") as work_dir:
         try:
             engine = _engine_for(source, source_format, clock, work_dir)
@@ -175,6 +176,7 @@ def run_parity(path: str | Path, snapshot: dict[str, Any]) -> dict[str, Any]:
                     category_equal[category] += equal
                 if not equal:
                     causes[_cause(result, cell["t"])] += 1
+                    mismatches.setdefault(sheet["name"], []).append(cell["ref"])
                     wrong_functions.update(functions)
                 results.append(
                     {
@@ -193,6 +195,7 @@ def run_parity(path: str | Path, snapshot: dict[str, Any]) -> dict[str, Any]:
         "categoryEqual": dict(category_equal),
         "causes": dict(causes),
         "wrongFunctions": dict(wrong_functions),
+        "mismatches": mismatches,
     }
 
 

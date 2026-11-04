@@ -84,6 +84,10 @@ export async function ensureSystemTables(db: Db): Promise<void> {
     source text NOT NULL, batch_id uuid, entity text NOT NULL, record_id uuid NOT NULL, op text NOT NULL,
     changes jsonb NOT NULL, snapshot jsonb, revert_of uuid, reverted_by uuid
   )`.execute(db);
+  await sql`CREATE TABLE IF NOT EXISTS _seed_state (
+    id boolean PRIMARY KEY DEFAULT true, batch_id uuid, created integer NOT NULL, problems jsonb NOT NULL,
+    loaded_at timestamptz NOT NULL DEFAULT now(), CHECK (id)
+  )`.execute(db);
   await sql`CREATE INDEX IF NOT EXISTS _audit_record ON _audit (entity, record_id, seq)`.execute(db);
   await sql`CREATE INDEX IF NOT EXISTS _audit_batch ON _audit (batch_id, seq)`.execute(db);
 }

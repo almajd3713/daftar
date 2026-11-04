@@ -47,6 +47,11 @@ uv run daftar analyze workbook.xlsx --no-llm -o analysis.json
 uv run daftar census folder/ -o census.json
 uv run daftar parity folder/ -o reports/parity  # Recompute formulas and compare with Excel's results.
 
+# A conversion project, until the Studio exists. Projects hold client data: keep them out of the repo.
+uv run daftar project init projects/centre --file workbook.xlsx
+uv run daftar project decide projects/centre --accept-high --accept FINDING_ID --reject FINDING_ID
+uv run daftar project generate projects/centre  # Writes daftar.spec.json, seed/ and generation-report.json.
+
 # Score the analyser against the labelled set. Exit codes: 0 ok, 2 unreadable, 3 invalid labels.
 uv run daftar eval --labels eval/labels --split dev -o reports/dev
 
