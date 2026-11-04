@@ -24,6 +24,7 @@ ARITHMETIC_TOLERANCE = 0.005
 SPACED_RUNS = 3
 TITLE_SEARCH_ROWS = 6
 MIN_HEADER_CELLS = 2
+MIN_LONE_HEADER_CELLS = 3
 MAX_GAP_UNDER_HEADER = 3
 NEW_HEADER_SHARE = 0.6
 NEW_HEADER_SEARCH_ROWS = 2
@@ -577,7 +578,9 @@ def _anchor_row(grid: Grid, block: Rect) -> int | None:
         for other in range(row, block.bottom + 1)
     )
     figures_below = _column_profile_differs(grid, block, row, block.bottom)
-    return row if styled or alone or figures_below else None
+    # Two plain labels on a row, with nothing under them, are as likely a form as a header.
+    alone_is_enough = alone and len(cells) >= MIN_LONE_HEADER_CELLS
+    return row if styled or alone_is_enough or figures_below else None
 
 
 def _opens_new_table(grid: Grid, block: Rect, anchor_cells: list[Cell], span: Rect) -> bool:

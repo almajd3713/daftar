@@ -831,3 +831,29 @@ def test_a_thin_text_scrap_beside_a_wide_table_is_not_a_table(tmp_path: Path) ->
         "A7": ["Clou", 3, 4.5, "Oran", 13.5],
     })  # fmt: skip
     assert [item["range"] for item in _tables(path)] == ["A5:E7"]
+
+
+def test_loose_labels_around_short_blocks_read_as_a_form(tmp_path: Path) -> None:
+    path = _write(tmp_path / "form.xlsx", {
+        "A1": ["Demande"],
+        "A3": ["Nom"],
+        "C3": ["Service"],
+        "A5": ["Adresse"],
+        "C5": ["Motif"],
+        "A7": ["Date"],
+        "C7": ["Signature"],
+        "A9": ["Observations"],
+        "A11": ["Article", "Code"],
+        "A12": ["Vis", "V1"],
+        "A13": ["Clou", "C1"],
+    })  # fmt: skip
+    sheet = analyze_snapshot(read_file(path))["sheets"][0]
+    assert (sheet["outcome"], sheet.get("reason")) == ("notConverted", "form")
+
+
+def test_a_long_list_with_notes_around_it_stays_a_list(tmp_path: Path) -> None:
+    rows: dict[str, list[Any]] = {
+        "A1": ["Note"], "A3": ["Note"], "A5": ["Note"], "A7": ["Note"], "A9": ["Nom", "Qté"],
+    }  # fmt: skip
+    rows |= {f"A{row}": [f"Article {row}", row] for row in range(10, 40)}
+    assert [item["range"] for item in _tables(_write(tmp_path / "l.xlsx", rows))] == ["A9:B39"]
