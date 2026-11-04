@@ -463,11 +463,6 @@ def test_draft_label_is_refused(evaluation_set: tuple[Path, Path], tmp_path: Pat
     assert not (tmp_path / "o" / "report.json").exists()
 
 
-def test_no_analyses_folder_gives_a_clear_failure(evaluation_set: tuple[Path, Path], tmp_path: Path) -> None:
-    labels, _ = evaluation_set
-    assert main(["eval", "--labels", str(labels), "--split", "dev", "-o", str(tmp_path / "o")]) == 2
-
-
 def test_empty_split_is_refused(tmp_path: Path) -> None:
     labels = write_set(tmp_path / "eval", [], {})
     assert main(["eval", "--labels", str(labels), "--split", "dev", "--analyses", str(tmp_path), "-o", str(tmp_path / "o")]) == 3

@@ -21,6 +21,7 @@ from daftar_worker.cli import main
 from daftar_worker.errors import MESSAGES, WorkerError
 from daftar_worker.reader import read_file
 from daftar_worker.reader.colours import apply_tint
+from daftar_worker.reader.convert import remove_illegal_xml
 from daftar_worker.reader.legacy import LegacyFacts, scan_biff
 from daftar_worker.reader.stored import Stored, encode_stored
 from daftar_worker.reader.text import decode, detect_delimiter
@@ -170,6 +171,17 @@ def test_x14_lists_pivots_links_and_macro_sheets(feature_workbook: Path) -> None
     assert sheet_of(snapshot, "Macro1")["cells"] == []
 
 
+def test_a_chart_openpyxl_refuses_doesnt_make_the_workbook_unreadable(feature_workbook: Path) -> None:
+    """Seen in real files: a chart value outside the range openpyxl allows raised on load."""
+    builders.patch_zip(
+        feature_workbook,
+        edit={"xl/charts/chart1.xml": lambda xml: xml.replace("<c:barDir", '<c:gapDepth val="99999"/><c:barDir', 1).replace("<c:chart>", '<c:chart><c:autoTitleDeleted val="not-a-bool"/>', 1)},
+    )
+    snapshot = read_file(feature_workbook)
+    assert {"kind": "chart", "sheet": "Données", "ref": "H2"} in snapshot["unsupported"]
+    assert cell_of(sheet_of(snapshot, "Données"), "C3")["v"] == 3001
+
+
 def test_macro_is_reported_and_xlsm_reads(tmp_path: Path) -> None:
     path = tmp_path / "macro.xlsm"
     book = xlsxwriter.Workbook(str(path))
@@ -298,6 +310,59 @@ def test_other_application_is_not_excel(tmp_path: Path) -> None:
     )
     source = read_file(path)["source"]
     assert (source["application"], source["resultsFrom"]) == ("LibreOffice/7.4", "other")
+
+
+@pytest.mark.parametrize(
+    ("application", "expected"),
+    [
+        ("Microsoft Excel", "excel"),
+        ("Microsoft Macintosh Excel", "excel"),
+        ("Microsoft Excel Online", "excel"),
+        ("Microsoft Excel Compatible / Openpyxl 3.1.5", "other"),  # Seen in a real public file.
+        ("WPS 表格", "other"),
+        ("LibreOffice/7.4", "other"),
+    ],
+)
+def test_only_excel_itself_counts_as_excel(tmp_path: Path, application: str, expected: str) -> None:
+    path = _with_formula(tmp_path / "w.xlsx")
+    builders.as_saved_by_excel(path)
+    builders.patch_zip(
+        path,
+        edit={
+            "docProps/app.xml": lambda xml: xml.replace(
+                "<Application>Microsoft Excel</Application>", f"<Application>{application}</Application>"
+            )
+        },
+    )
+    assert read_file(path)["source"]["resultsFrom"] == expected
+
+
+def test_gradient_in_a_conditional_format_doesnt_break_reading(tmp_path: Path) -> None:
+    """Seen in a real forum workbook. It made a valid file unreadable."""
+    path = tmp_path / "g.xlsx"
+    book = xlsxwriter.Workbook(str(path))
+    sheet = book.add_worksheet("G")
+    sheet.write_number("A1", 1)
+    sheet.conditional_format(
+        "A1:A3",
+        {"type": "cell", "criteria": ">", "value": 0, "format": book.add_format({"bg_color": "#FFC7CE"})},
+    )
+    book.close()
+    builders.patch_zip(
+        path,
+        edit={
+            "xl/styles.xml": lambda xml: re.sub(
+                r"(<dxf>.*?)<fill>.*?</fill>",
+                r'\1<fill><gradientFill degree="90"><stop position="0"><color rgb="FF112233"/></stop>'
+                r'<stop position="1"><color rgb="FF445566"/></stop></gradientFill></fill>',
+                xml,
+                flags=re.S,
+            )
+        },
+    )
+    rule = read_file(path)["sheets"][0]["conditionalFormats"][0]
+    assert rule["type"] == "cellIs"
+    assert rule["style"] == {"fill": "#112233"}
 
 
 def test_no_formulas_means_none(tmp_path: Path) -> None:
@@ -713,6 +778,24 @@ def test_ods_keeps_stored_results_and_is_never_excel(tmp_path: Path) -> None:
     assert snapshot["source"]["convertedFrom"] == "ods"
     assert snapshot["source"]["application"].startswith("LibreOffice")
     assert snapshot["source"]["resultsFrom"] == "other"
+
+
+def test_illegal_xml_characters_are_repaired(tmp_path: Path) -> None:
+    """LibreOffice copies control characters from old .xls text into its XML."""
+    path = tmp_path / "c.xlsx"
+    book = xlsxwriter.Workbook(str(path))
+    book.add_worksheet("C").write_string("A1", "Bonjour")
+    book.close()
+    builders.patch_zip(
+        path,
+        edit={
+            "xl/sharedStrings.xml": lambda xml: xml.replace("Bonjour", "Bon\x01jo&#x2;ur &#233;&#10;t & &amp; fin")
+        },
+    )
+    with pytest.raises(WorkerError):
+        read_file(path)
+    remove_illegal_xml(path)
+    assert read_file(path)["sheets"][0]["cells"][0]["v"] == "Bonjour é\nt & & fin"
 
 
 def test_missing_libreoffice_is_reported_cleanly(

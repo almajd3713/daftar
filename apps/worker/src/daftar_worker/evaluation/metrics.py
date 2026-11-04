@@ -140,9 +140,13 @@ def _score_parity(
 
 
 def score_workbook(
-    workbook_id: str, stratum: str, label: dict[str, Any], predictions: Predictions
+    workbook_id: str,
+    stratum: str,
+    label: dict[str, Any],
+    predictions: Predictions,
+    parity_ran: bool = True,
 ) -> WorkbookScore:
-    in_parity = label["resultsFrom"] == "excel"
+    in_parity = label["resultsFrom"] == "excel" and parity_ran
     score = WorkbookScore(workbook_id, stratum, in_parity)
     tallies = score.tallies
     sheet_names = {sheet["name"] for sheet in label["sheets"]}

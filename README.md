@@ -39,10 +39,11 @@ docker run --rm daftar-worker-test
 
 # Read a workbook, or count features over folders of them. Exit codes: 0 ok, 2 unreadable.
 uv run daftar read workbook.xlsx -o snapshot.json
+uv run daftar analyze workbook.xlsx --no-llm -o analysis.json
 uv run daftar census folder/ -o census.json
 
-# Score analyses against the labelled set. Exit codes: 0 ok, 2 unreadable, 3 invalid labels.
-uv run daftar eval --labels eval/labels --split dev --analyses analyses/ -o reports/dev
+# Score the analyser against the labelled set. Exit codes: 0 ok, 2 unreadable, 3 invalid labels.
+uv run daftar eval --labels eval/labels --split dev -o reports/dev
 
 # Validate a spec. Exit codes: 0 valid, 2 unreadable, 3 invalid.
 uv run python -m daftar_spec packages/spec/examples/*.spec.json

@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DaftarAnalysis",
+  "description": "C-2: what the analyser understood. Later packages tighten the proposals of the kinds they add.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["analysisVersion", "snapshotSha256", "engine", "sheets", "findings"],
+  "properties": {
+    "analysisVersion": { "const": 1 },
+    "snapshotSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$", "description": "Equals C-1 source.sha256." },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rulesVersion"],
+      "properties": {
+        "rulesVersion": { "type": "string", "minLength": 1 },
+        "model": { "type": "string" },
+        "quant": { "type": "string" }
+      }
+    },
+    "sheets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "outcome", "findingIds"],
+        "properties": {
+          "name": { "type": "string" },
+          "outcome": { "$ref": "#/$defs/outcome" },
+          "reason": { "$ref": "#/$defs/reason" },
+          "findingIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "if": { "properties": { "outcome": { "const": "notConverted" } }, "required": ["outcome"] },
+        "then": { "required": ["reason"] }
+      }
+    },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } }
+  },
+  "$defs": {
+    "outcome": { "enum": ["register", "ledger", "formulaModel", "tracker", "referenceList", "notConverted"] },
+    "reason": { "enum": ["form", "report", "chartOrPivotOnly", "empty", "outOfScope"] },
+    "range": { "type": "string", "pattern": "^[A-Z]{1,3}[1-9][0-9]*(:[A-Z]{1,3}[1-9][0-9]*)?$" },
+    "column": { "type": "string", "pattern": "^[A-Z]{1,3}$" },
+    "text": { "type": "string", "pattern": "\\S" },
+    "fieldType": { "enum": ["text", "longtext", "integer", "decimal", "money", "percent", "date", "datetime", "boolean", "choice", "multichoice", "phone", "email", "link", "child", "computed"] },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "sheet", "evidence", "proposal", "alternatives", "confidence", "explanation", "decision"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
+        "kind": { "enum": ["sheetKind", "table", "header", "totalRow", "fieldType", "choiceList", "statusColours", "entityMerge", "relation", "periodUnion", "computedField", "calculator", "anomaly", "unsupported"] },
+        "sheet": { "type": ["string", "null"] },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/range" } },
+        "proposal": { "type": "object" },
+        "alternatives": { "type": "array", "items": { "type": "object" } },
+        "confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["level", "score", "source"],
+          "properties": {
+            "level": { "enum": ["high", "medium", "low"] },
+            "score": { "type": "number", "minimum": 0, "maximum": 1 },
+            "source": { "enum": ["rules", "votes"] }
+          }
+        },
+        "explanation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fr", "ar"],
+          "properties": { "fr": { "$ref": "#/$defs/text" }, "ar": { "$ref": "#/$defs/text" } }
+        },
+        "decision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": { "enum": ["pending", "accepted", "edited", "rejected"] },
+            "value": {},
+            "by": { "type": "string" },
+            "at": { "type": "string" }
+          }
+        }
+      },
+      "allOf": [
+        { "if": { "properties": { "kind": { "const": "sheetKind" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalSheetKind" } } } },
+        { "if": { "properties": { "kind": { "const": "table" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalTable" } } } },
+        { "if": { "properties": { "kind": { "const": "header" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalHeader" } } } },
+        { "if": { "properties": { "kind": { "const": "totalRow" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalTotalRow" } } } },
+        { "if": { "properties": { "kind": { "const": "fieldType" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalFieldType" } } } },
+        { "if": { "properties": { "kind": { "const": "choiceList" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalChoiceList" } } } },
+        { "if": { "properties": { "kind": { "const": "unsupported" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalUnsupported" } } } }
+      ]
+    },
+    "proposalSheetKind": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome"],
+      "properties": { "outcome": { "$ref": "#/$defs/outcome" }, "reason": { "$ref": "#/$defs/reason" } }
+    },
+    "rows": { "type": "array", "items": { "type": "integer", "minimum": 1 } },
+    "proposalTable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["range", "dataRange", "headerRows", "totalRows", "titleRows", "noteRows"],
+      "description": "`range` covers the header, data and total rows; `dataRange` only the records.",
+      "properties": {
+        "range": { "$ref": "#/$defs/range" },
+        "dataRange": { "$ref": "#/$defs/range" },
+        "headerRows": { "$ref": "#/$defs/rows" },
+        "totalRows": { "$ref": "#/$defs/rows" },
+        "titleRows": { "$ref": "#/$defs/rows" },
+        "noteRows": { "$ref": "#/$defs/rows" }
+      }
+    },
+    "proposalHeader": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "rows", "labels"],
+      "properties": {
+        "table": { "$ref": "#/$defs/range" },
+        "rows": { "$ref": "#/$defs/rows" },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["column", "label"],
+            "properties": { "column": { "$ref": "#/$defs/column" }, "label": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "proposalTotalRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "row", "source", "aggregates"],
+      "properties": {
+        "table": { "$ref": "#/$defs/range" },
+        "row": { "type": "integer", "minimum": 1 },
+        "source": { "enum": ["formula", "keyword", "arithmetic", "afterTotal"] },
+        "aggregates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["column", "function"],
+            "properties": {
+              "column": { "$ref": "#/$defs/column" },
+              "function": { "enum": ["sum", "average", "count", "counta", "max", "min", "product"] }
+            }
+          }
+        }
+      }
+    },
+    "proposalFieldType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "column", "name", "type"],
+      "properties": {
+        "table": { "$ref": "#/$defs/range" },
+        "column": { "$ref": "#/$defs/column" },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "$ref": "#/$defs/fieldType" },
+        "resultType": { "enum": ["text", "integer", "decimal", "money", "percent", "date", "datetime", "boolean"] },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sheet", "column"],
+          "properties": { "sheet": { "type": "string" }, "column": { "$ref": "#/$defs/column" } }
+        },
+        "hidden": { "const": true }
+      }
+    },
+    "proposalChoiceList": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "column", "source", "multiple", "values"],
+      "properties": {
+        "table": { "$ref": "#/$defs/range" },
+        "column": { "$ref": "#/$defs/column" },
+        "source": { "enum": ["validationList", "values"] },
+        "multiple": { "type": "boolean" },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["value", "count"],
+            "properties": { "value": { "type": "string" }, "count": { "type": "integer", "minimum": 0 } }
+          }
+        }
+      }
+    },
+    "proposalUnsupported": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "count"],
+      "properties": {
+        "kind": { "enum": ["pivot", "chart", "image", "shape", "macro", "externalLink", "other"] },
+        "count": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

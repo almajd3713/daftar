@@ -15,7 +15,7 @@ from daftar_worker.reader.legacy import (
     is_encrypted_ooxml,
 )
 from daftar_worker.reader.limits import MAX_FILE_BYTES
-from daftar_worker.reader.raw import RawPackage, copy_without_pivot_links, inspect_package
+from daftar_worker.reader.raw import RawPackage, copy_without_embedded_objects, inspect_package
 from daftar_worker.reader.stored import apply_stored_results, ods_lookup, xls_lookup
 from daftar_worker.reader.text import read_csv
 from daftar_worker.reader.xlsx import read_workbook
@@ -24,14 +24,15 @@ from daftar_worker.reader.xlsx import read_workbook
 SUPPORTED = {".xlsx": "xlsx", ".xlsm": "xlsm", ".xls": "xls", ".ods": "ods", ".csv": "csv"}
 OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 ZIP_MAGIC = b"PK\x03\x04"
+# An exact list, not a prefix: real files say "Microsoft Excel Compatible / Openpyxl 3.1.5".
+EXCEL_APPLICATIONS = {"Microsoft Excel", "Microsoft Macintosh Excel", "Microsoft Excel Online"}
 
 
 def results_from(sheets: list[dict[str, Any]], application: str | None, automatic: bool) -> str:
     """Who produced the stored results. `excel` only if Excel saved in automatic mode."""
     if not any("f" in cell for sheet in sheets for cell in sheet["cells"]):
         return "none"
-    is_excel = (application or "").startswith("Microsoft Excel")
-    return "excel" if is_excel and automatic else "other"
+    return "excel" if (application or "").strip() in EXCEL_APPLICATIONS and automatic else "other"
 
 
 def _read_package(path: Path) -> tuple[RawPackage, dict[str, Any]]:
@@ -39,8 +40,8 @@ def _read_package(path: Path) -> tuple[RawPackage, dict[str, Any]]:
         package = inspect_package(str(path))
         with tempfile.TemporaryDirectory(prefix="daftar-") as work_dir:
             stripped = str(Path(work_dir) / "workbook.xlsx")
-            has_pivots = copy_without_pivot_links(str(path), stripped)
-            return package, read_workbook(stripped if has_pivots else str(path), package)
+            has_embedded = copy_without_embedded_objects(str(path), stripped)
+            return package, read_workbook(stripped if has_embedded else str(path), package)
     except WorkerError:
         raise
     except Exception as error:  # A damaged file can fail in many ways inside these parsers.

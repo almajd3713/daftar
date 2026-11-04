@@ -66,9 +66,11 @@ class _StyleCache:
     def fill(self, fill: Any) -> str | None:
         if fill is None:
             return None
+        stops = getattr(fill, "stop", None)  # A gradient has no pattern, so use its first colour.
+        if stops:
+            return self.colour(stops[0].color)
         if getattr(fill, "fill_type", None) in (None, "none"):
-            stops = getattr(fill, "stop", None)
-            return self.colour(stops[0].color) if stops else None
+            return None
         return self.colour(fill.fgColor)
 
     def of(self, cell: Any) -> tuple[dict[str, Any], str | None]:
@@ -181,7 +183,7 @@ def _dxf_style(dxf: Any, styles: _StyleCache) -> dict[str, Any]:
     style: dict[str, Any] = {}
     if dxf.fill is not None:
         # In a differential format a solid fill's visible colour is bgColor, the reverse of a cell.
-        fill = styles.colour(dxf.fill.bgColor) or styles.colour(dxf.fill.fgColor)
+        fill = styles.colour(getattr(dxf.fill, "bgColor", None)) or styles.fill(dxf.fill)
         if fill:
             style["fill"] = fill
     if dxf.font is not None:
