@@ -15,17 +15,22 @@ from daftar_worker.analyser import explain
 from daftar_worker.analyser.regions import Table
 from daftar_worker.analyser.workbook_view import SheetView
 from daftar_worker.sheet.grid import a1_range, text_of
-from daftar_worker.sheet.names import fingerprint
+from daftar_worker.sheet.names import fingerprint, spelling_similarity
 
 
 INCLUSION = 0.95
+SPELLING_MATCH = 88
+MAX_FUZZY_VALUES = 2000
+LABEL_NAMES_SHEET = 70
 MIN_KEYS = 3
 MIN_KEYS_UNNAMED = 5
 SAME_NAME = 0.8
 COPY_OF_TABLE = 80
 MAX_MEDIUM = 0.84
 KEY_TYPES = {"text", "integer", "choice", "phone", "email"}
-ID_HINT = re.compile(r"\b(id|code|n°|no|num|numéro|réf|ref|matricule|رقم|الرقم|رمز)\b", re.IGNORECASE)
+ID_HINT = re.compile(
+    r"\b(id|code|n°|no|num|numéro|réf|ref|matricule|رقم|الرقم|رمز)\b", re.IGNORECASE
+)
 
 
 @dataclass
@@ -51,7 +56,9 @@ def _profiles(views: list[SheetView]) -> list[Profile]:
     for view in views:
         if view.outcome == "notConverted":
             continue
-        for table, labels, guesses in zip(view.layout.tables, view.labels, view.guesses, strict=True):
+        for table, labels, guesses in zip(
+            view.layout.tables, view.labels, view.guesses, strict=True
+        ):
             for column, guess in guesses.items():
                 if guess.type not in KEY_TYPES:
                     continue
@@ -61,7 +68,16 @@ def _profiles(views: list[SheetView]) -> list[Profile]:
                     if cell is not None:
                         values.append(fingerprint(text_of(cell)))
                 if values:
-                    found.append(Profile(view.grid.name, table, column, labels.get(column, ""), guess.type, values))
+                    found.append(
+                        Profile(
+                            view.grid.name,
+                            table,
+                            column,
+                            labels.get(column, ""),
+                            guess.type,
+                            values,
+                        )
+                    )
     return found
 
 
@@ -78,9 +94,41 @@ def _name_similarity(source: Profile, target: Profile) -> float:
     return fuzz.ratio(fingerprint(source.label), fingerprint(target.label)) / 100
 
 
-def _could_be_key(source: Profile, target: Profile, labels: dict[tuple[str, Any], list[str]]) -> bool:
+def _label_names_the_sheet(source: Profile, target: Profile) -> bool:
+    """A "Client" column whose names are listed on a sheet called "Clients"."""
+    if source.kind != "text" or target.kind != "text" or not source.label:
+        return False
+    return fuzz.ratio(fingerprint(source.label), fingerprint(target.sheet)) >= LABEL_NAMES_SHEET
+
+
+def _inclusion(source: Profile, target: Profile) -> float:
+    """The share of the column found in the target. Retyped names count when the column names the sheet."""
+    keys = source.distinct
+    missing = keys - target.distinct
+    share = 1 - len(missing) / len(keys)
+    if share >= INCLUSION or not _label_names_the_sheet(source, target):
+        return share
+    if len(keys) > MAX_FUZZY_VALUES or len(target.distinct) > MAX_FUZZY_VALUES:
+        return share
+    retyped = sum(
+        1
+        for value in missing
+        if any(spelling_similarity(value, other) >= SPELLING_MATCH for other in target.distinct)
+    )
+    # Never 1.0: a match by spelling stays below an exact one.
+    return min((len(keys) - len(missing) + retyped) / len(keys), INCLUSION)
+
+
+def _could_be_key(
+    source: Profile, target: Profile, labels: dict[tuple[str, Any], list[str]]
+) -> bool:
     """Shared values alone are weak evidence. The target must look like a key, and not a copy."""
-    if len(source.distinct) < MIN_KEYS_UNNAMED and _name_similarity(source, target) < SAME_NAME:
+    names_sheet = _label_names_the_sheet(source, target)
+    if (
+        len(source.distinct) < MIN_KEYS_UNNAMED
+        and _name_similarity(source, target) < SAME_NAME
+        and not names_sheet
+    ):
         return False
     own = labels.get((source.sheet, source.table.rect), [])
     other = labels.get((target.sheet, target.table.rect), [])
@@ -88,7 +136,12 @@ def _could_be_key(source: Profile, target: Profile, labels: dict[tuple[str, Any]
     if own and other and fuzz.token_sort_ratio(" ".join(own), " ".join(other)) >= COPY_OF_TABLE:
         return False
     is_first_column = target.column == target.table.rect.left
-    return is_first_column or bool(ID_HINT.search(target.label)) or _name_similarity(source, target) >= SAME_NAME
+    return (
+        is_first_column
+        or bool(ID_HINT.search(target.label))
+        or _name_similarity(source, target) >= SAME_NAME
+        or names_sheet
+    )
 
 
 def _score(source: Profile, target: Profile, inclusion: float) -> float:
@@ -122,11 +175,17 @@ def relation_findings(
             series[tab["sheet"]] = number
     # What's already known, from lookups, counts first: inclusion must not contradict it.
     taken = {
-        (item["proposal"]["from"]["sheet"], item["proposal"]["from"]["column"]): item["proposal"]["to"]
+        (item["proposal"]["from"]["sheet"], item["proposal"]["from"]["column"]): item["proposal"][
+            "to"
+        ]
         for item in existing
         if item["kind"] == "relation"
     }
-    edges = [(item["proposal"]["from"]["sheet"], item["proposal"]["to"]["sheet"]) for item in existing if item["kind"] == "relation"]
+    edges = [
+        (item["proposal"]["from"]["sheet"], item["proposal"]["to"]["sheet"])
+        for item in existing
+        if item["kind"] == "relation"
+    ]
 
     # A validation list drawn from another sheet says what the column may hold.
     for view in views:
@@ -146,9 +205,15 @@ def relation_findings(
                         "relation",
                         view.grid.name,
                         [a1_range(table.data_top, column, table.data_bottom, column)],
-                        {"from": {"sheet": view.grid.name, "column": letter}, "to": dict(guess.target), "evidence": "validationList"},
+                        {
+                            "from": {"sheet": view.grid.name, "column": letter},
+                            "to": dict(guess.target),
+                            "evidence": "validationList",
+                        },
                         0.9,
-                        explain.relation_from_validation(view.grid.name, letter, guess.target["sheet"], guess.target["column"]),
+                        explain.relation_from_validation(
+                            view.grid.name, letter, guess.target["sheet"], guess.target["column"]
+                        ),
                         extra=f"{guess.target['sheet']}!{guess.target['column']}",
                     )
                 )
@@ -165,19 +230,23 @@ def relation_findings(
         if len(keys) < MIN_KEYS or _looks_like_a_counter(source):
             continue
         for target in profiles:
-            if target.sheet == source.sheet or not target.is_unique or len(target.distinct) < len(keys):
+            if target.sheet == source.sheet or not target.is_unique:
+                continue
+            if len(target.distinct) < len(keys) and not _label_names_the_sheet(source, target):
                 continue
             # January's ids are all in March too, but those tabs are one table split by month.
             if source.sheet in series and series[source.sheet] == series.get(target.sheet):
                 continue
             if _looks_like_a_counter(target):
                 continue
-            inclusion = len(keys & target.distinct) / len(keys)
+            inclusion = _inclusion(source, target)
             if inclusion >= INCLUSION and _could_be_key(source, target, table_labels):
                 candidates.append((_score(source, target, inclusion), source, target, inclusion))
 
     # Highest scores choose first; each column links to one target and the graph stays loop-free.
-    candidates.sort(key=lambda item: (-item[0], item[1].sheet, item[1].column, item[2].sheet, item[2].column))
+    candidates.sort(
+        key=lambda item: (-item[0], item[1].sheet, item[1].column, item[2].sheet, item[2].column)
+    )
     for score, source, target, inclusion in candidates:
         letter = get_column_letter(source.column)
         if (source.sheet, letter) in taken or _creates_cycle(edges, source.sheet, target.sheet):
@@ -189,10 +258,24 @@ def relation_findings(
             make(
                 "relation",
                 source.sheet,
-                [a1_range(source.table.data_top, source.column, source.table.data_bottom, source.column)],
-                {"from": {"sheet": source.sheet, "column": letter}, "to": {"sheet": target.sheet, "column": target_letter}, "evidence": "keyInclusion", "inclusion": round(inclusion, 3)},
+                [
+                    a1_range(
+                        source.table.data_top,
+                        source.column,
+                        source.table.data_bottom,
+                        source.column,
+                    )
+                ],
+                {
+                    "from": {"sheet": source.sheet, "column": letter},
+                    "to": {"sheet": target.sheet, "column": target_letter},
+                    "evidence": "keyInclusion",
+                    "inclusion": round(inclusion, 3),
+                },
                 score,
-                explain.relation_from_inclusion(source.sheet, letter, target.sheet, target_letter, inclusion),
+                explain.relation_from_inclusion(
+                    source.sheet, letter, target.sheet, target_letter, inclusion
+                ),
                 extra=f"{target.sheet}!{target_letter}",
             )
         )

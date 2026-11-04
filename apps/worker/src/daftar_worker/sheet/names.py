@@ -3,6 +3,8 @@
 import re
 import unicodedata
 
+from rapidfuzz import fuzz
+
 
 ARABIC_LETTERS = str.maketrans(
     {"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ة": "ه", "ى": "ي", "ؤ": "و", "ئ": "ي", "ـ": None}
@@ -62,3 +64,11 @@ def same_with_initial(left: list[str], right: list[str]) -> bool:
     a, b = short_side[0]
     rest = [(c, d) for c, d in pairs if (c, d) != (a, b)]
     return a[0] == b[0] and all(c == d for c, d in rest)
+
+
+def spelling_similarity(first: str, second: str) -> float:
+    """0 to 100, for two fingerprints. A typo scores high, and so does a name with words left out."""
+    score = float(fuzz.token_sort_ratio(first, second))
+    if len(first.split()) >= 2 and len(second.split()) >= 2:
+        score = max(score, float(fuzz.token_set_ratio(first, second)))
+    return score

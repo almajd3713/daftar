@@ -13,11 +13,12 @@ from openpyxl.utils import column_index_from_string, get_column_letter, range_bo
 from daftar_spec import format_errors, validate_spec
 from daftar_worker.analyser.periods import MONTHS, YEAR
 from daftar_worker.sheet.grid import Grid, text_of
-from daftar_worker.sheet.names import fingerprint
+from daftar_worker.sheet.names import fingerprint, spelling_similarity
 from daftar_worker.sheet.values import convert_value
 
 
 SPEC_VERSION = "1.0.0"
+CLOSE_KEY = 88
 ACCEPTED = ("accepted", "edited")
 KIND_TO_ENTITY = {"register": "register", "ledger": "ledger", "tracker": "tracker", "referenceList": "reference"}
 SENSITIVE = re.compile(r"\b(co[ûu]ts?|marges?|achats?|b[ée]n[ée]fices?|cost|margin|profit)\b|تكلفة|هامش|ربح|شراء", re.IGNORECASE)
@@ -567,6 +568,9 @@ class Generator:
     def _apply_relations(self) -> None:
         for finding in self._of_kind("relation"):
             proposal = _proposal(finding)
+            # Rows added up by order and item: neither column identifies one row, so no link can hold it.
+            if proposal["evidence"] == "aggregateFormula":
+                continue
             source = self._info_for(proposal["from"]["sheet"], proposal["from"]["column"])
             target = self._info_for(proposal["to"]["sheet"], proposal["to"]["column"])
             if source is None or target is None or source.entity_key == target.entity_key:
@@ -596,11 +600,12 @@ class Generator:
         entry["target"] = target
         entry["onDelete"] = "restrict"
         # Seed rows name the target by its key's value; the loader finds the record.
+        known = [row[target_key] for row in self.seed.get(target, []) if row.get(target_key) is not None]
         for row in self.seed.get(entity_key, []):
             value = row.get(entry["key"])
             # Each tab of a series reports the same relation, so this can run more than once.
             if value is not None and not (isinstance(value, dict) and "$ref" in value):
-                row[entry["key"]] = {"$ref": {"field": target_key, "value": value}}
+                row[entry["key"]] = {"$ref": {"field": target_key, "value": _closest_key(value, known)}}
 
     def _apply_entity_merges(self) -> None:
         """An accepted retyped name becomes its own list, with one record per spelling group."""
@@ -808,6 +813,26 @@ class Generator:
         if errors:
             raise GenerationError(format_errors(errors))
         return spec, self.seed, self.report
+
+
+def _closest_key(value: Any, known: list[Any]) -> Any:
+    """The target's own spelling of a retyped key, so "ع. القادر" finds "عبد القادر". Unsure stays as typed."""
+    if value in known or not isinstance(value, str):
+        return value
+    print_form = fingerprint(value)
+    for item in known:
+        if isinstance(item, str) and fingerprint(item) == print_form:
+            return item
+    scored = [
+        (spelling_similarity(print_form, fingerprint(item)), index)
+        for index, item in enumerate(known)
+        if isinstance(item, str)
+    ]
+    close = sorted((pair for pair in scored if pair[0] >= CLOSE_KEY), reverse=True)
+    # Two equally close names could be two people.
+    if not close or (len(close) > 1 and close[0][0] == close[1][0]):
+        return value
+    return known[close[0][1]]
 
 
 def _is_period_word(word: str) -> bool:

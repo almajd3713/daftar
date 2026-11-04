@@ -178,6 +178,13 @@ def relation_from_lookup(sheet: str, source: str, to_sheet: str, target: str) ->
     }
 
 
+def relation_from_aggregate(sheet: str, source: str, to_sheet: str, target: str) -> Explanation:
+    return {
+        "fr": f"Une formule de « {to_sheet} » additionne les lignes de « {sheet} » qui ont la même valeur en colonne {source} que sa colonne {target}. Ces deux feuilles sont donc liées, sans que cette colonne identifie une seule ligne.",
+        "ar": f"صيغة في «{to_sheet}» تجمع صفوف «{sheet}» التي لها في العمود {source} القيمة نفسها الموجودة في عمودها {target}. فالورقتان مرتبطتان، دون أن يحدد هذا العمود صفا واحدا.",
+    }
+
+
 def calculator(sheet: str, inputs: list[str], outputs: list[str]) -> Explanation:
     in_text = ", ".join(inputs[:5])
     out_text = ", ".join(outputs[:5])

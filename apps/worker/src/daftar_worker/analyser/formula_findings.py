@@ -1,5 +1,6 @@
 """Findings about formulas: computed fields, calculators, lookups as relations, and odd cells."""
 
+import re
 from typing import Any
 
 from openpyxl.utils import get_column_letter
@@ -9,12 +10,26 @@ from daftar_worker.analyser.regions import Table
 from daftar_worker.analyser.types import TypeGuess
 from daftar_worker.formulas.calculators import Port, find_model, port_key
 from daftar_worker.formulas.computed import MAX_LISTED_CELLS, ComputedColumn, find_computed
+from daftar_worker.formulas.references import clean_sheet
 from daftar_worker.formulas.translate import field_key
-from daftar_worker.sheet.grid import Grid, a1, a1_range
+from daftar_worker.sheet.grid import Grid, a1, a1_range, column_index
 
 
-CELL_TYPES = {"percent": "percent", "decimal": "decimal", "date": "date", "boolean": "boolean", "text": "text"}
+CELL_TYPES = {
+    "percent": "percent",
+    "decimal": "decimal",
+    "date": "date",
+    "boolean": "boolean",
+    "text": "text",
+}
 MAX_EVIDENCE = 40
+AGGREGATE_CONFIDENCE = 0.75
+CONDITIONAL_AGGREGATE = re.compile(r"\b(?:SUMIFS?|COUNTIFS?|AVERAGEIFS?)\s*\(", re.IGNORECASE)
+# Another sheet's column, then the cell on this row that it's matched against.
+AGGREGATE_CRITERION = re.compile(
+    r"(?P<sheet>'(?:[^']|'')+'|[\w.]+)!\$?(?P<column>[A-Z]{1,3})(?:\$?[0-9]+)?:\$?(?P=column)(?:\$?[0-9]+)?"
+    r"\s*,\s*\$?(?P<own>[A-Z]{1,3})\$?(?P<row>[0-9]+)(?![0-9(])"
+)
 
 
 def _score(column: ComputedColumn) -> float:
@@ -25,7 +40,9 @@ def _score(column: ComputedColumn) -> float:
     return round(base - (1 - coverage) * 1.0, 3)
 
 
-def _computed_proposal(table: Table, column: ComputedColumn, label: str, guess: TypeGuess | None) -> dict[str, Any]:
+def _computed_proposal(
+    table: Table, column: ComputedColumn, label: str, guess: TypeGuess | None
+) -> dict[str, Any]:
     proposal: dict[str, Any] = {
         "table": table.rect.a1,
         "column": get_column_letter(column.column),
@@ -64,7 +81,9 @@ def table_formula_findings(
     rows = table.data_rows()
     lookups: dict[tuple[int, str, int], set[int]] = {}
     for column in range(table.rect.left, table.rect.right + 1):
-        found = find_computed(grid, column, rows, guesses, table.rect.left, table.rect.right, verify)
+        found = find_computed(
+            grid, column, rows, guesses, table.rect.left, table.rect.right, verify
+        )
         if found is None:
             continue
         label = labels.get(column, "")
@@ -77,7 +96,15 @@ def table_formula_findings(
                 [evidence],
                 _computed_proposal(table, found, label, guesses.get(column)),
                 _score(found),
-                explain.computed_field(label, letter, found.formula, found.matching, found.total, found.expr is not None, found.missing_functions),
+                explain.computed_field(
+                    label,
+                    letter,
+                    found.formula,
+                    found.matching,
+                    found.total,
+                    found.expr is not None,
+                    found.missing_functions,
+                ),
             )
         )
         if found.outliers:
@@ -87,14 +114,23 @@ def table_formula_findings(
                     "anomaly",
                     grid.name,
                     cells,
-                    {"kind": "inconsistentFormula", "table": table.rect.a1, "column": letter, "cells": cells, "count": len(found.outliers)},
+                    {
+                        "kind": "inconsistentFormula",
+                        "table": table.rect.a1,
+                        "column": letter,
+                        "cells": cells,
+                        "count": len(found.outliers),
+                    },
                     0.7,
                     explain.inconsistent_formula(label, letter, cells, len(found.outliers)),
                     extra=letter,
                 )
             )
         for lookup in found.lookups:
-            lookups.setdefault((lookup.from_column, lookup.to_sheet, lookup.key_column), set()).add(lookup.result_column)
+            lookups.setdefault((lookup.from_column, lookup.to_sheet, lookup.key_column), set()).add(
+                lookup.result_column
+            )
+    findings += _aggregate_relations(make, grid, table)
     for (from_column, to_sheet, key_column), results in sorted(lookups.items()):
         source = get_column_letter(from_column)
         target = get_column_letter(key_column)
@@ -117,6 +153,44 @@ def table_formula_findings(
     return findings
 
 
+def _aggregate_relations(make: Any, grid: Grid, table: Table) -> list[dict[str, Any]]:
+    """SUMIFS(Lines!D:D, Lines!A:A, A2): the rows added up there belong to the row holding the formula."""
+    pairs: set[tuple[str, int, int]] = set()
+    for row in table.data_rows():
+        for column in range(table.rect.left, table.rect.right + 1):
+            cell = grid.get(row, column)
+            if cell is None or not cell.formula or not CONDITIONAL_AGGREGATE.search(cell.formula):
+                continue
+            for match in AGGREGATE_CRITERION.finditer(cell.formula):
+                own_column = column_index(match.group("own"))
+                if (
+                    int(match.group("row")) == row
+                    and table.rect.left <= own_column <= table.rect.right
+                ):
+                    sheet = clean_sheet(match.group("sheet"))
+                    if sheet and sheet != grid.name:
+                        pairs.add((sheet, column_index(match.group("column")), own_column))
+    found = []
+    for sheet, column, own_column in sorted(pairs):
+        source, target = get_column_letter(column), get_column_letter(own_column)
+        found.append(
+            make(
+                "relation",
+                sheet,
+                [f"{source}1:{source}1"],
+                {
+                    "from": {"sheet": sheet, "column": source},
+                    "to": {"sheet": grid.name, "column": target},
+                    "evidence": "aggregateFormula",
+                },
+                AGGREGATE_CONFIDENCE,
+                explain.relation_from_aggregate(sheet, source, grid.name, target),
+                extra=f"{grid.name}!{target}",
+            )
+        )
+    return found
+
+
 def _port(prefix: str, port: Port, input_port: bool) -> dict[str, Any]:
     entry: dict[str, Any] = {
         "key": port_key(prefix, port),
@@ -130,7 +204,9 @@ def _port(prefix: str, port: Port, input_port: bool) -> dict[str, Any]:
     return entry
 
 
-def calculator_findings(make: Any, grid: Grid, grids: dict[str, Grid], verify: bool) -> list[dict[str, Any]]:
+def calculator_findings(
+    make: Any, grid: Grid, grids: dict[str, Grid], verify: bool
+) -> list[dict[str, Any]]:
     model = find_model(grid, grids)
     if model is None:
         return []
@@ -139,7 +215,11 @@ def calculator_findings(make: Any, grid: Grid, grids: dict[str, Grid], verify: b
         "inputs": [_port("input", port, True) for port in model.inputs],
         "outputs": [_port("output", port, False) for port in model.outputs],
         "cells": [
-            {"sheet": sheet, "ref": a1(row, column), **({"f": formula} if formula is not None else {"v": value})}
+            {
+                "sheet": sheet,
+                "ref": a1(row, column),
+                **({"f": formula} if formula is not None else {"v": value}),
+            }
             for sheet, row, column, value, formula in model.cells
         ],
         "testCases": [],
@@ -161,6 +241,10 @@ def calculator_findings(make: Any, grid: Grid, grids: dict[str, Grid], verify: b
             ports[:MAX_EVIDENCE],
             proposal,
             score,
-            explain.calculator(grid.name, [port.label or a1(port.row, port.column) for port in model.inputs], [port.label or a1(port.row, port.column) for port in model.outputs]),
+            explain.calculator(
+                grid.name,
+                [port.label or a1(port.row, port.column) for port in model.inputs],
+                [port.label or a1(port.row, port.column) for port in model.outputs],
+            ),
         )
     ]
