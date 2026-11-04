@@ -205,7 +205,7 @@ const currentLabel = () => state.label.sheets.find((item) => item.name === curre
 const shown = (value) => {
   if (value === null || value === undefined) return "";
   const text = String(value);
-  return text.replace(/T00:00:00(\.0+)?Z?$/, "").replace("T", " ");
+  return /^\d{4}-\d{2}-\d{2}T/.test(text) ? text.replace(/T00:00:00(\.0+)?Z?$/, "").replace("T", " ") : text;
 };
 const cellText = (sheet, r, c) => {
   const cell = sheet.cellMap.get(`${r},${c}`);
