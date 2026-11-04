@@ -503,10 +503,10 @@ class Generator:
             return []
         proposal = _proposal(info)
         left, top, _, bottom = (int(part) for part in range_boundaries(proposal["dataRange"]))
-        totals = set(proposal["totalRows"])
+        skipped = {*proposal["totalRows"], *proposal["noteRows"]}
         rows = []
         for row in range(top, int(range_boundaries(proposal["range"])[3]) + 1):
-            if row in totals:
+            if row in skipped:
                 continue
             record: dict[str, Any] = {}
             filled = False
