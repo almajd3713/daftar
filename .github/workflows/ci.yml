@@ -35,9 +35,17 @@ jobs:
       - run: pnpm -r build
       - run: pnpm -r lint
       - run: pnpm -r typecheck
+      # The round-trip tests drive the real worker, not a stand-in.
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv sync --locked
+      - name: Start the worker
+        run: |
+          nohup uv run uvicorn daftar_worker.app:app --host 127.0.0.1 --port 8765 > worker.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8765/healthz && break || sleep 1; done
       - run: pnpm -r test
         env:
           DAFTAR_TEST_DATABASE_URL: postgres://postgres:test@127.0.0.1:5434/postgres
+          DAFTAR_TEST_WORKER_URL: http://127.0.0.1:8765
 
   python:
     runs-on: ubuntu-latest

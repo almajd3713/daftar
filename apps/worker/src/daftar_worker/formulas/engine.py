@@ -108,6 +108,15 @@ def evaluate_cells(
     return [_to_value(workbook.evaluate_cell(sheet, row, column)) for sheet, row, column in targets]
 
 
+def recalculate(data: bytes) -> bytes:
+    """Fill in a workbook's formula results. It must be the last step: saving again drops them."""
+    try:
+        result = formualizer.recalculate_xlsx_bytes(data)
+    except Exception as error:
+        raise EngineError(type(error).__name__) from error
+    return bytes(result["bytes"])
+
+
 def parse_formula(formula: str) -> dict[str, Any]:
     """Parse to an AST of plain dicts. Raises EngineError on a formula it can't parse."""
     try:

@@ -4,7 +4,7 @@ import "reflect-metadata";
 import { Module, type DynamicModule, type INestApplication } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
-import type { NextFunction, Request, Response } from "express";
+import { raw, type NextFunction, type Request, type Response } from "express";
 
 import type { DaftarSpec } from "@daftar/spec/types";
 
@@ -27,6 +27,11 @@ class ApiModule {
 /** A cross-site form can't send JSON, and session cookies are SameSite=Lax. Together, no CSRF. */
 function jsonWritesOnly(request: Request, response: Response, next: NextFunction): void {
   const writes = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method);
+  // The one route whose body is a file. It needs a session too, and a form can't send this type.
+  if (request.method === "POST" && request.path === "/api/import" && request.is(XLSX_TYPES)) {
+    next();
+    return;
+  }
   const hasBody = Number(request.headers["content-length"] ?? 0) > 0;
   if (writes && hasBody && !request.is("application/json")) {
     response.status(415).json({ error: "json_required" });
@@ -35,10 +40,13 @@ function jsonWritesOnly(request: Request, response: Response, next: NextFunction
   next();
 }
 
+const XLSX_TYPES = ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream"];
+const MAX_UPLOAD = "26mb";
+
 export interface AppOptions {
   spec: DaftarSpec;
   db: Db;
-  config: Pick<Config, "secret" | "timezone" | "processor">;
+  config: Pick<Config, "secret" | "timezone" | "processor"> & Partial<Pick<Config, "workerUrl">>;
   clock?: () => Date;
   /** The accepted import data (C-8), loaded once on first start. */
   seedDir?: string;
@@ -54,7 +62,7 @@ export async function createApp(options: AppOptions): Promise<INestApplication> 
   const runtime: Runtime = {
     spec,
     db,
-    config,
+    config: { ...config, workerUrl: config.workerUrl },
     clock,
     auth: new AuthService(db, spec, config.secret),
     records,
@@ -63,5 +71,6 @@ export async function createApp(options: AppOptions): Promise<INestApplication> 
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
   app.use(jsonWritesOnly);
+  app.use("/api/import", raw({ type: XLSX_TYPES, limit: MAX_UPLOAD }));
   return app;
 }

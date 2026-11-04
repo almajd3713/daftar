@@ -37,6 +37,13 @@ export async function newDatabase(): Promise<{ db: Db; name: string; drop: () =>
     name,
     drop: async () => {
       await db.destroy();
+      // destroy() asks each connection to close without waiting for the server to finish. FORCE would
+      // kill one still on its way out, and that client, out of the pool, has nobody to take the error.
+      for (let tries = 0; tries < 100; tries += 1) {
+        const { rows } = await sql<{ open: number }>`SELECT count(*)::int AS open FROM pg_stat_activity WHERE datname = ${name}`.execute(admin);
+        if (!rows[0]?.open) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
       await sql`DROP DATABASE ${sql.ref(name)} WITH (FORCE)`.execute(admin);
       await admin.destroy();
     },
@@ -88,6 +95,18 @@ export class Client {
       parsed = null;
     }
     return { status: response.status, body: parsed, text };
+  }
+
+  /** A file, as a browser's fetch sends it. */
+  async upload(path: string, data: Uint8Array<ArrayBuffer>, type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): Promise<Response> {
+    const response = await fetch(`${this.base}${path}`, { method: "POST", headers: { "Content-Type": type, Cookie: this.cookie }, body: data });
+    const text = await response.text();
+    return { status: response.status, body: text ? JSON.parse(text) : null, text };
+  }
+
+  async download(path: string): Promise<{ status: number; type: string | null; data: Uint8Array<ArrayBuffer> }> {
+    const response = await fetch(`${this.base}${path}`, { headers: { Cookie: this.cookie } });
+    return { status: response.status, type: response.headers.get("content-type"), data: new Uint8Array(await response.arrayBuffer()) };
   }
 
   get = (path: string) => this.request("GET", path);
