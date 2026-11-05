@@ -229,8 +229,11 @@ def _studio(args: argparse.Namespace) -> int:
     import uvicorn
 
     from daftar_worker.studio.app import HOST, create_studio_app
+    from daftar_worker.studio.preview import Previews
 
-    app = create_studio_app(Path(args.projects), args.who, args.port)
+    admin_url = os.environ.get("DAFTAR_PREVIEW_ADMIN_URL")
+    previews = Previews(["node", args.runtime], admin_url) if admin_url else None
+    app = create_studio_app(Path(args.projects), args.who, args.port, previews)
     print(f"open http://{HOST}:{args.port}", file=sys.stderr)
     uvicorn.run(app, host=HOST, port=args.port, log_level="warning")
     return 0
@@ -306,6 +309,7 @@ def main(argv: list[str] | None = None) -> int:
     studio.add_argument("--projects", required=True, metavar="DIR", help="where projects live; never inside the repo")
     studio.add_argument("--who", required=True, help="the operator's name, recorded on each decision")
     studio.add_argument("--port", type=int, default=8791)
+    studio.add_argument("--runtime", default="apps/runtime/dist/preview.js", help="the preview's entry point, run with node")
     studio.set_defaults(run=_studio)
     label = commands.add_parser("label", help="correct labels in a screen on this machine")
     label.add_argument("--labels", required=True, metavar="DIR")
