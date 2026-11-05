@@ -12,6 +12,7 @@ from openpyxl.worksheet.formula import ArrayFormula, DataTableFormula
 
 from daftar_worker.reader.colours import resolve
 from daftar_worker.reader.raw import RawPackage, RawSheet
+from daftar_worker.reader.structured import expand_sheets
 
 
 FUTURE_PREFIX = re.compile(r"_xlfn\._xlws\.|_xlfn\.|_xlws\.|_xlpm\.")
@@ -369,6 +370,7 @@ def read_workbook(path: str, package: RawPackage) -> dict[str, Any]:
                 # A chart, macro or dialog sheet. It keeps its place so that every sheet gets an
                 # outcome (R-3); `unsupported` records what it holds.
                 sheets.append(_empty_sheet(sheet, index))
+        expand_sheets(sheets)
         return {"sheets": sheets, "definedNames": _defined_names(with_formulas)}
     finally:
         with_formulas.close()

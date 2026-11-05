@@ -124,9 +124,20 @@ def _cause(result: EngineValue, stored_kind: str) -> str:
     return f"differentType:{stored_kind}/{result.kind}"
 
 
-def _engine_for(path: Path, source_format: str, clock: datetime | None, work_dir: str) -> EngineWorkbook:
+def _expanded_formulas(snapshot: dict[str, Any]) -> list[tuple[str, int, int, str]]:
+    """The file says Table1[Qty], which the engine can't read. The reader worked out the A1 form."""
+    out = []
+    for sheet in snapshot["sheets"]:
+        for cell in sheet["cells"]:
+            match = REF.match(cell["ref"]) if "fStructured" in cell else None
+            if match and not cell["f"].startswith("{"):
+                out.append((sheet["name"], int(match.group(2)), column_index(match.group(1)), cell["f"]))
+    return out
+
+
+def _engine_for(path: Path, source_format: str, clock: datetime | None, work_dir: str, snapshot: dict[str, Any]) -> EngineWorkbook:
     if source_format in ("xlsx", "xlsm"):
-        return EngineWorkbook(str(path), clock)
+        return EngineWorkbook(str(path), clock, _expanded_formulas(snapshot))
     copy = Path(work_dir) / f"workbook.{source_format}"
     copy.write_bytes(path.read_bytes())
     return EngineWorkbook(str(convert_to_xlsx(copy, Path(work_dir))), clock)
@@ -146,7 +157,7 @@ def run_parity(path: str | Path, snapshot: dict[str, Any]) -> dict[str, Any]:
     mismatches: dict[str, list[str]] = {}
     with tempfile.TemporaryDirectory(prefix="daftar-") as work_dir:
         try:
-            engine = _engine_for(source, source_format, clock, work_dir)
+            engine = _engine_for(source, source_format, clock, work_dir, snapshot)
         except (EngineError, WorkerError) as error:
             return {"results": [], "loadError": str(error) or type(error).__name__, "cells": 0, "equal": 0}
         for sheet in snapshot["sheets"]:

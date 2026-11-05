@@ -7,7 +7,10 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timezone
 from functools import lru_cache
+from pathlib import Path
+import tempfile
 from typing import Any
+import zipfile
 
 import formualizer
 from formualizer import EvaluationConfig, Workbook, WorkbookConfig
@@ -67,13 +70,38 @@ def _pin_clock(workbook: Workbook, clock: datetime | None) -> None:
         workbook.set_deterministic_clock(moment)
 
 
-class EngineWorkbook:
-    """A whole workbook, loaded from an .xlsx and recalculated from its formulas."""
+def _repacked(path: str, folder: str) -> str:
+    """The same parts in a plain ZIP. The engine refuses ZIP64 entries and mismatched ZIP headers,
+    which some real workbooks have and Excel and openpyxl read without complaint."""
+    target = str(Path(folder) / "repacked.xlsx")
+    with zipfile.ZipFile(path) as source, zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as out:
+        for item in source.infolist():
+            if not item.is_dir():
+                out.writestr(item.filename, source.read(item))
+    return target
 
-    def __init__(self, path: str, clock: datetime | None = None) -> None:
+
+def _open_workbook(path: str, folder: tempfile.TemporaryDirectory[str]) -> Workbook:
+    try:
+        return Workbook.from_path(path, config=_config())
+    except OSError:
+        return Workbook.from_path(_repacked(path, folder.name), config=_config())
+
+
+class EngineWorkbook:
+    """A whole workbook, loaded from an .xlsx and recalculated from its formulas.
+
+    `replacements` are (sheet, row, column, formula) to use in place of what the file says.
+    """
+
+    def __init__(self, path: str, clock: datetime | None = None, replacements: Iterable[tuple[str, int, int, str]] = ()) -> None:
+        # It lives as long as this object, in case the engine reads a repacked file lazily.
+        self._folder = tempfile.TemporaryDirectory(prefix="daftar-engine-")
         try:
-            self._workbook = Workbook.from_path(path, config=_config())
+            self._workbook = _open_workbook(path, self._folder)
             _pin_clock(self._workbook, clock)
+            for sheet, row, column, formula in replacements:
+                self._workbook.set_formula(sheet, row, column, formula)
             self._workbook.evaluate_all()
         except Exception as error:
             raise EngineError(type(error).__name__) from error
