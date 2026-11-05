@@ -2,6 +2,7 @@
 
 from collections.abc import Iterator
 from pathlib import Path
+import sys
 import time
 from typing import Any
 
@@ -12,6 +13,7 @@ import workbook_builders as builders
 
 from daftar_worker.project.files import project_reanalyze
 from daftar_worker.studio.app import create_studio_app
+from daftar_worker.studio.preview import Previews
 
 
 PORT = 8791
@@ -287,3 +289,100 @@ def test_a_file_name_is_never_a_path(client: TestClient, tutoring: bytes, tmp_pa
 def test_unknown_things_are_404(client: TestClient) -> None:
     assert client.get("/api/jobs/nope").status_code == 404
     assert client.get("/api/projects/0123456789abcdef0123456789abcdef/snapshot").status_code == 404
+
+
+FAKE_RUNTIME = """
+import json, os, sys
+assert os.environ["DAFTAR_PREVIEW_DATABASE"].startswith("daftar_preview_")
+assert os.path.exists(os.environ["DAFTAR_SPEC_PATH"])
+assert "SECRET_OF_THE_STUDIO" not in os.environ
+print(json.dumps({"port": 45678, "cookie": "daftar_session=abc"}), flush=True)
+sys.stdin.read()
+"""
+
+
+@pytest.fixture(name="previews")
+def fixture_previews(tmp_path: Path) -> Iterator[Previews]:
+    script = tmp_path / "fake_runtime.py"
+    script.write_text(FAKE_RUNTIME, encoding="utf-8")
+    previews = Previews([sys.executable, str(script)], "postgres://x")
+    yield previews
+    previews.stop_all()
+
+
+@pytest.fixture(name="with_preview")
+def fixture_with_preview(tmp_path: Path, previews: Previews) -> Iterator[TestClient]:
+    app = create_studio_app(tmp_path / "projects", "operateur", PORT, previews)
+    with TestClient(app, base_url=BASE, follow_redirects=False) as client:
+        yield client
+
+
+def _generated(client: TestClient, tmp_path: Path) -> str:
+    project = uploaded(client, _months(tmp_path))
+    client.post(f"/api/projects/{project}/decisions/accept-high", json={})
+    assert finished(client, client.post(f"/api/projects/{project}/generate", json={}).json()["jobId"])["status"] == "done"
+    return project
+
+
+def test_a_preview_opens_signed_in_and_stops(with_preview: TestClient, previews: Previews, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SECRET_OF_THE_STUDIO", "x")
+    project = _generated(with_preview, tmp_path)
+    assert with_preview.get(f"/api/projects/{project}/preview/open").status_code == 404
+    job = finished(with_preview, with_preview.post(f"/api/projects/{project}/preview", json={}).json()["jobId"])
+    assert job["status"] == "done"
+    assert "abc" not in str(job)  # The session never reaches the page's scripts.
+    opened = with_preview.get(job["result"]["url"])
+    assert opened.status_code == 303
+    assert opened.headers["location"] == "http://127.0.0.1:45678/"
+    assert "daftar_session=abc" in opened.headers["set-cookie"]
+    assert "httponly" in opened.headers["set-cookie"].lower()
+    running = previews.running(project)
+    assert running is not None
+    process, folder = running.process, Path(running.folder.name)
+    assert with_preview.delete(f"/api/projects/{project}/preview").status_code == 204
+    assert process.poll() is not None
+    assert not folder.exists()
+    assert with_preview.get(job["result"]["url"]).status_code == 404
+
+
+def test_starting_again_replaces_the_old_preview(with_preview: TestClient, previews: Previews, tmp_path: Path) -> None:
+    project = _generated(with_preview, tmp_path)
+    finished(with_preview, with_preview.post(f"/api/projects/{project}/preview", json={}).json()["jobId"])
+    first = previews.running(project)
+    assert first is not None
+    finished(with_preview, with_preview.post(f"/api/projects/{project}/preview", json={}).json()["jobId"])
+    assert first.process.poll() is not None
+    assert previews.running(project) is not first
+
+
+def test_a_preview_needs_generating_first_and_a_database(with_preview: TestClient, client: TestClient, tutoring: bytes) -> None:
+    project = uploaded(with_preview, tutoring)
+    refused = with_preview.post(f"/api/projects/{project}/preview", json={})
+    assert refused.status_code == 409
+    assert refused.json()["reason"]["ar"]
+    other = uploaded(client, tutoring)
+    assert client.post(f"/api/projects/{other}/preview", json={}).status_code == 503
+
+
+def test_a_preview_that_doesnt_start_is_a_failed_job(tmp_path: Path) -> None:
+    script = tmp_path / "broken.py"
+    script.write_text("import sys; sys.exit(1)", encoding="utf-8")
+    previews = Previews([sys.executable, str(script)], "postgres://x")
+    with TestClient(create_studio_app(tmp_path / "projects", "operateur", PORT, previews), base_url=BASE) as client:
+        project = _generated(client, tmp_path)
+        job = finished(client, client.post(f"/api/projects/{project}/preview", json={}).json()["jobId"])
+        assert job["status"] == "failed"
+        assert job["error"]["message"]["fr"]
+        assert previews.running(project) is None
+
+
+def test_closing_the_studio_stops_previews(tmp_path: Path) -> None:
+    script = tmp_path / "fake_runtime.py"
+    script.write_text(FAKE_RUNTIME, encoding="utf-8")
+    previews = Previews([sys.executable, str(script)], "postgres://x")
+    with TestClient(create_studio_app(tmp_path / "projects", "operateur", PORT, previews), base_url=BASE) as client:
+        project = _generated(client, tmp_path)
+        finished(client, client.post(f"/api/projects/{project}/preview", json={}).json()["jobId"])
+        running = previews.running(project)
+        assert running is not None
+    assert running.process.poll() is not None

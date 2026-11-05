@@ -5,8 +5,9 @@ stops a name rebound to this address, and a JSON or binary content type can't be
 without a CORS approval this server never gives.
 """
 
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 import json
 from pathlib import Path, PureWindowsPath
@@ -18,7 +19,7 @@ from typing import Any
 import uuid
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from jsonschema import Draft202012Validator
 from openpyxl.utils import range_boundaries
 
@@ -34,6 +35,7 @@ from daftar_worker.project.files import (
 )
 from daftar_worker.reader.limits import MAX_FILE_BYTES
 from daftar_worker.sheet.grid import REF, column_index
+from daftar_worker.studio.preview import PreviewError, Previews
 
 
 HOST = "127.0.0.1"
@@ -48,6 +50,8 @@ BUSY = {"fr": "Une analyse est en cours sur ce projet. Attendez la fin.", "ar": 
 GONE = {"fr": "Cet élément a disparu après la nouvelle analyse.", "ar": "اختفى هذا العنصر بعد التحليل الجديد."}
 BAD_EDIT = {"fr": "Cette modification n'a pas la forme attendue.", "ar": "هذا التعديل ليس بالشكل المطلوب."}
 BAD_ANSWER = {"fr": "Cette réponse n'est pas valable.", "ar": "هذه الإجابة غير صالحة."}
+NOT_GENERATED = {"fr": "Générez d'abord l'application.", "ar": "أنشئ التطبيق أولا."}
+NO_PREVIEW = {"fr": "L'aperçu n'est pas configuré sur ce poste.", "ar": "المعاينة غير مهيأة على هذا الجهاز."}
 BAD_RANGE = {"fr": "Cette plage de cellules n'est pas valable ou est trop grande.", "ar": "نطاق الخلايا هذا غير صالح أو كبير جدا."}
 
 
@@ -292,10 +296,17 @@ async def _save_upload(request: Request, directory: str, file_name: str) -> Path
     return target if written else None
 
 
-def create_studio_app(root: Path, who: str, port: int) -> FastAPI:
+def create_studio_app(root: Path, who: str, port: int, previews: Previews | None = None) -> FastAPI:
     jobs = Jobs()
     store = Store(root, who, jobs)
-    app = FastAPI(title="Daftar Studio", docs_url=None, redoc_url=None, openapi_url=None)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        yield
+        if previews is not None:
+            previews.stop_all()
+
+    app = FastAPI(title="Daftar Studio", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     origins = {f"http://{HOST}:{port}", f"http://localhost:{port}"}
     hosts = {f"{HOST}:{port}", f"localhost:{port}"}
     add_error_handler(app)
@@ -307,7 +318,8 @@ def create_studio_app(root: Path, who: str, port: int) -> FastAPI:
         origin = request.headers.get("origin")
         if origin is not None and origin not in origins:
             return JSONResponse({"detail": "wrong origin"}, status_code=403)
-        if request.method not in ("GET", "HEAD"):
+        # A DELETE can't cross sites without a CORS approval, so it needs no content type.
+        if request.method not in ("GET", "HEAD", "DELETE"):
             kind = request.headers.get("content-type", "").split(";")[0].strip().casefold()
             allowed = {"application/json"}
             if UPLOADS.match(request.url.path):
@@ -437,6 +449,43 @@ def create_studio_app(root: Path, who: str, port: int) -> FastAPI:
     @app.post("/api/projects/{project}/answers")
     def answers(project: str, body: dict[str, Any]) -> dict[str, Any]:
         return {"questions": store.answer(project, body)}
+
+    @app.post("/api/projects/{project}/preview", status_code=202)
+    def preview(project: str) -> dict[str, str]:
+        folder = store.folder(project)
+        if previews is None:
+            raise Refused(503, NO_PREVIEW)
+        if not (folder / "daftar.spec.json").exists():
+            raise Refused(409, NOT_GENERATED)
+
+        def work() -> dict[str, Any]:
+            try:
+                previews.start(project, folder)
+            except PreviewError as error:
+                raise WorkerError("invalid_spec", str(error)) from error
+            return {"url": f"/api/projects/{project}/preview/open"}
+
+        return {"jobId": jobs.start(project, work)}
+
+    @app.get("/api/projects/{project}/preview/open")
+    def open_preview(request: Request, project: str) -> Response:
+        """Signs this browser in to the preview, then goes there. A cookie doesn't care about ports."""
+        store.folder(project)
+        running = previews.running(project) if previews else None
+        if running is None:
+            raise Missing
+        name, _, value = running.cookie.partition("=")
+        hostname = (request.headers.get("host") or HOST).rsplit(":", 1)[0]
+        response = RedirectResponse(f"http://{hostname}:{running.port}/", status_code=303)
+        response.set_cookie(name, value, httponly=True, samesite="lax", path="/")
+        return response
+
+    @app.delete("/api/projects/{project}/preview", status_code=204)
+    def stop_preview(project: str) -> Response:
+        store.folder(project)
+        if previews is not None:
+            previews.stop(project)
+        return Response(status_code=204)
 
     return app
 

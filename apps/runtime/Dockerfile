@@ -6,6 +6,8 @@ COPY . .
 RUN pnpm install --frozen-lockfile --filter @daftar/runtime...
 RUN pnpm --filter @daftar/spec build && pnpm --filter @daftar/runtime build
 RUN pnpm --filter @daftar/runtime deploy --prod --legacy /out
+# The operator's preview belongs to the Studio, never to a client's install (D-9).
+RUN rm -f /out/dist/preview.js* /out/dist/preview-server.js* /out/dist/preview.d.ts* /out/dist/preview-server.d.ts*
 
 FROM node:26-bookworm-slim@sha256:bc0a2afd3b74ce12222fc8bab99271e66257f021078f5f4a5d687a77d280c1d9 AS runtime
 WORKDIR /app
