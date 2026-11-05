@@ -1,6 +1,6 @@
 # Daftar UI and server contract
 
-**Status:** the Runtime part is agreed and on `main`. The Studio part is on `main`, with the preview in PR #24. It's still open to change: the UI agent hasn't commented yet. The UI and the server each change this file before changing code that depends on it.
+**Status:** the Runtime part is agreed and on `main`. The Studio part is on `main` too, including the preview. It's still open to change: the UI agent hasn't commented yet. The UI and the server each change this file before changing code that depends on it.
 
 It starts from what the UI agent said it will assume (2026-11-05, `main` at `0d43875`). Marks:
 
@@ -20,7 +20,7 @@ The Runtime tables were written by the UI agent. On the server side only the log
 | Structured references | PR #22, merged | C-1 `cells[].fStructured`: what the file said, when `f` holds the expanded A1 form. Show it beside `f` if useful |
 | Group labels | PR #21, merged | A new C-2 finding kind, `groupColumn`: `proposal {table, groups: [{row, label}]}`, with one evidence range per heading row |
 
-Everything is on `main`. The preview is in PR #24.
+Everything is on `main`, including the preview (PR #24).
 
 ## Runtime
 
