@@ -30,10 +30,9 @@ from daftar_worker.evaluation.labels import (
 )
 from daftar_worker.evaluation.metrics import compute_metrics, score_workbook
 from daftar_worker.evaluation.predictions import (
-    PredictedField,
     Predictions,
     from_analysis,
-    sheet_pairs,
+    label_as_predictions,
 )
 from daftar_worker.evaluation.run import draft_label, workbook_path
 from daftar_worker.reader import read_file
@@ -314,39 +313,6 @@ def label(workbook_id: str, model: str, run: int) -> None:
     )
 
 
-def as_predictions(other: dict[str, Any]) -> Predictions:
-    """Read a label as if it were a prediction, so it goes through the scoring Daftar goes through."""
-    out = Predictions()
-    for sheet in other["sheets"]:
-        name = sheet["name"]
-        out.outcomes[name] = sheet["kind"]
-        if sheet["tables"]:
-            out.tables[name] = [table["range"] for table in sheet["tables"]]
-        for table in sheet["tables"]:
-            _, low, _, high = range_boundaries(table["range"])
-            out.header_rows.update((name, number) for number in table["headerRows"])
-            for item in table["fields"]:
-                out.fields.append(
-                    PredictedField(name, item["column"], int(low), int(high), item["type"])
-                )
-    groups: dict[str, list[str]] = {}
-    for sheet in other["sheets"]:
-        if sheet.get("periodGroup"):
-            groups.setdefault(sheet["periodGroup"], []).append(sheet["name"])
-    for names in groups.values():
-        out.period_pairs.update(sheet_pairs(sorted(names)))
-    for item in other["relations"]:
-        out.relations.add(
-            (
-                item["from"]["sheet"],
-                item["from"]["column"],
-                item["to"]["sheet"],
-                item["to"]["column"],
-            )
-        )
-    return out
-
-
 def differences(gold: dict[str, Any], other: Predictions) -> list[str]:
     lines = []
     for sheet in gold["sheets"]:
@@ -428,7 +394,7 @@ def compare(workbook_id: str, tag: str) -> None:
             print(*differences(agent, daftar) or ["  no differences"], sep="\n  ")
         return
     for name, predictions in (
-        ("agent", as_predictions(agent) if agent else None),
+        ("agent", label_as_predictions(agent) if agent else None),
         ("daftar", daftar),
     ):
         if predictions is not None:
@@ -441,7 +407,7 @@ def compare(workbook_id: str, tag: str) -> None:
             )
     if agent:
         print("HUMAN vs AGENT:")
-        print(*differences(human, as_predictions(agent)) or ["  no differences"], sep="\n  ")
+        print(*differences(human, label_as_predictions(agent)) or ["  no differences"], sep="\n  ")
 
 
 def table(title: str, rows: list[tuple[str, list[dict[str, float | None]]]]) -> None:
@@ -490,7 +456,7 @@ def models(ids: list[str], tags: list[str]) -> None:
         for item in ids:
             key, other = key_of(item), stored(tag, item)
             if key is not None and other is not None:
-                results.append(scores(rows[item], key, as_predictions(other)))
+                results.append(scores(rows[item], key, label_as_predictions(other)))
         return results
 
     table("AGAINST YOUR REVIEWED LABELS", [(tag, against(human_label, tag)) for tag in tags])
@@ -517,7 +483,7 @@ def models(ids: list[str], tags: list[str]) -> None:
                     f"  {tag:<10}{item:<22}",
                     {
                         name: None if value is None else round(value, 2)
-                        for name, value in scores(rows[item], key, as_predictions(other)).items()
+                        for name, value in scores(rows[item], key, label_as_predictions(other)).items()
                         if name in ("tables.exact", "headers", "type", "kind", "relations")
                     },
                 )
@@ -534,7 +500,7 @@ def review(ids: list[str], first: str, second: str) -> None:
                 f"- A run has no usable label, so label again: A {'ok' if a else 'missing'}, B {'ok' if b else 'missing'}\n"
             )
             continue
-        found = list(dict.fromkeys(differences(a, as_predictions(b))))
+        found = list(dict.fromkeys(differences(a, label_as_predictions(b))))
         lines.extend(
             f"- A vs B: {text.replace('human label', 'A').replace('the other', 'B')}\n"
             for text in found

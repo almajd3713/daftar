@@ -15,7 +15,8 @@
       "properties": {
         "rulesVersion": { "type": "string", "minLength": 1 },
         "model": { "type": "string" },
-        "quant": { "type": "string" }
+        "quant": { "type": "string" },
+        "modelUnavailable": { "type": "boolean", "description": "A model was asked for but couldn't be reached, so this is rules only." }
       }
     },
     "sheets": {
@@ -307,7 +308,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["granularity", "tabs", "columns", "identicalColumns"],
-      "description": "`period` is YYYY-MM, YYYY-Qn or YYYY; a leading - means the tab name gave no year.",
+      "description": "`period` is YYYY-MM, YYYY-Qn or YYYY; a leading - means the tab name gave no year. `columns` lists the whole series; each tab's own `columns` gives a letter, its header there, and a `position` in that list.",
       "properties": {
         "granularity": { "enum": ["month", "quarter", "year"] },
         "tabs": { "type": "array", "items": { "type": "object" } },

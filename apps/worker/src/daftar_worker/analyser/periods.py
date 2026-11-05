@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import re
 from typing import Any
 
+from openpyxl.utils import get_column_letter
 from rapidfuzz import fuzz
 
 from daftar_worker.analyser import explain
@@ -39,6 +40,10 @@ SHORT_YEAR = re.compile(r"\b([0-9]{2})\b")
 NUMERIC_MONTH = re.compile(r"\b(?:(20[0-9]{2})[-_/. ](0?[1-9]|1[0-2])|(0?[1-9]|1[0-2])[-_/. ](20[0-9]{2}))\b")
 QUARTER = re.compile(r"\b(?:t|q|trim(?:estre)?)\s*([1-4])\b|\b([1-4])\s*(?:er|e|eme|ème)?\s*trim", re.IGNORECASE)
 SIMILAR_COLUMNS = 80
+# Share of the narrower tab's columns that must be known, and of the wider tab's. It's lenient:
+# values go to fields by name, so a wrong join costs a sparse column and a person's look, not data.
+SHARED_OF_NARROWER = 0.6
+SHARED_OF_WIDER = 0.5
 MIN_TABS = 2
 
 
@@ -98,8 +103,63 @@ def _signature(labels: dict[int, str]) -> str:
     return " | ".join(fingerprint(label) for _, label in sorted(labels.items()))
 
 
-def _same_columns(left: list[str], right: list[str]) -> float:
-    return float(fuzz.token_sort_ratio(" ".join(left), " ".join(right)))
+def _without_periods(label: str) -> str:
+    """A header without its dates: "Etudiants 2011/2012" and "Etudiants 2012/2013" are one column."""
+    return " ".join(word for word in fingerprint(label).split() if word not in MONTHS and not any(char.isdigit() for char in word))
+
+
+def align_columns(known: list[str], labels: dict[int, str]) -> dict[int, int]:
+    """Which of the known columns each of a tab's columns is, by name and never by position.
+
+    Same name first, then the same name but for its dates, then the closest. Each is used once.
+    """
+    matched: dict[int, int] = {}
+    free = list(range(len(known)))
+    for form in (fingerprint, _without_periods):
+        for column, label in sorted(labels.items()):
+            wanted = form(label)
+            if column in matched or not wanted:
+                continue
+            place = next((item for item in free if form(known[item]) == wanted), None)
+            if place is not None:
+                matched[column] = place
+                free.remove(place)
+    close = []
+    for column, label in labels.items():
+        if column not in matched and _without_periods(label):
+            for place in free:
+                if _without_periods(known[place]):
+                    score = fuzz.token_sort_ratio(_without_periods(label), _without_periods(known[place]))
+                    if score >= SIMILAR_COLUMNS:
+                        close.append((-score, column, place))
+    for _, column, place in sorted(close):
+        if column not in matched and place in free:
+            matched[column] = place
+            free.remove(place)
+    return matched
+
+
+def _same_table(left: dict[int, str], right: dict[int, str]) -> bool:
+    shared = len(align_columns([label for _, label in sorted(left.items())], right))
+    narrower, wider = sorted((len(left), len(right)))
+    return shared >= SHARED_OF_NARROWER * narrower and shared >= SHARED_OF_WIDER * wider
+
+
+def _series_columns(ordered: list[Any]) -> tuple[list[str], list[list[dict[str, Any]]]]:
+    """The columns of a whole series, in order of first appearance, and each tab's own layout."""
+    columns: list[str] = []
+    layouts = []
+    for tab in ordered:
+        labels = tab[3]
+        matched = align_columns(columns, labels)
+        layout = []
+        for column, label in sorted(labels.items()):
+            if column not in matched:
+                matched[column] = len(columns)
+                columns.append(label)
+            layout.append({"column": get_column_letter(column), "header": label, "position": matched[column]})
+        layouts.append(layout)
+    return columns, layouts
 
 
 def period_findings(make: Any, views: list[SheetView]) -> list[dict[str, Any]]:
@@ -114,18 +174,14 @@ def period_findings(make: Any, views: list[SheetView]) -> list[dict[str, Any]]:
         index, table = main
         labels = view.labels[index]
         if labels:
-            tabs.append((view, period, table, labels, [fingerprint(label) for _, label in sorted(labels.items())]))
+            tabs.append((view, period, table, labels))
 
+    # A tab joins every group it fits any tab of, so the result doesn't depend on the tabs' order.
     groups: list[list[Any]] = []
     for tab in tabs:
-        for group in groups:
-            first = group[0]
-            same_kind = first[1].granularity == tab[1].granularity
-            if same_kind and _same_columns(first[4], tab[4]) >= SIMILAR_COLUMNS:
-                group.append(tab)
-                break
-        else:
-            groups.append([tab])
+        fits = [group for group in groups if group[0][1].granularity == tab[1].granularity and any(_same_table(member[3], tab[3]) for member in group)]
+        groups = [group for group in groups if not any(group is fit for fit in fits)]
+        groups.append([member for fit in fits for member in fit] + [tab])
 
     findings = []
     for group in groups:
@@ -140,6 +196,8 @@ def period_findings(make: Any, views: list[SheetView]) -> list[dict[str, Any]]:
         all_years = all(tab[1].year is not None or tab[1].granularity == "year" for tab in group)
         score = 0.9 if identical and all_years else (0.75 if identical else 0.65)
         names = [tab[0].grid.name for tab in ordered]
+        columns, layouts = _series_columns(ordered)
+        in_every_tab = sum(1 for place in range(len(columns)) if all(any(item["position"] == place for item in layout) for layout in layouts))
         findings.append(
             make(
                 "periodUnion",
@@ -147,16 +205,19 @@ def period_findings(make: Any, views: list[SheetView]) -> list[dict[str, Any]]:
                 [first[2].rect.a1],
                 {
                     "granularity": first[1].granularity,
-                    "tabs": [{"sheet": tab[0].grid.name, "period": tab[1].text, "table": tab[2].rect.a1} for tab in ordered],
-                    "columns": [label for _, label in sorted(first[3].items())],
+                    "tabs": [
+                        {"sheet": tab[0].grid.name, "period": tab[1].text, "table": tab[2].rect.a1, "columns": layout}
+                        for tab, layout in zip(ordered, layouts, strict=True)
+                    ],
+                    "columns": columns,
                     "identicalColumns": identical,
                 },
                 score,
-                explain.period_union(names, first[1].granularity, len(first[3])),
+                explain.period_union(names, first[1].granularity, in_every_tab, len(columns) - in_every_tab, identical),
                 extra="|".join(names),
             )
         )
     return findings
 
 
-__all__ = ["Period", "parse_period", "period_findings"]
+__all__ = ["Period", "align_columns", "parse_period", "period_findings"]

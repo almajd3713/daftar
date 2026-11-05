@@ -542,12 +542,17 @@ export interface EntityMapping {
   provenance?: Provenance;
 }
 /**
- * `period` is set when the sheet is one tab of a merged series (R-8), as YYYY-MM, YYYY-Qn or YYYY.
+ * `period` is set when the sheet is one tab of a merged series (R-8), as YYYY-MM, YYYY-Qn or YYYY. `columns` and `headerRow` are set when this tab is laid out differently from the mapping's: its columns, headers or header row. Formulas stay written for the mapping's own layout.
  */
 export interface MappingSource {
   sheet: string;
   range?: A1Range;
   period?: string;
+  headerRow?: number;
+  /**
+   * @minItems 1
+   */
+  columns?: [MappingColumn, ...MappingColumn[]];
 }
 /**
  * `header` is the original header text, kept as it was for export.

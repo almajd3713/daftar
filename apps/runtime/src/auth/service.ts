@@ -7,7 +7,7 @@ import { sql } from "kysely";
 import type { DaftarSpec } from "@daftar/spec/types";
 
 import type { Db } from "../db.js";
-import { Conflict, FieldErrors, Forbidden, MESSAGES, Unauthorized } from "../errors.js";
+import { Conflict, FieldErrors, Forbidden, MESSAGES, NotFound, Unauthorized } from "../errors.js";
 import type { User } from "../records/access.js";
 
 const SESSION_DAYS = 14;
@@ -15,6 +15,7 @@ const MIN_PASSWORD = 10;
 const MAX_ATTEMPTS = 5;
 const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 // Compared when the username doesn't exist, so timing doesn't reveal which usernames are real.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DUMMY_HASH = "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$J8ZyYQhJrFpC1aLZqvpt+8kOD0F0FhkTlTiZQ4P3cDg";
 
 export class AuthService {
@@ -77,6 +78,62 @@ export class AuthService {
       if ((error as { code?: string }).code === "23505") throw new FieldErrors({ username: MESSAGES.notUnique });
       throw error;
     }
+  }
+
+  async listUsers(actor: User): Promise<Record<string, unknown>[]> {
+    if (actor.role !== "owner") throw new Forbidden();
+    const rows = await this.db.selectFrom("_users").select(["id", "username", "role", "created_at"]).orderBy("created_at").orderBy("username").execute();
+    return rows.map((row: Record<string, unknown>) => ({ id: row.id, username: row.username, role: row.role, createdAt: row.created_at }));
+  }
+
+  /** History keeps the name it was written with, and their records stay. Only the account goes. */
+  async removeUser(actor: User, id: string): Promise<void> {
+    if (actor.role !== "owner") throw new Forbidden();
+    if (!UUID.test(id)) throw new NotFound();
+    if (id === actor.id) throw new Conflict(MESSAGES.cannotRemoveSelf);
+    await this.db.transaction().execute(async (tx) => {
+      // Two owners removing each other at once would leave a firm with none.
+      await sql`SELECT pg_advisory_xact_lock(20261104)`.execute(tx);
+      if (!(await tx.selectFrom("_users").select("id").where("id", "=", actor.id).executeTakeFirst())) throw new Unauthorized();
+      const removed = await tx.deleteFrom("_users").where("id", "=", id).returning("id").executeTakeFirst();
+      if (!removed) throw new NotFound();
+    });
+  }
+
+  /** The person's own password, which needs the current one. Their other devices are signed out. */
+  async changePassword(actor: User, token: string | undefined, current: unknown, next: unknown): Promise<void> {
+    const now = Date.now();
+    const record = this.attempts.get(actor.username);
+    if (record && record.until > now && record.count >= MAX_ATTEMPTS) throw new FieldErrors({ currentPassword: MESSAGES.throttled });
+    const user = await this.db.selectFrom("_users").select("password_hash").where("id", "=", actor.id).executeTakeFirstOrThrow();
+    const valid = await verify(user.password_hash as string, typeof current === "string" ? current : "").catch(() => false);
+    if (!valid) {
+      const counted = record && record.until > now ? record : { count: 0, until: now + ATTEMPT_WINDOW_MS };
+      this.attempts.set(actor.username, { count: counted.count + 1, until: counted.until });
+      throw new FieldErrors({ currentPassword: MESSAGES.wrongPassword });
+    }
+    if (typeof next !== "string" || next.length < MIN_PASSWORD) throw new FieldErrors({ newPassword: MESSAGES.weakPassword });
+    this.attempts.delete(actor.username);
+    const passwordHash = await hash(next);
+    await this.db.transaction().execute(async (tx) => {
+      await tx.updateTable("_users").set({ password_hash: passwordHash }).where("id", "=", actor.id).execute();
+      await tx.deleteFrom("_sessions").where("user_id", "=", actor.id).where("token_hash", "!=", this.tokenHash(token ?? "")).execute();
+    });
+  }
+
+  /** The owner sets a new password for someone who forgot theirs, and that person is signed out. */
+  async resetPassword(actor: User, id: string, password: unknown): Promise<void> {
+    if (actor.role !== "owner") throw new Forbidden();
+    if (!UUID.test(id)) throw new NotFound();
+    if (id === actor.id) throw new Conflict(MESSAGES.useOwnPassword);
+    if (typeof password !== "string" || password.length < MIN_PASSWORD) throw new FieldErrors({ password: MESSAGES.weakPassword });
+    const passwordHash = await hash(password);
+    await this.db.transaction().execute(async (tx) => {
+      const changed = await tx.updateTable("_users").set({ password_hash: passwordHash }).where("id", "=", id).returning("username").executeTakeFirst();
+      if (!changed) throw new NotFound();
+      await tx.deleteFrom("_sessions").where("user_id", "=", id).execute();
+      this.attempts.delete(changed.username as string);
+    });
   }
 
   async login(username: unknown, password: unknown): Promise<{ user: User; token: string; expires: Date }> {

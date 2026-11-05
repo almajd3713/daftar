@@ -141,6 +141,11 @@ export function checkReferences(spec: DaftarSpec): string[] {
     for (const key of mapping.keyColumns) {
       if (!columns.includes(key)) problems.push(`${where}: key column ${key} isn't in its columns`);
     }
+    for (const source of mapping.sources) {
+      const own = (source.columns ?? []).map((column) => column.field);
+      const strays = own.filter((key) => !columns.includes(key));
+      if (strays.length) problems.push(`${where}: tab ${source.sheet} has columns the mapping doesn't: ${strays.join(", ")}`);
+    }
   }
   for (const calculator of spec.calculators) {
     const where = `calculator ${calculator.key}`;

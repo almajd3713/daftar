@@ -12,6 +12,7 @@ from openpyxl.utils import column_index_from_string, get_column_letter, range_bo
 
 from daftar_spec import format_errors, validate_spec
 from daftar_worker.analyser.periods import MONTHS, YEAR
+from daftar_worker.roundtrip.export import shift_rows
 from daftar_worker.sheet.grid import Grid, text_of
 from daftar_worker.sheet.names import fingerprint, spelling_similarity
 from daftar_worker.sheet.values import convert_value
@@ -129,6 +130,8 @@ class Report:
     bad_values: list[dict[str, Any]] = field(default_factory=list)
     parity_failures: list[dict[str, Any]] = field(default_factory=list)
     questions: list[dict[str, Any]] = field(default_factory=list)
+    # A series column left as plain data, because its formula can't be shown to hold in every tab.
+    series_formulas: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _level_of(name: str) -> int:
@@ -206,6 +209,15 @@ class Generator:
             for tab in proposal["tabs"]:
                 tabs[tab["sheet"]] = finding
         return tabs
+
+    @staticmethod
+    def _series_of(series_by_tab: dict[str, dict[str, Any]], sheet: str, table: str) -> dict[str, Any] | None:
+        """Only a tab's main table is in its series. Another table on that tab stays a list of its own."""
+        series = series_by_tab.get(sheet)
+        if series is None:
+            return None
+        tab = next(item for item in _proposal(series)["tabs"] if item["sheet"] == sheet)
+        return series if tab["table"] == table else None
 
     def _outcome(self, sheet: str) -> str | None:
         for finding in self._of_kind("sheetKind", sheet):
@@ -307,6 +319,15 @@ class Generator:
             entry["computed"]["expr"] = details["expr"]
         return entry
 
+    @staticmethod
+    def _in_every_tab(specs: list[dict[str, Any]], by_letter: dict[str, dict[str, Any]], first_positions: dict[str, int], tabs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Key columns must exist in each tab, or a row from another one could never be matched."""
+        if not first_positions or any("columns" not in tab for tab in tabs):
+            return specs
+        everywhere = {position for position in first_positions.values() if all(any(item["position"] == position for item in tab["columns"]) for tab in tabs)}
+        kept = {by_letter[letter]["key"] for letter, position in first_positions.items() if position in everywhere}
+        return [item for item in specs if item["key"] in kept] or specs
+
     def _key_columns(self, fields: list[dict[str, Any]], letters: dict[str, str], unique: set[str]) -> list[str]:
         inputs = [item for item in fields if item["type"] != "computed"]
         named = [item["key"] for item in inputs if ID_HINT.search(item["label"]["fr"]) and item["key"] in unique]
@@ -317,14 +338,91 @@ class Generator:
             return only[:1]
         return [item["key"] for item in inputs][:2] or [fields[0]["key"]]
 
+    def _table_of(self, sheet: str, table: str) -> dict[str, Any] | None:
+        return next((item for item in self._of_kind("table", sheet) if _proposal(item)["range"] == table), None)
+
+    def _fields_of(self, sheet: str, table: str) -> list[dict[str, Any]]:
+        return [item for item in self._of_kind("fieldType", sheet) if _proposal(item)["table"] == table]
+
+    def _formula_breaks(self, tab: dict[str, Any], position: int, excel: str, row_shift: int) -> str | None:
+        """Why a first tab's formula can't stand for this tab's column. None means it can.
+
+        `row_shift` is how much lower this tab's header sits: the same formula names later rows there.
+        """
+        own = next((item["column"] for item in tab["columns"] if item["position"] == position), None)
+        if own is None:
+            return "columnMissing"
+        finding = self._computed_finding(tab["sheet"], tab["table"], own)
+        if finding is None:
+            return "notAFormula"
+        details = _proposal(finding)
+        if shift_rows(details["excel"], -row_shift) != excel:
+            return "differentFormula"
+        if self._failed_parity(tab["sheet"], finding["evidence"][0]):
+            return "parity"
+        return None
+
+    def _header_row(self, tab: dict[str, Any]) -> int:
+        found = self._table_of(tab["sheet"], tab["table"])
+        rows = _proposal(found)["headerRows"] if found else []
+        return int(rows[-1]) if rows else 0
+
+    def _keep_series_formulas(self, key: str, tabs: list[dict[str, Any]], first_positions: dict[str, int], by_letter: dict[str, dict[str, Any]]) -> None:
+        """One formula runs for every row of a series. R-19: if a tab doesn't hold it, keep the data."""
+        for letter, entry in by_letter.items():
+            computed = entry.get("computed")
+            if not computed:
+                continue
+            for tab in tabs[1:]:
+                if "columns" not in tab:
+                    continue
+                reason = self._formula_breaks(tab, first_positions[letter], computed["excel"], self._header_row(tab) - self._header_row(tabs[0]))
+                if reason:
+                    self.report.series_formulas.append({"entity": key, "field": entry["key"], "sheet": tab["sheet"], "reason": reason})
+                    entry["type"] = entry.pop("resultType")
+                    del entry["computed"]
+                    break
+
+    def _series_extras(
+        self, tabs: list[dict[str, Any]], first_positions: dict[str, int], taken: set[str]
+    ) -> tuple[dict[int, dict[str, Any]], dict[int, str]]:
+        """Fields for the columns the first tab doesn't have, each from the first tab that does."""
+        known = set(first_positions.values())
+        extras: dict[int, dict[str, Any]] = {}
+        headers: dict[int, str] = {}
+        for tab in tabs[1:]:
+            info = self._table_of(tab["sheet"], tab["table"])
+            if info is None or "columns" not in tab:
+                continue
+            found = {_proposal(item)["column"]: item for item in self._fields_of(tab["sheet"], tab["table"])}
+            for item in tab["columns"]:
+                position = item["position"]
+                if position in known or position in extras or item["column"] not in found:
+                    continue
+                entry = self._field(tab["sheet"], _proposal(info), found[item["column"]], taken)
+                if entry is None:
+                    continue
+                if entry.get("computed"):
+                    # Its formula was written for another tab's columns, so it stays as that tab's data.
+                    entry["type"] = entry.pop("resultType")
+                    del entry["computed"]
+                extras[position] = entry
+                headers[position] = item["header"]
+        return extras, headers
+
+    @staticmethod
+    def _tab_layout_differs(first: dict[str, Any], tab: dict[str, Any], first_row: int | None, row: int | None) -> bool:
+        if "columns" not in first or "columns" not in tab:
+            return False
+        if first_row != row:
+            return True
+        same = [(item["column"], fingerprint(item["header"]), item["position"]) for item in first["columns"]]
+        return same != [(item["column"], fingerprint(item["header"]), item["position"]) for item in tab["columns"]]
+
     def _build_entity(self, sheet: str, table_finding: dict[str, Any], series: dict[str, Any] | None) -> None:
         proposal = _proposal(table_finding)
         table = proposal["range"]
-        fields_found = [
-            item
-            for item in self._of_kind("fieldType", sheet)
-            if _proposal(item)["table"] == table
-        ]
+        fields_found = self._fields_of(sheet, table)
         if not fields_found:
             return
         title = proposal.get("entityLabel")
@@ -343,6 +441,15 @@ class Generator:
             specs.append(entry)
             letters[letter] = entry["key"]
             by_letter[letter] = entry
+        tabs = _proposal(series)["tabs"] if series else [{"sheet": sheet, "table": table}]
+        first_positions: dict[str, int] = {}
+        if series and "columns" in tabs[0]:
+            first_positions = {item["column"]: item["position"] for item in tabs[0]["columns"] if item["column"] in by_letter}
+            # A column with no header has no place in a series, so it can't be read from the others.
+            by_letter = {letter: entry for letter, entry in by_letter.items() if letter in first_positions}
+            letters = {letter: entry["key"] for letter, entry in by_letter.items()}
+            specs = [entry for entry in specs if entry["key"] in letters.values()]
+            self._keep_series_formulas(key, tabs, first_positions, by_letter)
         provisional = {f"col_{letter.lower()}": item for letter, item in letters.items()}
         for entry in specs:
             computed = entry.get("computed")
@@ -373,7 +480,7 @@ class Generator:
             for letter, entry in by_letter.items()
             if self._is_unique(grid, proposal, letter)
         }
-        keys = self._key_columns(specs, letters, unique)
+        keys = self._key_columns(self._in_every_tab(specs, by_letter, first_positions, tabs), letters, unique)
         text_fields = [item["key"] for item in specs if item["type"] in ("text", "longtext")]
         title_field = text_fields[0] if text_fields else specs[0]["key"]
         entity: dict[str, Any] = {
@@ -393,19 +500,40 @@ class Generator:
         if provenance:
             entity["provenance"] = provenance
 
-        tabs = _proposal(series)["tabs"] if series else [{"sheet": sheet, "table": table}]
         sources: list[dict[str, Any]] = []
         if series:
             period_key = _unique("period", taken)
             granularity = _proposal(series)["granularity"]
             specs.insert(0, {"key": period_key, "label": {"fr": "Période", "ar": "الفترة"}, "type": "date", "required": True})
+            extras, extra_headers = self._series_extras(tabs, first_positions, taken)
+            specs.extend(extras.values())
             entity["period"] = {"field": period_key, "granularity": granularity}
             keys = [period_key, *keys]
         else:
             period_key = None
+            extras, extra_headers = {}, {}
+        at_position = {first_positions[letter]: entry for letter, entry in by_letter.items() if letter in first_positions} | extras
+        header_of = {
+            tab["sheet"]: (_proposal(found)["headerRows"] or [None])[-1] if (found := self._table_of(tab["sheet"], tab["table"])) else None
+            for tab in tabs
+        }
+        differs = bool(extras) or any(self._tab_layout_differs(tabs[0], tab, header_of[tabs[0]["sheet"]], header_of[tab["sheet"]]) for tab in tabs[1:])
         rows: list[dict[str, Any]] = []
+        tab_fields: dict[str, dict[str, dict[str, Any]]] = {}
         for tab in tabs:
             source: dict[str, Any] = {"sheet": tab["sheet"], "range": tab["table"]}
+            own_letters = by_letter
+            if "columns" in tab and first_positions:
+                own_letters = {item["column"]: at_position[item["position"]] for item in tab["columns"] if item["position"] in at_position}
+            tab_fields[tab["sheet"]] = own_letters
+            if differs and own_letters:
+                source["columns"] = [
+                    {"header": item["header"], "field": at_position[item["position"]]["key"], "column": item["column"]}
+                    for item in tab["columns"]
+                    if item["position"] in at_position
+                ]
+                if header_of[tab["sheet"]] is not None:
+                    source["headerRow"] = header_of[tab["sheet"]]
             period_date = None
             if series:
                 period_date = self._period_date(tab)
@@ -414,7 +542,7 @@ class Generator:
                 # "--01" says only "January": the mapping needs the year the owner gave it.
                 source["period"] = period_date[:7] if tab["period"].startswith("-") else tab["period"]
             sources.append(source)
-            rows += self._seed_rows(key, tab["sheet"], tab["table"], by_letter, period_key, period_date)
+            rows += self._seed_rows(key, tab["sheet"], tab["table"], own_letters, period_key, period_date)
         if not sources:
             return
 
@@ -423,6 +551,11 @@ class Generator:
             {"header": self._names_of(fields_found, letter), "field": letters[letter], "column": letter}
             for letter in sorted(letters, key=column_index_from_string)
         ]
+        # Formulas are written for the first tab's letters, so later columns go after its table.
+        next_free = range_boundaries(table)[2] or 1
+        for position, entry in extras.items():
+            next_free += 1
+            columns.append({"header": extra_headers[position], "field": entry["key"], "column": get_column_letter(next_free)})
         mapping: dict[str, Any] = {
             "entity": key,
             "sources": sources,
@@ -439,7 +572,7 @@ class Generator:
         self.report.rows[key] = len(rows)
         self.infos[(sheet, table)] = TableInfo(sheet, proposal, key, by_letter)
         for tab in tabs:
-            self.infos[(tab["sheet"], tab["table"])] = TableInfo(tab["sheet"], proposal, key, by_letter)
+            self.infos[(tab["sheet"], tab["table"])] = TableInfo(tab["sheet"], proposal, key, tab_fields.get(tab["sheet"], by_letter))
         self._add_workflow(entity, outcome)
 
     def _series_name(self, sheet: str, table: dict[str, Any]) -> str:
@@ -764,14 +897,14 @@ class Generator:
             outcome = self._outcome(sheet)
             if outcome is None or outcome in ("notConverted", "formulaModel"):
                 continue
-            series = series_by_tab.get(sheet)
+            series = self._series_of(series_by_tab, sheet, _proposal(finding)["range"])
             if series is not None:
                 if series["id"] in done_series:
                     continue
                 done_series.add(series["id"])
                 first = _proposal(series)["tabs"][0]
-                if sheet != first["sheet"]:
-                    finding = next((item for item in self._of_kind("table", first["sheet"])), finding)
+                if sheet != first["sheet"] or _proposal(finding)["range"] != first["table"]:
+                    finding = self._table_of(first["sheet"], first["table"]) or finding
                     sheet = first["sheet"]
             self._build_entity(sheet, finding, series)
         self._apply_relations()
@@ -854,6 +987,7 @@ def write_project_outputs(output: Path, spec: dict[str, Any], seed: dict[str, li
                 "rows": dict(report.rows),
                 "badValues": report.bad_values,
                 "parityFailures": report.parity_failures,
+                "seriesFormulas": report.series_formulas,
                 "questions": report.questions,
             },
             ensure_ascii=False,
