@@ -15,7 +15,8 @@
       "properties": {
         "rulesVersion": { "type": "string", "minLength": 1 },
         "model": { "type": "string" },
-        "quant": { "type": "string" }
+        "quant": { "type": "string" },
+        "modelUnavailable": { "type": "boolean", "description": "A model was asked for but couldn't be reached, so this is rules only." }
       }
     },
     "sheets": {

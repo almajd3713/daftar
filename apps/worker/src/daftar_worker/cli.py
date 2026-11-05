@@ -67,7 +67,10 @@ def _analyze(args: argparse.Namespace) -> int:
         print(f"{error.code}: {message['fr']}\n{message['ar']}", file=sys.stderr)
         return EXIT_UNREADABLE
     settings = None if args.no_llm else settings_from_env()
-    _write_atomic(Path(args.output), _dump(analyze(snapshot, settings)))
+    analysis = analyze(snapshot, settings)
+    if analysis["engine"].get("modelUnavailable"):
+        print("warning: the language model couldn't be reached, so this analysis is rules only", file=sys.stderr)
+    _write_atomic(Path(args.output), _dump(analysis))
     return 0
 
 

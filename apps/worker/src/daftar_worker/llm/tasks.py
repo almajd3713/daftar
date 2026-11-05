@@ -6,6 +6,7 @@ one leaves the rules' answer in place. `needsReview` marks a tie the model could
 
 from collections import Counter
 from collections.abc import Callable
+import copy
 import re
 from typing import Any
 
@@ -329,7 +330,12 @@ def apply_model(
     settings: LlmSettings,
     progress: Callable[[float], None] | None = None,
 ) -> dict[str, Any]:
-    """Improve a rules-only analysis in place. If the model can't be reached, it stays rules-only."""
+    """Improve a rules-only analysis. If the model can't be reached, the result is wholly rules-only.
+
+    It says so in `engine.modelUnavailable`, since a model was asked for and none of it is in here.
+    Answers already received stay cached, so a rerun carries on from where this one stopped.
+    """
+    rules_only = copy.deepcopy(analysis)
     client = LlmClient(settings, PROMPT_VERSION)
     grids = {sheet["name"]: Grid(sheet) for sheet in snapshot["sheets"]}
     try:
@@ -348,7 +354,8 @@ def apply_model(
         if settings.reword:
             _reword(client, analysis)
     except ModelUnavailable:
-        return analysis
+        rules_only["engine"]["modelUnavailable"] = True
+        return rules_only
     if client.stats.calls or client.stats.cached:
         analysis["engine"]["model"] = settings.model
         if client.quant:
