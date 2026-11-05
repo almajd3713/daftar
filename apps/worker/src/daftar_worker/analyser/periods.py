@@ -40,9 +40,9 @@ SHORT_YEAR = re.compile(r"\b([0-9]{2})\b")
 NUMERIC_MONTH = re.compile(r"\b(?:(20[0-9]{2})[-_/. ](0?[1-9]|1[0-2])|(0?[1-9]|1[0-2])[-_/. ](20[0-9]{2}))\b")
 QUARTER = re.compile(r"\b(?:t|q|trim(?:estre)?)\s*([1-4])\b|\b([1-4])\s*(?:er|e|eme|ème)?\s*trim", re.IGNORECASE)
 SIMILAR_COLUMNS = 80
-# Share of the narrower tab's columns that must be known, and of the wider tab's: a tab may gain a
-# column or two, but a list of two columns isn't the same table as one of ten.
-SHARED_OF_NARROWER = 0.8
+# Share of the narrower tab's columns that must be known, and of the wider tab's. It's lenient:
+# values go to fields by name, so a wrong join costs a sparse column and a person's look, not data.
+SHARED_OF_NARROWER = 0.6
 SHARED_OF_WIDER = 0.5
 MIN_TABS = 2
 
@@ -176,15 +176,12 @@ def period_findings(make: Any, views: list[SheetView]) -> list[dict[str, Any]]:
         if labels:
             tabs.append((view, period, table, labels))
 
+    # A tab joins every group it fits any tab of, so the result doesn't depend on the tabs' order.
     groups: list[list[Any]] = []
     for tab in tabs:
-        for group in groups:
-            first = group[0]
-            if first[1].granularity == tab[1].granularity and _same_table(first[3], tab[3]):
-                group.append(tab)
-                break
-        else:
-            groups.append([tab])
+        fits = [group for group in groups if group[0][1].granularity == tab[1].granularity and any(_same_table(member[3], tab[3]) for member in group)]
+        groups = [group for group in groups if not any(group is fit for fit in fits)]
+        groups.append([member for fit in fits for member in fit] + [tab])
 
     findings = []
     for group in groups:

@@ -224,6 +224,37 @@ def test_another_table_on_a_tab_is_not_lost(tmp_path: Path) -> None:
     assert len(seed[series["key"]]) == 12
 
 
+def _series_of(path: Path) -> list[list[str]]:
+    analysis = analyze_snapshot(read_file(path))
+    return [[tab["sheet"] for tab in item["proposal"]["tabs"]] for item in analysis["findings"] if item["kind"] == "periodUnion"]
+
+
+def test_grouping_doesnt_depend_on_the_order_of_the_tabs(tmp_path: Path) -> None:
+    # March shares too little with January, but fits February, which fits January.
+    rows = [["a", "b", "c", "d", "e", "f", "g", "h"]] * 4
+    jan = ["Facture", "Client", "Montant", "Mode"]
+    feb = [*jan, "Banque", "Agence", "Remise", "Livreur"]
+    mar = ["Banque", "Agence", "Remise", "Livreur", "Facture", "Client"]
+    tabs = {"Janvier 2026": jan, "Février 2026": feb, "Mars 2026": mar}
+    expected = {"Janvier 2026", "Février 2026", "Mars 2026"}
+    for name, order in (("one", ["Janvier 2026", "Février 2026", "Mars 2026"]), ("two", ["Janvier 2026", "Mars 2026", "Février 2026"])):
+        path = workbook(tmp_path / f"{name}.xlsx", [(tab, tabs[tab], [row[: len(tabs[tab])] for row in rows]) for tab in order])
+        found = _series_of(path)
+        assert len(found) == 1
+        assert set(found[0]) == expected
+
+
+def test_tabs_with_too_little_in_common_stay_apart(tmp_path: Path) -> None:
+    path = workbook(
+        tmp_path / "w.xlsx",
+        [
+            ("Janvier 2026", ["Facture", "Client", "Montant", "Mode", "Banque"], [["a", "b", 1, "c", "d"]] * 4),
+            ("Février 2026", ["Article", "Stock", "Rayon", "Montant", "Fournisseur"], [["a", 2, "c", 1, "d"]] * 4),
+        ],
+    )
+    assert _series_of(path) == []
+
+
 def test_align_uses_names_not_positions() -> None:
     known = ["Date", "Client", "Montant"]
     assert align_columns(known, {1: "Client", 2: "Montant", 3: "Date"}) == {1: 1, 2: 2, 3: 0}
