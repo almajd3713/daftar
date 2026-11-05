@@ -1,6 +1,6 @@
 # Daftar UI and server contract
 
-**Status: a proposal.** Nothing here is built on the Studio side yet. The UI and the server each change this file before changing code that depends on it.
+**Status:** the Runtime part is agreed and in PR #20. The Studio part is a proposal, and nothing there is built yet. The UI and the server each change this file before changing code that depends on it.
 
 It starts from what the UI agent said it will assume (2026-11-05, `main` at `0d43875`). Marks:
 
@@ -15,9 +15,10 @@ The Runtime tables were written by the UI agent. On the server side only the log
 | Change | Where | What the UI reads |
 |---|---|---|
 | Per-tab layouts | PR #16 | C-2 `periodUnion.tabs[].columns`, a union in `columns`, new `period_union` wording; C-3 `mapping.sources[].columns` and `headerRow`; `seriesFormulas` in the generation report |
-| Lost model | PR #17 | C-2 `engine.modelUnavailable` |
+| Lost model | PR #17, merged | C-2 `engine.modelUnavailable` |
+| Runtime additions | PR #20 | Everything under "Runtime additions" below |
 
-Both are open. Build against `main` once they're merged.
+#16 and #20 are open. Build against `main` once they're merged.
 
 ## Runtime
 
@@ -89,19 +90,34 @@ These need no server change:
 4. A link picker uses `GET /api/e/{target}?q=` and shows `_name`.
 5. The language choice is stored in the browser and never sent.
 
-### Gaps: waiting for the user's decision
+### Runtime additions
 
-Each one changes C-7, so none is agreed. Don't build on these until this section says so.
+The user approved these on 2026-11-05, and C-7 records them. They're built in PR #20.
 
-I can't build these without a server change. **Each one changes C-7, so the blueprint says to ask the user first.**
+**Before sign-in.** `GET /api/auth/status` also returns `app: {name, locales, defaultLocale}`.
 
-| # | Gap | Effect on the UI | Smallest fix |
+**Link labels.** A record carries `_labels: {field: name}` beside its link ids, wherever a record is returned. A label is left out if the user may not read that row of the target, so the UI needs a fallback for a link with no label.
+
+**Charts.** `GET /api/e/{entity}/aggregate?groupBy=&aggregate=&field=`, plus the list's `q` and `filter.<field>.<op>`:
+
+- `aggregate` is `count`, `sum`, `avg`, `min` or `max`. Every one but `count` needs a numeric `field`.
+- Returns `{groups: [{key, value, label?}], truncated}`, sorted by `key`, at most 500 groups. `label` is set when `groupBy` is a link the user may read. `key` is null for rows with no value.
+- `groupBy` and `field` get 400 `bad_query` if hidden from the role or if `groupBy` is `multichoice`. An entity the role can't read gets 404. Row scope applies.
+- There are no date buckets, since no C-3 widget asks for them. A line chart grouped by a date gets one point per distinct date.
+- Like list totals, a sum skips a row whose formula gave an Excel error.
+
+**Accounts.** All owner only, except changing your own password:
+
+| Call | Request | Success | Errors |
 |---|---|---|---|
-| 1 | The login and setup pages can't get the app's name or default language, because `/api/meta` needs a session | They would show no firm name and guess the language | Add `app: {name, locales, defaultLocale}` to `GET /api/auth/status` |
-| 2 | A record's link field is only a UUID, and `filter._id` is refused, so a list can't fetch its labels in one go | A list could show a UUID, or make one request per row | Return a label beside each link, or allow `filter._id.in` |
-| 3 | Dashboard bar and line charts have no grouping route | The UI would page through every row in the browser (500 a page) | Add `GET /api/e/{entity}/aggregate?groupBy=&aggregate=&field=` |
-| 4 | `/api/meta` has no `roles`, and there is no route to list or remove users or change a password | The owner can add staff but can't see or manage them, and the role list would be hard-coded | Add `roles` to meta for the owner, plus `GET` and `DELETE /api/auth/users` and a password route |
-| 5 | A calculator's bad input returns `bad_query` with no message | The UI must validate on its own, and can't show the server's wording | Return 400 `{fields}` as forms do |
+| `GET /api/auth/users` | none | `{users: [{id, username, role, createdAt}]}` | 403 |
+| `DELETE /api/auth/users/{id}` | none | 204. Their history and records stay | 403, 404, 409 `{reason}` for your own account |
+| `POST /api/auth/users/{id}/password` | `{password}` | 204, and that person is signed out | 400 `{fields}`, 403, 404, 409 `{reason}` for your own account |
+| `POST /api/auth/password` | `{currentPassword, newPassword}`, for yourself | 204, and your other devices are signed out | 400 `{fields}`, on `currentPassword` if wrong or throttled |
+
+`GET /api/meta` includes `roles: [{key, label}]` for the owner only. A person's role can't be changed.
+
+**Calculators.** A bad input gets 400 `{fields: {key: {fr, ar}}}`, as forms do, listing every bad input at once. This replaces `bad_query` in the table above.
 
 ## Studio
 
@@ -110,7 +126,7 @@ The blueprint has no browser-facing Studio routes: C-7 is the Runtime, and C-4 i
 ### The server
 
 - `daftar studio` serves the API and the UI from one origin, bound to 127.0.0.1.
-- **Open, for the user:** D-3 describes a TypeScript Studio API. The project code it would call (`project/`, the analyser) is all Python, so the proposal is that the Python worker serves these routes. The UI sees only HTTP either way.
+- The Python worker serves these routes. The user decided this on 2026-11-05, in place of D-3's TypeScript Studio API, because the code it calls (`project/`, the analyser) is all Python.
 - There's no login, because it's one operator on their own machine. Owners using the Studio themselves (v2) would need this revisited. `daftar studio --who NAME` fills `decision.by`.
 - With no login, these protect the data from other websites open in the same browser:
   - Any `Host` other than `127.0.0.1:<port>` or `localhost:<port>` gets 403, as `daftar label` does.
