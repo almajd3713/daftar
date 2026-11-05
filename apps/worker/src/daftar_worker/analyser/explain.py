@@ -101,6 +101,14 @@ def table(sheet: str, cell_range: str, rows: int, columns: int) -> Explanation:
     }
 
 
+def group_column(sheet: str, labels: list[str]) -> Explanation:
+    sample = ", ".join(labels[:4]) + ("…" if len(labels) > 4 else "")
+    return {
+        "fr": f"Dans « {sheet} », {len(labels)} lignes ({sample}) servent de titre aux lignes en dessous. Garder ces titres dans une colonne, pour chaque ligne ?",
+        "ar": f"في «{sheet}»، {len(labels)} صفوف ({sample}) هي عناوين للصفوف التي تحتها. هل نحتفظ بهذه العناوين في عمود لكل صف؟",
+    }
+
+
 def header(sheet: str, rows: list[int], count: int) -> Explanation:
     numbers = ", ".join(str(row) for row in rows)
     return {
