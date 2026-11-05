@@ -145,6 +145,24 @@ def _tabs(entity: dict[str, Any], mapping: dict[str, Any], rows: list[dict[str, 
     return tabs
 
 
+def _unplaced(mapping: dict[str, Any], placed: list[tuple[dict[str, Any], int]], rows: list[dict[str, Any]], fields: dict[str, dict[str, Any]]) -> list[tuple[dict[str, Any], int]]:
+    """A row holding a value for a column its tab never had: the column joins the tab, so nothing is lost."""
+    have = {item["field"] for item, _ in placed}
+    next_column = max((column for _, column in placed), default=0)
+    extra = []
+    for item in mapping["columns"]:
+        if item["field"] in fields and item["field"] not in have and any(row.get(item["field"]) not in (None, "") for row in rows):
+            next_column += 1
+            extra.append((item, next_column))
+    return extra
+
+
+def _formula_fits(field: dict[str, Any], here: dict[str, int], home: dict[str, int]) -> bool:
+    """A formula names letters of the mapping's own layout, so it holds only where they're the same."""
+    needed = [field["key"], *field["computed"].get("deps", [])]
+    return all(here.get(key) == home.get(key) for key in needed)
+
+
 def _write_tab(
     book: Any,
     formats: _Formats,
@@ -166,12 +184,20 @@ def _write_tab(
         sheet.right_to_left()
     fields = {field["key"]: field for field in entity["fields"]}
     first = _first_column(source)
-    header_row = mapping["headerRow"]
+    header_row = source.get("headerRow", mapping["headerRow"])
+    layout = source.get("columns") or mapping["columns"]
     placed = [
         (item, _column_number(item, position, first))
-        for position, item in enumerate(mapping["columns"])
+        for position, item in enumerate(layout)
         if item["field"] in fields
     ]
+    placed += _unplaced(mapping, placed, rows, fields)
+    letters_here = {item["field"]: column for item, column in placed}
+    home_letters = {
+        item["field"]: _column_number(item, position, _first_column(_sources(mapping)[0]))
+        for position, item in enumerate(mapping["columns"])
+    }
+    same_rows = header_row == mapping["headerRow"]
     for item, column in placed:
         sheet.write_string(header_row - 1, column - 1, item["header"], formats.header)
     first_data = header_row + 1
@@ -181,7 +207,7 @@ def _write_tab(
             field = fields[item["field"]]
             value = row.get(item["field"])
             formula = (field.get("computed") or {}).get("excel")
-            if formula and use_formulas and value != MASK:
+            if formula and use_formulas and value != MASK and same_rows and _formula_fits(field, letters_here, home_letters):
                 # The value goes in too, so a reader that skips recalculation still sees the result.
                 sheet.write_formula(
                     number - 1,
