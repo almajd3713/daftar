@@ -242,7 +242,12 @@ def main() -> None:
         check(sum(seed.values()) > 0, f"the bundle holds seed data: {seed}")
 
         run(["./start"], bundle)
-        for module in ("analyser", "llm", "project"):
+        preview = subprocess.run(
+            ["docker", "compose", "exec", "-T", "runtime", "test", "!", "-e", "dist/preview.js"],
+            cwd=bundle, check=False, capture_output=True, env={**os.environ, "COMPOSE_PROJECT_NAME": PROJECT},
+        )  # fmt: skip
+        check(preview.returncode == 0, "the client runtime has no preview")
+        for module in ("analyser", "llm", "project", "studio"):
             found = subprocess.run(
                 ["docker", "compose", "exec", "-T", "worker", "python", "-c", f"import daftar_worker.{module}"],
                 cwd=bundle, check=False, capture_output=True, env={**os.environ, "COMPOSE_PROJECT_NAME": PROJECT},

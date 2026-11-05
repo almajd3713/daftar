@@ -50,7 +50,7 @@
       "required": ["id", "kind", "sheet", "evidence", "proposal", "alternatives", "confidence", "explanation", "decision"],
       "properties": {
         "id": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
-        "kind": { "enum": ["sheetKind", "table", "header", "totalRow", "fieldType", "choiceList", "statusColours", "entityMerge", "relation", "periodUnion", "computedField", "calculator", "anomaly", "unsupported"] },
+        "kind": { "enum": ["sheetKind", "table", "header", "totalRow", "groupColumn", "fieldType", "choiceList", "statusColours", "entityMerge", "relation", "periodUnion", "computedField", "calculator", "anomaly", "unsupported"] },
         "sheet": { "type": ["string", "null"] },
         "evidence": { "type": "array", "items": { "$ref": "#/$defs/range" } },
         "proposal": { "type": "object" },
@@ -97,6 +97,7 @@
         { "if": { "properties": { "kind": { "const": "anomaly" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalAnomaly" } } } },
         { "if": { "properties": { "kind": { "const": "entityMerge" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalEntityMerge" } } } },
         { "if": { "properties": { "kind": { "const": "periodUnion" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalPeriodUnion" } } } },
+        { "if": { "properties": { "kind": { "const": "groupColumn" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalGroupColumn" } } } },
         { "if": { "properties": { "kind": { "const": "statusColours" } } }, "then": { "properties": { "proposal": { "$ref": "#/$defs/proposalStatusColours" } } } }
       ]
     },
@@ -302,6 +303,24 @@
         "rows": { "type": "integer" },
         "clusters": { "type": "array", "items": { "type": "object" } },
         "attributes": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "proposalGroupColumn": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "groups"],
+      "description": "Rows holding one label that heads the records under it. Accepting it keeps each label as a value on those records.",
+      "properties": {
+        "table": { "$ref": "#/$defs/range" },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["row", "label"],
+            "properties": { "row": { "type": "integer", "minimum": 1 }, "label": { "type": "string" } }
+          }
+        }
       }
     },
     "proposalPeriodUnion": {

@@ -12,7 +12,7 @@ from daftar_worker.analyser.kinds import referenced_sheets, resolve_validation, 
 from daftar_worker.analyser.regions import SheetLayout, Table, detect_layout, flatten_headers
 from daftar_worker.analyser.types import TypeGuess, infer_type
 from daftar_worker.analyser.workbook_view import SheetView
-from daftar_worker.sheet.grid import Grid, a1_range
+from daftar_worker.sheet.grid import Grid, a1_range, text_of
 
 
 RULES_VERSION = "1"
@@ -20,8 +20,10 @@ RULES_VERSION = "1"
 HIGH_CONFIDENCE = 0.85
 LOW_CONFIDENCE = 0.6
 TOTAL_ROW_SCORES = {"formula": 0.95, "keyword": 0.8, "arithmetic": 0.7, "afterTotal": 0.65}
+MIN_GROUP_LABELS = 2
+GROUP_COLUMN_SCORE = 0.7
 KIND_ORDER = (
-    "sheetKind", "table", "header", "totalRow", "fieldType", "choiceList",
+    "sheetKind", "table", "header", "totalRow", "groupColumn", "fieldType", "choiceList",
     "computedField", "calculator", "relation", "statusColours", "entityMerge", "periodUnion",
     "anomaly", "unsupported",
 )  # fmt: skip
@@ -127,6 +129,23 @@ def _table_findings(
                 },
                 table.header_confidence,
                 explain.header(name, table.header_rows, len(labels)),
+            )
+        )
+    groups = [
+        (row, text_of(cells[0]))
+        for row in table.group_rows
+        if (cells := grid.row_cells(row, rect.left, rect.right))
+    ]
+    # One lone label could be a remark. Two or more say the rows are arranged under headings.
+    if len(groups) >= MIN_GROUP_LABELS:
+        findings.append(
+            _finding(
+                "groupColumn",
+                name,
+                [a1_range(row, rect.left, row, rect.right) for row, _ in groups],
+                {"table": rect.a1, "groups": [{"row": row, "label": label} for row, label in groups]},
+                GROUP_COLUMN_SCORE,
+                explain.group_column(name, [label for _, label in groups]),
             )
         )
     for total in table.total_rows:
