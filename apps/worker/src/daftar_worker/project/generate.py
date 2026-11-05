@@ -341,6 +341,14 @@ class Generator:
     def _table_of(self, sheet: str, table: str) -> dict[str, Any] | None:
         return next((item for item in self._of_kind("table", sheet) if _proposal(item)["range"] == table), None)
 
+    def _group_labels(self, sheet: str, table: str) -> dict[int, str]:
+        """An accepted group column: each heading row and its label."""
+        for finding in self._of_kind("groupColumn", sheet):
+            proposal = _proposal(finding)
+            if proposal["table"] == table:
+                return {int(item["row"]): str(item["label"]) for item in proposal["groups"]}
+        return {}
+
     def _fields_of(self, sheet: str, table: str) -> list[dict[str, Any]]:
         return [item for item in self._of_kind("fieldType", sheet) if _proposal(item)["table"] == table]
 
@@ -512,6 +520,13 @@ class Generator:
         else:
             period_key = None
             extras, extra_headers = {}, {}
+        group_key: str | None = None
+        if any(self._group_labels(tab["sheet"], tab["table"]) for tab in tabs):
+            group_key = _unique("groupe", taken)
+            specs.append({"key": group_key, "label": {"fr": "Groupe", "ar": "المجموعة"}, "type": "text"})
+            # The same item can sit under two headings, so the heading tells them apart.
+            if not any(item in unique for item in keys):
+                keys = [*keys, group_key]
         at_position = {first_positions[letter]: entry for letter, entry in by_letter.items() if letter in first_positions} | extras
         header_of = {
             tab["sheet"]: (_proposal(found)["headerRows"] or [None])[-1] if (found := self._table_of(tab["sheet"], tab["table"])) else None
@@ -542,7 +557,7 @@ class Generator:
                 # "--01" says only "January": the mapping needs the year the owner gave it.
                 source["period"] = period_date[:7] if tab["period"].startswith("-") else tab["period"]
             sources.append(source)
-            rows += self._seed_rows(key, tab["sheet"], tab["table"], own_letters, period_key, period_date)
+            rows += self._seed_rows(key, tab["sheet"], tab["table"], own_letters, period_key, period_date, group_key)
         if not sources:
             return
 
@@ -556,6 +571,9 @@ class Generator:
         for position, entry in extras.items():
             next_free += 1
             columns.append({"header": extra_headers[position], "field": entry["key"], "column": get_column_letter(next_free)})
+        if group_key:
+            next_free += 1
+            columns.append({"header": "Groupe", "field": group_key, "column": get_column_letter(next_free)})
         mapping: dict[str, Any] = {
             "entity": key,
             "sources": sources,
@@ -627,7 +645,14 @@ class Generator:
         return f"{period}-01-01"
 
     def _seed_rows(
-        self, entity: str, sheet: str, table: str, by_letter: dict[str, dict[str, Any]], period_key: str | None, period_date: str | None
+        self,
+        entity: str,
+        sheet: str,
+        table: str,
+        by_letter: dict[str, dict[str, Any]],
+        period_key: str | None,
+        period_date: str | None,
+        group_key: str | None = None,
     ) -> list[dict[str, Any]]:
         grid = self.grids[sheet]
         info = next((item for item in self._of_kind("table", sheet) if _proposal(item)["range"] == table), None)
@@ -637,7 +662,10 @@ class Generator:
         left, top, _, bottom = (int(part) for part in range_boundaries(proposal["dataRange"]))
         skipped = {*proposal["totalRows"], *proposal["noteRows"]}
         rows = []
+        headings = self._group_labels(sheet, table) if group_key else {}
+        heading: str | None = None
         for row in range(top, int(range_boundaries(proposal["range"])[3]) + 1):
+            heading = headings.get(row, heading)
             if row in skipped:
                 continue
             record: dict[str, Any] = {}
@@ -655,6 +683,8 @@ class Generator:
             if filled:
                 if period_key:
                     record[period_key] = period_date
+                if group_key and heading:
+                    record[group_key] = heading
                 rows.append(record)
         return rows
 

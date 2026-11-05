@@ -758,6 +758,34 @@ def test_groups_under_one_header_are_one_table_without_their_labels_as_records(t
     assert tables[0]["noteRows"] == [2, 6]
 
 
+def test_group_labels_are_proposed_as_a_column(tmp_path: Path) -> None:
+    path = _write(tmp_path / "g.xlsx", {
+        "A1": ["Nom", "Qté", "Prix"],
+        "A2": ["Atelier"],
+        "A3": ["Vis", 2, 10.5],
+        "A4": ["Clou", 3, 4.5],
+        "A6": ["Bureau"],
+        "A7": ["Encre", 1, 7.5],
+    }, header_bold=True)  # fmt: skip
+    found = by_kind(analyze_snapshot(read_file(path)), "groupColumn")
+    assert [item["proposal"]["groups"] for item in found] == [[{"row": 2, "label": "Atelier"}, {"row": 6, "label": "Bureau"}]]
+    assert found[0]["evidence"] == ["A2:C2", "A6:C6"]
+    assert found[0]["confidence"]["level"] == "medium"
+    assert "Atelier" in found[0]["explanation"]["fr"]
+    assert "Atelier" in found[0]["explanation"]["ar"]
+
+
+def test_one_lone_label_stays_a_note(tmp_path: Path) -> None:
+    path = _write(tmp_path / "g.xlsx", {
+        "A1": ["Nom", "Qté", "Prix"],
+        "A2": ["Vis", 2, 10.5],
+        "A3": ["à vérifier"],
+        "A4": ["Clou", 3, 4.5],
+        "A5": ["Encre", 1, 7.5],
+    }, header_bold=True)  # fmt: skip
+    assert by_kind(analyze_snapshot(read_file(path)), "groupColumn") == []
+
+
 def test_a_new_header_under_a_table_starts_a_new_table(tmp_path: Path) -> None:
     path = _write(tmp_path / "n.xlsx", {
         "A1": ["Nom", "Qté", "Prix"],
