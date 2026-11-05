@@ -1,6 +1,6 @@
 # Daftar UI and server contract
 
-**Status:** the Runtime part is agreed and on `main`. The Studio part is built in PR #23, except the preview. It's still open to change: the UI agent hasn't commented yet. The UI and the server each change this file before changing code that depends on it.
+**Status:** the Runtime part is agreed and on `main`. The Studio part is on `main`, with the preview in PR #24. It's still open to change: the UI agent hasn't commented yet. The UI and the server each change this file before changing code that depends on it.
 
 It starts from what the UI agent said it will assume (2026-11-05, `main` at `0d43875`). Marks:
 
@@ -20,7 +20,7 @@ The Runtime tables were written by the UI agent. On the server side only the log
 | Structured references | PR #22, merged | C-1 `cells[].fStructured`: what the file said, when `f` holds the expanded A1 form. Show it beside `f` if useful |
 | Group labels | PR #21, merged | A new C-2 finding kind, `groupColumn`: `proposal {table, groups: [{row, label}]}`, with one evidence range per heading row |
 
-Everything is on `main`. The Studio server is in PR #23, without the preview.
+Everything is on `main`. The preview is in PR #24.
 
 ## Runtime
 
@@ -127,7 +127,7 @@ The blueprint has no browser-facing Studio routes: C-7 is the Runtime, and C-4 i
 
 ### The server
 
-- `daftar studio` serves the API and the UI from one origin, bound to 127.0.0.1.
+- `daftar studio --projects DIR --who NAME` serves the API, and later the UI, from one origin, bound to 127.0.0.1, on port 8791 by default.
 - The Python worker serves these routes. The user decided this on 2026-11-05, in place of D-3's TypeScript Studio API, because the code it calls (`project/`, the analyser) is all Python.
 - There's no login, because it's one operator on their own machine. Owners using the Studio themselves (v2) would need this revisited. `daftar studio --who NAME` fills `decision.by`.
 - With no login, these protect the data from other websites open in the same browser:
@@ -153,7 +153,9 @@ The blueprint has no browser-facing Studio routes: C-7 is the Runtime, and C-4 i
 | `GET /api/projects/{id}/conflicts` | none | `[{reason: gone\|changed, finding, now?}]`, where `now` is the new finding's id | `conflicts.json` |
 | `POST /api/projects/{id}/generate` | `{}` as JSON | 202 `{jobId}`, whose result is `{entities, rows, badValues, parityFailures, seriesFormulas, questions}`, the full lists, as in `generation-report.json` | `project_generate`, which runs a parity check and can be slow |
 | `POST /api/projects/{id}/answers` | `{kind: periodYear, sheet, year}` or `{kind: confirmRetention, entity, months}` | `{questions}`, those still open. Generate again to apply the answers | `answers.json` |
-| `POST /api/projects/{id}/preview` | none | 202 `{jobId}`, whose result is `{url}` of a Runtime on the seed data, with an owner session open | D-9, R-14, new |
+| `POST /api/projects/{id}/preview` | `{}` as JSON | 202 `{jobId}`, whose result is `{url}`. 409 if not generated yet, 503 if previews aren't set up on this machine | D-9, R-14 |
+| `GET /api/projects/{id}/preview/open` | none, opened by the browser | 303 to the running preview, with its session cookie set. 404 if none is running | new |
+| `DELETE /api/projects/{id}/preview` | none | 204. Starting a preview again replaces the old one | new |
 
 Changed from the UI agent's list: `generate` and `preview` are jobs, since both can outlast a request. `decide()` already handles `edited` and `pending`; only `project_decide` lacks them.
 
@@ -182,7 +184,7 @@ The UI owns the French and Arabic wording for these codes. It shows `explanation
 
 ### Open
 
-- **How the preview's session opens.** The UI only needs a `url` that opens signed in. The likely way is for the server to create a throwaway owner on the preview database and set its cookie, since cookies on 127.0.0.1 aren't separated by port. If that fails it may need a Runtime route, which would change C-7.
+- **The preview's page.** The Runtime serves only its API until WP-10 adds the UI, so `url` leads to a 404 until then. Open `url` as a page, not with `fetch`. Export and re-import answer 503 in a preview, because it has no worker attached.
 - **Serving the Runtime UI.** `app.ts` serves no static files today. WP-10 adds that, and adds the UI to `apps/runtime/Dockerfile` and its `Dockerfile.dockerignore` allow-list.
 
 **Not in the UI for v1:** `daftar bundle` stays a command.
