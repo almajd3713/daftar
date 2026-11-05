@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from openpyxl import Workbook
+from openpyxl.styles import Font
 
 from daftar_spec import validate_spec
 from daftar_worker.analyser import analyze_snapshot
@@ -270,3 +271,50 @@ def test_align_doesnt_join_columns_that_only_look_alike() -> None:
 
 def test_two_columns_dont_share_one_place() -> None:
     assert align_columns(["Etudiants"], {3: "Etudiants 2015 au 10/09", 4: "Etudiants 2015 au 29/02"}) == {3: 0}
+
+
+def grouped(path: Path, tabs: dict[str, list[list[Any]]]) -> Path:
+    book = Workbook()
+    book.remove(book.active)
+    for name, rows in tabs.items():
+        sheet = book.create_sheet(name)
+        sheet.append(JAN)
+        sheet["A1"].font = sheet["B1"].font = sheet["C1"].font = Font(bold=True)
+        for row in rows:
+            sheet.append(row)
+    book.save(path)
+    return path
+
+
+ATELIER: list[list[Any]] = [["Atelier"], ["F1", "Ali", 100], ["F2", "Sara", 200], ["Bureau"], ["F1", "Nora", 300]]
+
+
+def test_a_group_label_reaches_each_record_and_can_be_rejected(tmp_path: Path) -> None:
+    path = grouped(tmp_path / "w.xlsx", {"Stock": ATELIER})
+    _, seed, _ = generated(path)
+    assert [(row["client"], row["groupe"]) for row in only(seed)] == [("Ali", "Atelier"), ("Sara", "Atelier"), ("Nora", "Bureau")]
+    snapshot = read_file(path)
+    analysis = analyze_snapshot(snapshot)
+    for finding in analysis["findings"]:
+        if finding["kind"] != "unsupported":
+            decide(finding, "rejected" if finding["kind"] == "groupColumn" else "accepted", "operator", at="2026-11-05T10:00:00+00:00")
+    _, without, _ = Generator(analysis, snapshot).generate()
+    assert "groupe" not in only(without)[0]
+    assert len(only(without)) == 3
+
+
+def test_a_group_tells_apart_rows_with_the_same_key_and_comes_back_from_an_export(tmp_path: Path) -> None:
+    spec, seed, _ = generated(grouped(tmp_path / "w.xlsx", {"Stock": [["Atelier"], ["F1", "Ali", 100], ["F2", "Sara", 200], ["Bureau"], ["F1", "Ali", 100], ["F2", "Sara", 200]]}))
+    assert "groupe" in spec["mapping"][0]["keyColumns"]
+    assert next(item for item in spec["mapping"][0]["columns"] if item["field"] == "groupe")["column"] == "D"
+    rows = current(seed)
+    exported = tmp_path / "out.xlsx"
+    exported.write_bytes(build_workbook(spec, rows))
+    result = diff_workbook(exported, spec, rows)
+    assert result["problems"] == []
+    assert result["entities"] == {next(iter(seed)): {"added": [], "changed": [], "missing": []}}
+
+
+def test_each_tab_of_a_series_keeps_its_own_groups(tmp_path: Path) -> None:
+    _, seed, _ = generated(grouped(tmp_path / "w.xlsx", {"Janvier 2026": ATELIER, "Février 2026": [["Usine"], ["F7", "Omar", 400], ["Dépôt"], ["F8", "Lina", 500]]}))
+    assert {row["client"]: row["groupe"] for row in only(seed)} == {"Ali": "Atelier", "Sara": "Atelier", "Nora": "Bureau", "Omar": "Usine", "Lina": "Dépôt"}

@@ -43,6 +43,8 @@ class Table:
     note_rows: list[int]
     header_confidence: float
     blank_rows: list[int] = field(default_factory=list)
+    # Also in note_rows: lone labels heading the records under them.
+    group_rows: list[int] = field(default_factory=list)
 
     @property
     def data_top(self) -> int:
@@ -537,7 +539,7 @@ def analyse_block(grid: Grid, rect: Rect, layout: SheetLayout) -> None:
     ]
     groups = _group_label_rows(grid, content, data_top, bottom, {item.row for item in totals})
     notes = sorted({*notes, *groups})
-    layout.tables.append(Table(content, headers, totals, titles, notes, confidence, blank))
+    layout.tables.append(Table(content, headers, totals, titles, notes, confidence, blank, groups))
 
 
 def _continues(grid: Grid, upper: Table, lower: Rect) -> bool:

@@ -18,6 +18,7 @@ MEANINGFUL = {
     "relation": ("from", "to"),
     "computedField": ("excel",),
     "statusColours": ("choices",),
+    "groupColumn": ("groups",),
 }
 
 
@@ -35,7 +36,7 @@ def match_key(finding: dict[str, Any]) -> str:
         return f"{kind}|{sheet}|{proposal['column']}"
     evidence = finding.get("evidence") or []
     match = RANGE_START.match(evidence[0]) if evidence else None
-    start = f"{match.group(1)}{match.group(2)}" if match and kind in ("table", "header", "totalRow") else ""
+    start = f"{match.group(1)}{match.group(2)}" if match and kind in ("table", "header", "totalRow", "groupColumn") else ""
     if kind == "totalRow":
         start = match.group(1) if match else ""
     return f"{kind}|{sheet}|{start}"
