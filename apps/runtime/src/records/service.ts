@@ -1,7 +1,7 @@
 /** The generic record store: the only path that writes records, so nothing skips the rules or audit. */
-import { sql, type ExpressionBuilder } from "kysely";
+import { sql, type ExpressionBuilder, type RawBuilder } from "kysely";
 
-import type { DaftarSpec, Entity, Field, Workflow } from "@daftar/spec/types";
+import type { DaftarSpec, Entity, Field, FieldLink, Workflow } from "@daftar/spec/types";
 
 import { column, tableOf, type Db, type Tx } from "../db.js";
 import { HttpException, HttpStatus } from "@nestjs/common";
@@ -16,6 +16,7 @@ import { checkValue, recordScalars, UUID } from "./values.js";
 export type Source = "ui" | "import" | "workflow" | "system";
 export const MASK = "*";
 const MAX_PAGE_SIZE = 500;
+const MAX_GROUPS = 500;
 const FILTER_OPS: Record<string, string> = { eq: "=", ne: "!=", lt: "<", le: "<=", gt: ">", ge: ">=" };
 const NUMERIC = new Set(["integer", "decimal", "money", "percent"]);
 
@@ -47,6 +48,20 @@ export interface ListQuery {
   totals?: string;
   filters?: { field: string; op: string; value: string }[];
 }
+
+export interface AggregateQuery extends ListQuery {
+  groupBy?: string;
+  aggregate?: string;
+  field?: string;
+}
+
+// A fixed list: the function's name never comes from the request.
+const AGGREGATES: Record<string, (ref: ReturnType<typeof column>) => RawBuilder<number>> = {
+  sum: (ref) => sql<number>`sum(${ref})`,
+  avg: (ref) => sql<number>`avg(${ref})`,
+  min: (ref) => sql<number>`min(${ref})`,
+  max: (ref) => sql<number>`max(${ref})`,
+};
 
 function isNumeric(field: Field): boolean {
   return NUMERIC.has(field.type === "computed" ? field.resultType : field.type);
@@ -95,6 +110,63 @@ export class RecordService {
     }
     if (Object.keys(shown).length) out._errors = shown;
     return out;
+  }
+
+  /** Each link's target name, where this user may read that target. One query per link field. */
+  private async withLabels(user: User, entity: Entity, rows: Record<string, unknown>[]): Promise<Record<string, unknown>[]> {
+    const links = visibleFields(this.spec, user, entity).filter((field): field is FieldLink => field.type === "link");
+    for (const link of links) {
+      const names = await this.namesOf(user, link.target, rows.map((row) => row[link.key]));
+      for (const row of rows) {
+        const name = names.get(row[link.key] as string);
+        if (name !== undefined) row._labels = { ...(row._labels as Record<string, string> | undefined), [link.key]: name };
+      }
+    }
+    return rows;
+  }
+
+  private async namesOf(user: User, targetKey: string, values: unknown[]): Promise<Map<string, string>> {
+    const ids = [...new Set(values.filter((value): value is string => typeof value === "string"))];
+    if (!ids.length || !can(this.spec, user, targetKey, "read")) return new Map();
+    const found = await this.scoped(user, this.entity(targetKey)).select(["_id", "_name"]).where("_id", "in", ids).execute();
+    return new Map(found.map((row: Record<string, unknown>) => [row._id as string, row._name as string]));
+  }
+
+  private async presented(user: User, entity: Entity, row: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const [out] = await this.withLabels(user, entity, [this.present(user, entity, row)]);
+    return out as Record<string, unknown>;
+  }
+
+  /** Grouped figures for a chart, with the list's filters and row scope. Hidden fields are refused. */
+  async aggregate(user: User, entityKey: string, query: AggregateQuery): Promise<Record<string, unknown>> {
+    const entity = this.entity(entityKey);
+    this.require(user, entity, "read");
+    const group = this.filterableField(user, entity, query.groupBy ?? "", "groupBy");
+    if (group.type === "multichoice") throw new BadQuery(`groupBy ${group.key}`);
+    const value = this.aggregateOf(user, entity, query);
+    const rows = await this.applyFilters(this.scoped(user, entity), user, entity, query)
+      .select([sql`${column(group.key)}`.as("key"), value.as("value")])
+      .groupBy(column(group.key))
+      .orderBy(column(group.key))
+      .limit(MAX_GROUPS + 1)
+      .execute();
+    const names = group.type === "link" ? await this.namesOf(user, group.target, rows.map((row: Record<string, unknown>) => row.key)) : new Map<string, string>();
+    return {
+      groups: rows.slice(0, MAX_GROUPS).map((row: Record<string, unknown>) => {
+        const label = names.get(row.key as string);
+        return { key: row.key ?? null, value: row.value ?? null, ...(label === undefined ? {} : { label }) };
+      }),
+      truncated: rows.length > MAX_GROUPS,
+    };
+  }
+
+  private aggregateOf(user: User, entity: Entity, query: AggregateQuery) {
+    if (query.aggregate === "count") return sql<number>`count(*)`;
+    const make = AGGREGATES[query.aggregate ?? ""];
+    if (!make) throw new BadQuery("aggregate");
+    const field = this.filterableField(user, entity, query.field ?? "", "field");
+    if (!isNumeric(field)) throw new BadQuery(`field ${field.key}`);
+    return make(column(field.key));
   }
 
   private scoped(user: User, entity: Entity) {
@@ -177,7 +249,7 @@ export class RecordService {
       totals[key] = sum?.total ?? null;
     }
     return {
-      rows: rows.map((row: Record<string, unknown>) => this.present(user, entity, row)),
+      rows: await this.withLabels(user, entity, rows.map((row: Record<string, unknown>) => this.present(user, entity, row))),
       total: Number(counted?.count ?? 0),
       page,
       pageSize,
@@ -198,7 +270,7 @@ export class RecordService {
   async get(user: User, entityKey: string, id: string): Promise<Record<string, unknown>> {
     const entity = this.entity(entityKey);
     this.require(user, entity, "read");
-    return this.present(user, entity, await this.fetchRow(this.db, user, entity, id));
+    return this.presented(user, entity, await this.fetchRow(this.db, user, entity, id));
   }
 
   private workflowOf(entity: Entity): Workflow | undefined {
@@ -359,7 +431,7 @@ export class RecordService {
     const entity = this.entity(entityKey);
     this.require(user, entity, "create");
     const row = await this.db.transaction().execute((tx) => this.createIn(tx, { user, source: "ui" }, entity, input));
-    return this.present(user, entity, row);
+    return this.presented(user, entity, row);
   }
 
   private async updateIn(
@@ -405,7 +477,7 @@ export class RecordService {
       const values = await this.check(tx, user, entity, input, false, "ui");
       return (await this.updateIn(tx, { user, source: "ui" }, entity, before, values, "update")).row;
     });
-    return this.present(user, entity, row);
+    return this.presented(user, entity, row);
   }
 
   private async deleteIn(tx: Tx, context: WriteContext, entity: Entity, before: Record<string, unknown>, extra: { revertOf?: string } = {}): Promise<void> {
@@ -459,7 +531,7 @@ export class RecordService {
       const context: WriteContext = { user, source: "workflow" };
       return (await this.updateIn(tx, context, entity, before, { [workflow.stateField]: transition.to }, "transition")).row;
     });
-    return this.present(user, entity, row);
+    return this.presented(user, entity, row);
   }
 
   private masked(user: User, entityKey: string, changes: Record<string, [unknown, unknown]>): Record<string, [unknown, unknown]> {
