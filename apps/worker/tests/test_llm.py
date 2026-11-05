@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import threading
 from typing import Any
+import urllib.request
 
 from jsonschema import Draft202012Validator
 import pytest
@@ -13,7 +14,14 @@ import xlsxwriter
 from daftar_worker import analyser
 from daftar_worker.analyser import analyze, analyze_snapshot
 from daftar_worker.cli import main
-from daftar_worker.llm.client import LlmClient, LlmSettings, settings_from_env
+from daftar_worker.llm.client import (
+    FIRST_CALL_TIMEOUT_SECONDS,
+    TIMEOUT_SECONDS,
+    LlmClient,
+    LlmSettings,
+    ModelUnavailable,
+    settings_from_env,
+)
 from daftar_worker.llm.glossary import gloss
 from daftar_worker.llm.tasks import apply_model, keeps_facts, keeps_language
 from daftar_worker.reader import read_file
@@ -251,8 +259,52 @@ def test_settings_follow_c10(env: dict[str, str], configured: bool) -> None:
 def test_an_unreachable_model_leaves_a_valid_rules_only_analysis(tmp_path: Path) -> None:
     snapshot = read_file(workbook(tmp_path / "w.xlsx"))
     analysis = analyze(snapshot, LlmSettings("http://127.0.0.1:9/v1", "gone"))
-    assert analysis["engine"] == {"rulesVersion": analyser.RULES_VERSION}
+    assert analysis["engine"] == {"rulesVersion": analyser.RULES_VERSION, "modelUnavailable": True}
+    del analysis["engine"]["modelUnavailable"]
     assert analysis == analyze_snapshot(snapshot)
+
+
+def test_a_model_lost_partway_leaves_nothing_of_it_behind(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, model: FakeModel) -> None:
+    snapshot = read_file(workbook(tmp_path / "w.xlsx"))
+    calls = {"count": 0}
+    real_post = LlmClient._post
+
+    def fails_later(self: LlmClient, body: dict[str, Any]) -> dict[str, Any]:
+        calls["count"] += 1
+        if calls["count"] > 1:
+            raise ModelUnavailable("TimeoutError")
+        return real_post(self, body)
+
+    monkeypatch.setattr(LlmClient, "_post", fails_later)
+    analysis = analyze(snapshot, model.settings)
+    assert calls["count"] == 2
+    assert analysis["engine"].pop("modelUnavailable") is True
+    assert analysis == analyze_snapshot(snapshot)
+
+
+def test_the_first_call_may_take_as_long_as_loading_the_model(monkeypatch: pytest.MonkeyPatch, model: FakeModel) -> None:
+    seen: list[float] = []
+    real = urllib.request.urlopen
+
+    def spy(request: Any, timeout: float) -> Any:
+        if str(getattr(request, "full_url", "")).endswith("/chat/completions"):
+            seen.append(timeout)
+        return real(request, timeout=timeout)
+
+    monkeypatch.setattr(urllib.request, "urlopen", spy)
+    client = _client(model)
+    body = {"model": "fake-model", "messages": [{"role": "user", "content": "x"}]}
+    client._post(body)
+    client._post(body)
+    assert seen == [FIRST_CALL_TIMEOUT_SECONDS, TIMEOUT_SECONDS]
+
+
+def test_cli_says_when_the_model_was_asked_for_and_gone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setenv("DAFTAR_LLM_BASE_URL", "http://127.0.0.1:9/v1")
+    monkeypatch.setenv("DAFTAR_LLM_MODEL", "gone")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert main(["analyze", str(workbook(tmp_path / "w.xlsx")), "-o", str(tmp_path / "a.json")]) == 0
+    assert "rules only" in capsys.readouterr().err
 
 
 def test_cli_no_llm_ignores_the_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, model: FakeModel) -> None:

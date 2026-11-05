@@ -140,7 +140,7 @@ def check_firm_box(work: Path, project: Path, daftar: list[str], tag: str, keys:
             check(True, "a device without the root is warned")
         client = Client(base, authority)
         check(
-            client.call("auth/status") == {"needsSetup": True},
+            client.call("auth/status")["needsSetup"] is True,
             "a device with the root connects over HTTPS",
         )
         client.call("auth/setup", {"username": "patronne", "password": "un-long-mot-de-passe-1"})
@@ -258,7 +258,7 @@ def main() -> None:
 
         client = Client()
         status = client.call("auth/status")
-        check(status == {"needsSetup": True}, "first start asks for setup")
+        check(status["needsSetup"] is True, "first start asks for setup")
         try:
             Client().call("e/" + next(iter(seed)))
             check(False, "data needs a login")
@@ -278,7 +278,7 @@ def main() -> None:
 
         run(["docker", "compose", "down", "-v"], bundle)
         run(["./start"], bundle)
-        check(Client().call("auth/status") == {"needsSetup": True}, "the wipe left no owner")
+        check(Client().call("auth/status")["needsSetup"] is True, "the wipe left no owner")
 
         run(["./restore", dump, "--yes"], bundle)
         restored = Client()

@@ -84,3 +84,25 @@ def from_analysis(analysis: dict[str, Any], parity: dict[str, Any] | None = None
     for result in (parity or {}).get("results", []):
         predictions.results[(result["sheet"], result["ref"])] = result["value"]
     return predictions
+
+
+def label_as_predictions(label: dict[str, Any]) -> Predictions:
+    """Read a label as if it were a prediction, so one labeller is scored the way Daftar is."""
+    out = Predictions()
+    groups: dict[str, list[str]] = {}
+    for sheet in label["sheets"]:
+        name = sheet["name"]
+        out.outcomes[name] = sheet["kind"]
+        if sheet.get("periodGroup"):
+            groups.setdefault(sheet["periodGroup"], []).append(name)
+        if sheet["tables"]:
+            out.tables[name] = [table["range"] for table in sheet["tables"]]
+        for table in sheet["tables"]:
+            _, low, _, high = range_boundaries(table["range"])
+            out.header_rows.update((name, number) for number in table["headerRows"])
+            out.fields.extend(PredictedField(name, item["column"], int(low), int(high), item["type"]) for item in table["fields"])
+    for names in groups.values():
+        out.period_pairs.update(sheet_pairs(sorted(names)))
+    for item in label["relations"]:
+        out.relations.add((item["from"]["sheet"], item["from"]["column"], item["to"]["sheet"], item["to"]["column"]))
+    return out

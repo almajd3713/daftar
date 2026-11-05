@@ -2,7 +2,8 @@
 import type { Calculator, DaftarSpec, Entity, Filter } from "@daftar/spec/types";
 
 import { tableOf, column, type Db } from "../db.js";
-import { BadQuery, Forbidden, NotFound } from "../errors.js";
+import { BadQuery, FieldErrors, Forbidden, NotFound } from "../errors.js";
+import type { Message } from "../messages.js";
 import { evaluateCells, loadEngine } from "../expr/engine.js";
 import { ExcelError, type Scalar } from "../expr/evaluate.js";
 import { can, canSeeField, ownOnly, roleOf, visibleFields, type User } from "../records/access.js";
@@ -38,6 +39,8 @@ export function metaFor(spec: DaftarSpec, user: User): Record<string, unknown> {
     app: spec.app,
     user: { username: user.username, role: user.role },
     permissions: role?.permissions ?? [],
+    // Only the owner manages accounts, so only the owner needs the list of roles.
+    ...(user.role === "owner" ? { roles: spec.roles.map((item) => ({ key: item.key, label: item.label })) } : {}),
     entities: readable.map((entity) => ({
       ...entity,
       fields: visibleFields(spec, user, entity).map((field) => {
@@ -85,12 +88,17 @@ export async function runCalculator(spec: DaftarSpec, user: User, key: string, i
   if (!calculator) throw new NotFound();
   await loadEngine();
   const values = new Map<string, Scalar>();
+  const problems: Record<string, Message> = {};
   for (const port of calculator.inputs) {
     const raw = input[port.key] === undefined ? port.default : input[port.key];
     const checked = checkValue({ key: port.key, label: port.label, type: port.type === "choice" ? "text" : port.type }, raw ?? null);
-    if ("error" in checked) throw new BadQuery(`input ${port.key}`);
+    if ("error" in checked) {
+      problems[port.key] = checked.error;
+      continue;
+    }
     values.set(`${port.sheet}!${port.cell}`, (checked.value as Scalar) ?? null);
   }
+  if (Object.keys(problems).length) throw new FieldErrors(problems);
   const cells = calculator.cells.map((cell) => {
     const where = place(cell.sheet, cell.ref);
     const name = `${cell.sheet}!${cell.ref}`;

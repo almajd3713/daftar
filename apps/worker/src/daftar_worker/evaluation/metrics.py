@@ -240,9 +240,9 @@ def percentile_interval(values: list[float], low: float = 0.025, high: float = 0
     return [ordered[math.floor(low * last)], ordered[math.ceil(high * last)]]
 
 
-def bootstrap(
-    scores: list[WorkbookScore],
-    compute: Callable[[list[WorkbookScore]], dict[str, float | None]] = compute_metrics,
+def bootstrap[ScoreT: WorkbookScore](
+    scores: list[ScoreT],
+    compute: Callable[[list[ScoreT]], dict[str, float | None]] = compute_metrics,
     reps: int = BOOTSTRAP_REPS,
     seed: int = BOOTSTRAP_SEED,
 ) -> dict[str, list[float]]:

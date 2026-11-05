@@ -15,6 +15,8 @@ from jsonschema import Draft202012Validator
 
 
 TIMEOUT_SECONDS = 180
+# The first call also loads the model, which took over 3 minutes from a cold disk on the RTX 4070.
+FIRST_CALL_TIMEOUT_SECONDS = 600
 VOTE_TEMPERATURE = 0.7
 # Fixed, so the same input with the same model gives the same analysis (R-11).
 VOTE_SEEDS = (11, 23, 37, 41, 53)
@@ -69,6 +71,7 @@ class LlmClient:
         self.settings = settings
         self.prompt_version = prompt_version
         self.stats = LlmStats()
+        self._answered = False
         self.quant = settings.quant or self._read_quant()
 
     def _read_quant(self) -> str | None:
@@ -95,8 +98,10 @@ class LlmClient:
         )
         self.stats.calls += 1
         try:
-            with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            timeout = TIMEOUT_SECONDS if self._answered else FIRST_CALL_TIMEOUT_SECONDS
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 data: dict[str, Any] = json.load(response)
+                self._answered = True
                 return data
         except urllib.error.HTTPError as error:
             return {"error": error.code}
