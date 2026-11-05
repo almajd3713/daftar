@@ -1,6 +1,6 @@
 # Daftar UI and server contract
 
-**Status:** the Runtime part is agreed and on `main`. The Studio part is a proposal, and nothing there is built yet. The UI and the server each change this file before changing code that depends on it.
+**Status:** the Runtime part is agreed and on `main`. The Studio part is built in PR #23, except the preview. It's still open to change: the UI agent hasn't commented yet. The UI and the server each change this file before changing code that depends on it.
 
 It starts from what the UI agent said it will assume (2026-11-05, `main` at `0d43875`). Marks:
 
@@ -17,10 +17,10 @@ The Runtime tables were written by the UI agent. On the server side only the log
 | Per-tab layouts | PR #16, merged | C-2 `periodUnion.tabs[].columns`, a union in `columns`, new `period_union` wording; C-3 `mapping.sources[].columns` and `headerRow`; `seriesFormulas` in the generation report |
 | Lost model | PR #17, merged | C-2 `engine.modelUnavailable` |
 | Runtime additions | PR #20, merged | Everything under "Runtime additions" below |
-| Structured references | PR #22 | C-1 `cells[].fStructured`: what the file said, when `f` holds the expanded A1 form. Show it beside `f` if useful |
+| Structured references | PR #22, merged | C-1 `cells[].fStructured`: what the file said, when `f` holds the expanded A1 form. Show it beside `f` if useful |
 | Group labels | PR #21, merged | A new C-2 finding kind, `groupColumn`: `proposal {table, groups: [{row, label}]}`, with one evidence range per heading row |
 
-#22 is open. Everything else is on `main`.
+Everything is on `main`. The Studio server is in PR #23, without the preview.
 
 ## Runtime
 
@@ -133,7 +133,8 @@ The blueprint has no browser-facing Studio routes: C-7 is the Runtime, and C-4 i
 - With no login, these protect the data from other websites open in the same browser:
   - Any `Host` other than `127.0.0.1:<port>` or `localhost:<port>` gets 403, as `daftar label` does.
   - There are no CORS headers.
-  - Writes need `application/json`, and uploads need `application/octet-stream`. Anything else gets 415, so a plain cross-site form can't reach them.
+  - An `Origin` that isn't this server gets 403.
+  - Writes need `application/json`, and uploads need `application/octet-stream`. Anything else gets 415, so a plain cross-site form can't reach them. That includes a POST with no body: send `{}`.
 - Projects live in `--projects DIR`, never in the repo. The server generates each `id`, and a client never supplies a path.
 
 ### Calls
@@ -141,28 +142,29 @@ The blueprint has no browser-facing Studio routes: C-7 is the Runtime, and C-4 i
 | Call | Request | Response | Based on |
 |---|---|---|---|
 | `GET /api/projects` | none | `[{id, name, fileName, updatedAt, counts: {pending, accepted, edited, rejected}}]` | new |
-| `POST /api/projects?name=&llm=on\|off` | raw file | 202 `{id, jobId}` | `project_init`, C-4 |
+| `POST /api/projects?fileName=&name=&llm=on\|off` | raw file. `fileName` is required, as its extension gives the format | 202 `{id, jobId}` | `project_init`, C-4 |
 | `GET /api/jobs/{id}` | none | `{status, progress, result?, error?}` | C-4 |
 | `GET /api/projects/{id}/snapshot` | none | C-1 without `cells`: `source`, sheet summaries, `definedNames`, `unsupported` | C-1 |
 | `GET /api/projects/{id}/sheets/{index}?range=A1:Z200` | none | that sheet's `cells`, `merges`, `validations`, `conditionalFormats`, `hiddenRows`, `hiddenColumns`, `rtl`, `dimension` for the range | C-1 |
 | `GET /api/projects/{id}/analysis` | none | C-2, with every finding's `decision` | C-2 |
 | `PUT /api/projects/{id}/findings/{findingId}/decision` | `{status: accepted\|edited\|rejected\|pending, value?}` | the updated finding | `decide()` |
-| `POST /api/projects/{id}/decisions/accept-high` | none | `{acceptedHigh, accepted, rejected, pending}` | `project_decide` |
-| `POST /api/projects/{id}/reanalyze` | optional raw file | 202 `{jobId}`, whose result is `{applied, moved, conflicts}` | `project_reanalyze` |
+| `POST /api/projects/{id}/decisions/accept-high` | `{}` as JSON | `{acceptedHigh, accepted, rejected, pending}` | `project_decide` |
+| `POST /api/projects/{id}/reanalyze?fileName=&llm=` | a raw file with `fileName`, or `{}` as JSON to rerun the same workbook | 202 `{jobId}`, whose result is `{applied, moved, conflicts}` | `project_reanalyze` |
 | `GET /api/projects/{id}/conflicts` | none | `[{reason: gone\|changed, finding, now?}]`, where `now` is the new finding's id | `conflicts.json` |
-| `POST /api/projects/{id}/generate` | none | 202 `{jobId}`, whose result is `{entities, rows, badValues, parityFailures, seriesFormulas, questions}`, the full lists, as in `generation-report.json` | `project_generate`, which runs a parity check and can be slow |
-| `POST /api/projects/{id}/answers` | `{kind: periodYear, sheet, year}` or `{kind: confirmRetention, entity, months}` | updated `questions` | new; answering isn't built yet |
+| `POST /api/projects/{id}/generate` | `{}` as JSON | 202 `{jobId}`, whose result is `{entities, rows, badValues, parityFailures, seriesFormulas, questions}`, the full lists, as in `generation-report.json` | `project_generate`, which runs a parity check and can be slow |
+| `POST /api/projects/{id}/answers` | `{kind: periodYear, sheet, year}` or `{kind: confirmRetention, entity, months}` | `{questions}`, those still open. Generate again to apply the answers | `answers.json` |
 | `POST /api/projects/{id}/preview` | none | 202 `{jobId}`, whose result is `{url}` of a Runtime on the seed data, with an owner session open | D-9, R-14, new |
 
 Changed from the UI agent's list: `generate` and `preview` are jobs, since both can outlast a request. `decide()` already handles `edited` and `pending`; only `project_decide` lacks them.
 
 ### Rules
 
-- **Nothing is left behind by a rejected file (R-1).** `POST /api/projects` returns 202 before the file is read. If reading fails, the job ends in `error` and the project disappears from the list.
+- **Nothing is left behind by a rejected file (R-1).** `POST /api/projects` returns 202 before the file is read. If reading fails, the job ends with `status: failed` and `error`. A project joins the list only when its first analysis finishes, and its `id` gives 404 until then.
+- **Nothing changes during a job.** A decision, accept-high, answer, generate or rerun gets 409 `{reason}` while a job runs on that project. Reads still work.
 - **Jobs live in memory.** After a restart, a job id gives 404. The UI re-reads the project instead of waiting.
-- **An `edited` decision needs `value`**, in that finding kind's proposal shape, or it gets 400 `{reason: {fr, ar}}`.
-- **Sheet data comes by range**, because a workbook can hold 1,000,000 cells. A range over 20,000 cells gets 400.
-- **Errors:** C-4's `{code, message: {fr, ar}}`, with `unreadable|protected|too_large|unsupported_format|invalid_spec`. Also 404 for an unknown project, job or finding, and 409 `{reason: {fr, ar}}` if a decision targets a finding that a rerun removed.
+- **An `edited` decision needs `value`**, holding the proposal's fields to change. The result must fit that finding kind's shape, or it gets 400 `{reason: {fr, ar}}`.
+- **Sheet data comes by range**, because a workbook can hold 1,000,000 cells. A range over 20,000 cells gets 400. `cells` and `merges` follow the range; `validations`, `conditionalFormats` and the hidden lists are the whole sheet's. The snapshot's sheet summaries give `cellCount`.
+- **Errors:** C-4's `{code, message: {fr, ar}}`, with `unreadable|protected|too_large|unsupported_format|invalid_spec`, as a job's `error` or directly: an upload with no file gets 422, one over the limit 413. Also 404 `{error: "not_found"}` for an unknown project, job or finding, and 409 `{reason: {fr, ar}}` if a decision targets a finding that a rerun removed.
 
 ### What the review screen must show
 
@@ -174,7 +176,7 @@ These are warnings a person has to see. A report file alone isn't enough.
    - `notAFormula`: the tab has typed values there, or its formula wasn't accepted.
    - `differentFormula`: the tab's formula is different.
    - `parity`: the engine doesn't reproduce Excel's results on that tab.
-3. **`parityFailures`, `badValues` and `questions`:** each listed with its sheet and cell or field. A `questions` entry blocks nothing, but a `periodYear` tab stays out of the app until it's answered.
+3. **`parityFailures`, `badValues` and `questions`:** each listed with its sheet and cell or field. A `questions` entry blocks nothing, but a `periodYear` tab stays out of the app until it's answered and generated again.
 
 The UI owns the French and Arabic wording for these codes. It shows `explanation.fr` or `.ar` as written, and wraps Latin text, ranges and formulas so they keep their order in Arabic.
 
