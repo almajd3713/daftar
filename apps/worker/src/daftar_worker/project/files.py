@@ -12,12 +12,18 @@ from daftar_worker.project.generate import Generator, write_project_outputs
 from daftar_worker.reader import read_file
 
 
+ANSWERS = "answers.json"
+
+
 class ProjectError(ValueError):
     pass
 
 
 def _write(path: Path, data: Any) -> None:
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    # Whole or not at all: a crash halfway must not leave a person's decisions unreadable.
+    partial = path.with_name(f"{path.name}.partial")
+    partial.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    partial.replace(path)
 
 
 def _read(path: Path) -> Any:
@@ -41,8 +47,8 @@ def _source_of(folder: Path) -> Path:
     return found[0]
 
 
-def project_init(file: Path, folder: Path, settings: Any = None) -> dict[str, Any]:
-    snapshot = read_file(file)
+def project_init(file: Path, folder: Path, settings: Any = None, file_name: str | None = None) -> dict[str, Any]:
+    snapshot = read_file(file, file_name)
     analysis = analyze(snapshot, settings)
     folder.mkdir(parents=True, exist_ok=True)
     _copy_source(file, folder)
@@ -71,11 +77,13 @@ def project_decide(folder: Path, accept: list[str], reject: list[str], accept_hi
     }
 
 
-def project_reanalyze(folder: Path, file: Path | None, settings: Any = None) -> dict[str, Any]:
+def project_reanalyze(folder: Path, file: Path | None, settings: Any = None, file_name: str | None = None) -> dict[str, Any]:
     """R-15: rerun, on the same workbook or an updated one, and carry the decisions over."""
     old = _read(folder / "analysis.json")
-    source = _copy_source(file, folder) if file else _source_of(folder)
-    snapshot = read_file(source)
+    # Read first: a file that can't be read must not replace the workbook this project is about.
+    snapshot = read_file(file, file_name) if file else read_file(_source_of(folder), _read(folder / "snapshot.json")["source"]["fileName"])
+    if file:
+        _copy_source(file, folder)
     new = analyze(snapshot, settings)
     outcome = reapply(old, new)
     _write(folder / "snapshot.json", snapshot)
@@ -84,13 +92,26 @@ def project_reanalyze(folder: Path, file: Path | None, settings: Any = None) -> 
     return {"applied": outcome["applied"], "moved": outcome["moved"], "conflicts": len(outcome["conflicts"])}
 
 
+def project_answer(folder: Path, answer: dict[str, Any]) -> dict[str, Any]:
+    """A reply to one of the generator's questions. It's kept apart from the analysis, which a rerun replaces."""
+    path = folder / ANSWERS
+    answers: dict[str, Any] = _read(path) if path.exists() else {"periodYears": {}, "retention": {}}
+    if answer["kind"] == "periodYear":
+        answers["periodYears"][answer["sheet"]] = answer["year"]
+    else:
+        answers["retention"][answer["entity"]] = answer["months"]
+    _write(path, answers)
+    return answers
+
+
 def project_generate(folder: Path) -> dict[str, Any]:
     analysis = _read(folder / "analysis.json")
     snapshot = _read(folder / "snapshot.json")
     source = _source_of(folder)
     # R-19: a formula the engine gets wrong can't become a computed field. Only Excel's results judge.
     parity = run_parity(source, snapshot) if snapshot["source"]["resultsFrom"] == "excel" else None
-    spec, seed, report = Generator(analysis, snapshot, parity).generate()
+    answers = _read(folder / ANSWERS) if (folder / ANSWERS).exists() else None
+    spec, seed, report = Generator(analysis, snapshot, parity, answers).generate()
     write_project_outputs(folder, spec, seed, report)
     return {
         "entities": report.entities,
