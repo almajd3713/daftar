@@ -79,19 +79,26 @@ def _instant(value: Any) -> datetime:
     return moment if moment.tzinfo else moment.replace(tzinfo=UTC)
 
 
-def _locate_columns(grid: Grid, mapping: dict[str, Any], first: int) -> dict[str, int]:
-    """Find columns by their header text, so a moved column still lines up. Else by their letter."""
-    header_row = mapping["headerRow"]
+def _locate_columns(grid: Grid, mapping: dict[str, Any], source: dict[str, Any]) -> dict[str, int]:
+    """Find columns by their header text, so a moved column still lines up. Else by their letter.
+
+    A tab's own headers come first, then the mapping's: an export can add a column a tab never had.
+    """
+    first = _first_column(source)
+    header_row = source.get("headerRow", mapping["headerRow"])
     by_header: dict[str, int] = {}
     for row, column in sorted(grid.cells):
         if row == header_row:
             by_header.setdefault(fingerprint(text_of(grid.cells[(row, column)])), column)
     located: dict[str, int] = {}
-    for position, item in enumerate(mapping["columns"]):
+    own = source.get("columns") or []
+    for position, item in enumerate([*own, *mapping["columns"]]):
+        if item["field"] in located:
+            continue
         found = by_header.get(fingerprint(item["header"]))
-        if found is not None:
+        if found is not None and found not in located.values():
             located[item["field"]] = found
-        elif not by_header:
+        elif not by_header and (position < len(own) or not own):
             located[item["field"]] = column_index_from_string(item["column"]) if item.get("column") else first + position
     return located
 
@@ -107,11 +114,11 @@ def _is_total_row(grid: Grid, row: int, columns: list[int], keys: list[int]) -> 
     return all(grid.get(row, column) is None for column in keys) and any(cell.formula for cell in filled)
 
 
-def _rows(grid: Grid, mapping: dict[str, Any], located: dict[str, int], keys: list[str]) -> Iterator[int]:
+def _rows(grid: Grid, header_row: int, located: dict[str, int], keys: list[str]) -> Iterator[int]:
     columns = list(located.values())
     key_columns = [located[key] for key in keys if key in located]
     bottom = max((row for row, column in grid.cells if column in columns), default=0)
-    for row in range(mapping["headerRow"] + 1, bottom + 1):
+    for row in range(header_row + 1, bottom + 1):
         if not _is_total_row(grid, row, columns, key_columns):
             yield row
 
@@ -155,8 +162,8 @@ class _Entity:
         return "␟".join(parts)
 
     def read_tab(self, grid: Grid, source: dict[str, Any], label: str | None) -> None:
-        located = _locate_columns(grid, self.mapping, _first_column(source))
-        for row in _rows(grid, self.mapping, located, self.keys):
+        located = _locate_columns(grid, self.mapping, source)
+        for row in _rows(grid, source.get("headerRow", self.mapping["headerRow"]), located, self.keys):
             self.read_row(grid, row, located, label)
 
     def read_row(self, grid: Grid, row: int, located: dict[str, int], label: str | None) -> None:

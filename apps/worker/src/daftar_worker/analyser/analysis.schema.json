@@ -307,7 +307,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["granularity", "tabs", "columns", "identicalColumns"],
-      "description": "`period` is YYYY-MM, YYYY-Qn or YYYY; a leading - means the tab name gave no year.",
+      "description": "`period` is YYYY-MM, YYYY-Qn or YYYY; a leading - means the tab name gave no year. `columns` lists the whole series; each tab's own `columns` gives a letter, its header there, and a `position` in that list.",
       "properties": {
         "granularity": { "enum": ["month", "quarter", "year"] },
         "tabs": { "type": "array", "items": { "type": "object" } },

@@ -225,13 +225,21 @@ def relation_from_inclusion(sheet: str, source: str, to_sheet: str, target: str,
     }
 
 
-def period_union(sheets: list[str], granularity: str, columns: int) -> Explanation:
+def period_union(sheets: list[str], granularity: str, columns: int, partial: int = 0, identical: bool = True) -> Explanation:
     unit_fr = {"month": "mois", "quarter": "trimestre", "year": "année"}[granularity]
     unit_ar = {"month": "الشهر", "quarter": "الفصل", "year": "السنة"}[granularity]
     names = ", ".join(sheets[:4]) + ("…" if len(sheets) > 4 else "")
+    if identical:
+        return {
+            "fr": f"{len(sheets)} feuilles ({names}) ont les mêmes {columns} colonnes. En faire une seule liste, avec un champ {unit_fr} ?",
+            "ar": f"{len(sheets)} أوراق ({names}) لها نفس الأعمدة وعددها {columns}. هل نجعلها قائمة واحدة مع حقل {unit_ar}؟",
+        }
+    # Their titles or order differ, so a person should look: it's a match by name, not a certainty.
+    extra_fr = f", et {partial} colonnes présentes dans certaines seulement" if partial else ""
+    extra_ar = f"، و{partial} أعمدة موجودة في بعضها فقط" if partial else ""
     return {
-        "fr": f"{len(sheets)} feuilles ({names}) ont les mêmes {columns} colonnes. En faire une seule liste, avec un champ {unit_fr} ?",
-        "ar": f"{len(sheets)} أوراق ({names}) لها نفس الأعمدة وعددها {columns}. هل نجعلها قائمة واحدة مع حقل {unit_ar}؟",
+        "fr": f"{len(sheets)} feuilles ({names}) ont {columns} colonnes en commun, aux titres ou à l'ordre parfois différents{extra_fr}. En faire une seule liste, avec un champ {unit_fr} ?",
+        "ar": f"{len(sheets)} أوراق ({names}) تشترك في {columns} أعمدة قد تختلف عناوينها أو ترتيبها{extra_ar}. هل نجعلها قائمة واحدة مع حقل {unit_ar}؟",
     }
 
 
