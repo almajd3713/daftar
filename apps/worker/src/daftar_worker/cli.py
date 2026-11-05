@@ -11,6 +11,7 @@ from typing import Any
 from daftar_worker.analyser import analyze
 from daftar_worker.census import iter_files, render_markdown, run_census
 from daftar_worker.errors import MESSAGES, WorkerError
+from daftar_worker.evaluation.agreement import compare_folders, render_agreement
 from daftar_worker.evaluation.labels import EvalError, freeze_test_split, read_manifest
 from daftar_worker.evaluation.run import render_report, run_evaluation, write_drafts
 from daftar_worker.formulas.parity import aggregate_parity, render_parity, run_parity
@@ -71,6 +72,17 @@ def _analyze(args: argparse.Namespace) -> int:
     if analysis["engine"].get("modelUnavailable"):
         print("warning: the language model couldn't be reached, so this analysis is rules only", file=sys.stderr)
     _write_atomic(Path(args.output), _dump(analysis))
+    return 0
+
+
+def _agreement(args: argparse.Namespace) -> int:
+    report = compare_folders(Path(args.first), Path(args.second))
+    if not report["workbooks"]:
+        print("no workbook has a usable label in both folders", file=sys.stderr)
+        return EXIT_VALIDATION
+    output = Path(args.output)
+    _write_atomic(output, _dump(report))
+    _write_atomic(output.with_suffix(".md"), render_agreement(report))
     return 0
 
 
@@ -274,6 +286,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     evaluate.add_argument("--freeze", action="store_true", help="record the test split as frozen")
     evaluate.set_defaults(run=_eval)
+    agreement = commands.add_parser("agreement", help="how far two labellers agree on the workbooks both labelled")
+    agreement.add_argument("first")
+    agreement.add_argument("second")
+    agreement.add_argument("-o", "--output", required=True)
+    agreement.set_defaults(run=_agreement)
     label = commands.add_parser("label", help="correct labels in a screen on this machine")
     label.add_argument("--labels", required=True, metavar="DIR")
     label.add_argument("--who", required=True, help="the labeller's name, recorded on each review")
