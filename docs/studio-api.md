@@ -17,9 +17,10 @@ The Runtime tables were written by the UI agent. On the server side only the log
 | Per-tab layouts | PR #16, merged | C-2 `periodUnion.tabs[].columns`, a union in `columns`, new `period_union` wording; C-3 `mapping.sources[].columns` and `headerRow`; `seriesFormulas` in the generation report |
 | Lost model | PR #17, merged | C-2 `engine.modelUnavailable` |
 | Runtime additions | PR #20, merged | Everything under "Runtime additions" below |
-| Group labels | PR #21 | A new C-2 finding kind, `groupColumn`: `proposal {table, groups: [{row, label}]}`, with one evidence range per heading row |
+| Structured references | PR #22 | C-1 `cells[].fStructured`: what the file said, when `f` holds the expanded A1 form. Show it beside `f` if useful |
+| Group labels | PR #21, merged | A new C-2 finding kind, `groupColumn`: `proposal {table, groups: [{row, label}]}`, with one evidence range per heading row |
 
-#21 is open. Everything else is on `main`.
+#22 is open. Everything else is on `main`.
 
 ## Runtime
 
