@@ -1,6 +1,6 @@
 # Daftar UI and server contract
 
-**Status:** the Runtime part is agreed and in PR #20. The Studio part is a proposal, and nothing there is built yet. The UI and the server each change this file before changing code that depends on it.
+**Status:** the Runtime part is agreed and on `main`. The Studio part is a proposal, and nothing there is built yet. The UI and the server each change this file before changing code that depends on it.
 
 It starts from what the UI agent said it will assume (2026-11-05, `main` at `0d43875`). Marks:
 
@@ -14,11 +14,12 @@ The Runtime tables were written by the UI agent. On the server side only the log
 
 | Change | Where | What the UI reads |
 |---|---|---|
-| Per-tab layouts | PR #16 | C-2 `periodUnion.tabs[].columns`, a union in `columns`, new `period_union` wording; C-3 `mapping.sources[].columns` and `headerRow`; `seriesFormulas` in the generation report |
+| Per-tab layouts | PR #16, merged | C-2 `periodUnion.tabs[].columns`, a union in `columns`, new `period_union` wording; C-3 `mapping.sources[].columns` and `headerRow`; `seriesFormulas` in the generation report |
 | Lost model | PR #17, merged | C-2 `engine.modelUnavailable` |
-| Runtime additions | PR #20 | Everything under "Runtime additions" below |
+| Runtime additions | PR #20, merged | Everything under "Runtime additions" below |
+| Group labels | PR #21 | A new C-2 finding kind, `groupColumn`: `proposal {table, groups: [{row, label}]}`, with one evidence range per heading row |
 
-#16 and #20 are open. Build against `main` once they're merged.
+#21 is open. Everything else is on `main`.
 
 ## Runtime
 
@@ -92,7 +93,7 @@ These need no server change:
 
 ### Runtime additions
 
-The user approved these on 2026-11-05, and C-7 records them. They're built in PR #20.
+The user approved these on 2026-11-05, and C-7 records them. They're on `main`.
 
 **Before sign-in.** `GET /api/auth/status` also returns `app: {name, locales, defaultLocale}`.
 
