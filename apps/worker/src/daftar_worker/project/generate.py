@@ -182,8 +182,9 @@ def _base_field(key: str, label: dict[str, str], name: str) -> dict[str, Any]:
 
 
 class Generator:
-    def __init__(self, analysis: dict[str, Any], snapshot: dict[str, Any], parity: dict[str, Any] | None = None) -> None:
+    def __init__(self, analysis: dict[str, Any], snapshot: dict[str, Any], parity: dict[str, Any] | None = None, answers: dict[str, Any] | None = None) -> None:
         self.analysis = analysis
+        self.answers = answers or {}
         self.snapshot = snapshot
         self.parity = parity or {}
         self.sha256 = snapshot["source"]["sha256"]
@@ -502,8 +503,10 @@ class Generator:
             "fields": specs,
         }
         if personal:
-            entity["retention"] = {"months": DEFAULT_RETENTION_MONTHS, "basis": dict(RETENTION_BASIS)}
-            self.report.questions.append({"kind": "confirmRetention", "entity": key, "months": DEFAULT_RETENTION_MONTHS})
+            answered = self.answers.get("retention", {}).get(key)
+            entity["retention"] = {"months": answered or DEFAULT_RETENTION_MONTHS, "basis": dict(RETENTION_BASIS)}
+            if not answered:
+                self.report.questions.append({"kind": "confirmRetention", "entity": key, "months": DEFAULT_RETENTION_MONTHS})
         provenance = _provenance(table_finding, self.sha256)
         if provenance:
             entity["provenance"] = provenance
@@ -632,7 +635,7 @@ class Generator:
     def _period_date(self, tab: dict[str, Any]) -> str | None:
         period = tab["period"]
         if period.startswith("-"):
-            year = tab.get("year")
+            year = tab.get("year") or self.answers.get("periodYears", {}).get(tab["sheet"])
             if not year:
                 self.report.questions.append({"kind": "periodYear", "sheet": tab["sheet"], "period": period})
                 return None

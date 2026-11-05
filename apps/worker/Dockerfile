@@ -25,6 +25,7 @@ RUN rm -rf apps/worker/tests eval \
     apps/worker/src/daftar_worker/llm \
     apps/worker/src/daftar_worker/evaluation \
     apps/worker/src/daftar_worker/project \
+    apps/worker/src/daftar_worker/studio \
     apps/worker/src/daftar_worker/census.py \
     apps/worker/src/daftar_worker/app.py \
     apps/worker/src/daftar_worker/cli.py \
