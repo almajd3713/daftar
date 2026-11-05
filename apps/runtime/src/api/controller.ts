@@ -67,8 +67,10 @@ export class ApiController {
   }
 
   @Get("auth/status")
-  async status(): Promise<{ needsSetup: boolean }> {
-    return { needsSetup: await this.runtime.auth.needsSetup() };
+  async status() {
+    // Before anyone signs in, the page still needs the firm's name and language.
+    const { name, locales, defaultLocale } = this.runtime.spec.app;
+    return { needsSetup: await this.runtime.auth.needsSetup(), app: { name, locales, defaultLocale } };
   }
 
   @Post("auth/setup")
@@ -105,6 +107,29 @@ export class ApiController {
     return { username: created.username, role: created.role };
   }
 
+  @Get("auth/users")
+  async users(@Req() request: Request) {
+    return { users: await this.runtime.auth.listUsers(await this.user(request)) };
+  }
+
+  @Delete("auth/users/:id")
+  @HttpCode(204)
+  async removeUser(@Param("id") id: string, @Req() request: Request): Promise<void> {
+    await this.runtime.auth.removeUser(await this.user(request), id);
+  }
+
+  @Post("auth/users/:id/password")
+  @HttpCode(204)
+  async resetPassword(@Param("id") id: string, @Body() body: Record<string, unknown>, @Req() request: Request): Promise<void> {
+    await this.runtime.auth.resetPassword(await this.user(request), id, body.password);
+  }
+
+  @Post("auth/password")
+  @HttpCode(204)
+  async changePassword(@Body() body: Record<string, unknown>, @Req() request: Request): Promise<void> {
+    await this.runtime.auth.changePassword(await this.user(request), tokenOf(request), body.currentPassword, body.newPassword);
+  }
+
   @Get("meta")
   async meta(@Req() request: Request) {
     return metaFor(this.runtime.spec, await this.user(request));
@@ -118,6 +143,13 @@ export class ApiController {
   @Post("e/:entity")
   async create(@Param("entity") entity: string, @Body() body: Record<string, unknown>, @Req() request: Request) {
     return this.runtime.records.create(await this.user(request), entity, body);
+  }
+
+  // Before the route below, which would take "aggregate" for a record's id.
+  @Get("e/:entity/aggregate")
+  async aggregate(@Param("entity") entity: string, @Query() query: Record<string, unknown>, @Req() request: Request) {
+    const text = (key: string): string | undefined => (typeof query[key] === "string" ? query[key] : undefined);
+    return this.runtime.records.aggregate(await this.user(request), entity, { ...listQuery(query), groupBy: text("groupBy"), aggregate: text("aggregate"), field: text("field") });
   }
 
   @Get("e/:entity/:id")

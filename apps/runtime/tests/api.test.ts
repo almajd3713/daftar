@@ -28,7 +28,7 @@ describe("auth", () => {
 
   it("has no default credentials and needs setup", async () => {
     const anyone = new Client(running.base);
-    expect((await anyone.get("/api/auth/status")).body).toEqual({ needsSetup: true });
+    expect((await anyone.get("/api/auth/status")).body).toEqual({ needsSetup: true, app: { name: example("repair-tracker").app.name, locales: example("repair-tracker").app.locales, defaultLocale: example("repair-tracker").app.defaultLocale } });
     expect((await anyone.get("/api/meta")).status).toBe(401);
     expect((await anyone.get("/api/e/repairs")).status).toBe(401);
     expect((await anyone.post("/api/auth/login", { username: "admin", password: "admin" })).status).toBe(401);
@@ -43,7 +43,7 @@ describe("auth", () => {
     expect((await first.get("/api/auth/me")).body).toEqual({ username: "o", role: "owner" });
     const second = await new Client(running.base).post("/api/auth/setup", { username: "x", password: PASSWORD });
     expect(second.status).toBe(409);
-    expect((await new Client(running.base).get("/api/auth/status")).body).toEqual({ needsSetup: false });
+    expect((await new Client(running.base).get("/api/auth/status")).body.needsSetup).toBe(false);
   });
 
   it("sets an HttpOnly, SameSite session cookie, and logout ends it", async () => {
@@ -542,7 +542,9 @@ describe("calculators", () => {
 
   it("uses defaults for inputs not given, and refuses bad ones", async () => {
     expect((await owner.post("/api/calc/tuition_fee", {})).body.outputs.total).toBe(3000);
-    expect((await owner.post("/api/calc/tuition_fee", { subjects: "beaucoup" })).status).toBe(400);
+    const refused = await owner.post("/api/calc/tuition_fee", { subjects: "beaucoup" });
+    expect(refused.status).toBe(400);
+    expect(refused.body.fields.subjects.ar).toBeTruthy(); // The same shape as a form's.
     expect((await owner.post("/api/calc/ghost", {})).status).toBe(404);
   });
 
@@ -703,5 +705,170 @@ describe("errors are never hidden as values (R-19)", () => {
     } finally {
       await running.close();
     }
+  });
+});
+
+describe("managing accounts", () => {
+  let running: Running;
+  let owner: Client;
+  let staff: Client;
+
+  beforeAll(async () => {
+    running = await start(example("repair-tracker"));
+    owner = new Client(running.base);
+    await owner.post("/api/auth/setup", { username: "patron", password: PASSWORD });
+    await owner.post("/api/auth/users", { username: "salim", password: PASSWORD, role: "staff" });
+    staff = new Client(running.base);
+    await staff.post("/api/auth/login", { username: "salim", password: PASSWORD });
+  });
+  afterAll(() => running.close());
+
+  const idOf = async (username: string): Promise<string> => {
+    const { users } = (await owner.get("/api/auth/users")).body as { users: { id: string; username: string }[] };
+    return users.find((item) => item.username === username)!.id;
+  };
+
+  it("shows the owner the accounts and roles, and nobody else", async () => {
+    const { users } = (await owner.get("/api/auth/users")).body as { users: Record<string, unknown>[] };
+    expect(users.map((item) => [item.username, item.role])).toEqual([["patron", "owner"], ["salim", "staff"]]);
+    expect(JSON.stringify(users)).not.toContain("argon2");
+    expect((await staff.get("/api/auth/users")).status).toBe(403);
+    expect((await new Client(running.base).get("/api/auth/users")).status).toBe(401);
+    expect((await owner.get("/api/meta")).body.roles.map((item: { key: string }) => item.key)).toContain("viewer");
+    expect((await staff.get("/api/meta")).body.roles).toBeUndefined();
+  });
+
+  it("changes your own password only with the current one, and signs out your other devices", async () => {
+    const other = new Client(running.base);
+    await other.post("/api/auth/login", { username: "salim", password: PASSWORD });
+    const wrong = await staff.post("/api/auth/password", { currentPassword: "pas le bon mot", newPassword: "un autre mot de passe" });
+    expect(wrong.status).toBe(400);
+    expect(wrong.body.fields.currentPassword.ar).toBeTruthy();
+    expect((await staff.post("/api/auth/password", { currentPassword: PASSWORD, newPassword: "court" })).body.fields.newPassword).toBeTruthy();
+    expect((await staff.post("/api/auth/password", { currentPassword: PASSWORD, newPassword: "un autre mot de passe" })).status).toBe(204);
+    expect((await staff.get("/api/auth/me")).status).toBe(200);
+    expect((await other.get("/api/auth/me")).status).toBe(401);
+    expect((await new Client(running.base).post("/api/auth/login", { username: "salim", password: PASSWORD })).status).toBe(401);
+    expect((await new Client(running.base).post("/api/auth/login", { username: "salim", password: "un autre mot de passe" })).status).toBe(200);
+  });
+
+  it("stops guessing the current password after a few tries", async () => {
+    await owner.post("/api/auth/users", { username: "guess", password: PASSWORD, role: "viewer" });
+    const someone = new Client(running.base);
+    await someone.post("/api/auth/login", { username: "guess", password: PASSWORD });
+    for (let attempt = 0; attempt < 5; attempt += 1) await someone.post("/api/auth/password", { currentPassword: "pas le bon mot", newPassword: "un autre mot de passe" });
+    const refused = await someone.post("/api/auth/password", { currentPassword: PASSWORD, newPassword: "un autre mot de passe" });
+    expect(refused.status).toBe(400);
+  });
+
+  it("lets the owner reset someone's password, which signs them out", async () => {
+    await owner.post("/api/auth/users", { username: "amina", password: PASSWORD, role: "viewer" });
+    const amina = new Client(running.base);
+    await amina.post("/api/auth/login", { username: "amina", password: PASSWORD });
+    const id = await idOf("amina");
+    expect((await amina.post(`/api/auth/users/${id}/password`, { password: "nouveau mot de passe" })).status).toBe(403);
+    expect((await owner.post(`/api/auth/users/${id}/password`, { password: "court" })).status).toBe(400);
+    expect((await owner.post(`/api/auth/users/${id}/password`, { password: "nouveau mot de passe" })).status).toBe(204);
+    expect((await amina.get("/api/auth/me")).status).toBe(401);
+    expect((await new Client(running.base).post("/api/auth/login", { username: "amina", password: "nouveau mot de passe" })).status).toBe(200);
+    expect((await owner.post(`/api/auth/users/${await idOf("patron")}/password`, { password: "nouveau mot de passe" })).status).toBe(409);
+    expect((await owner.post("/api/auth/users/00000000-0000-4000-8000-000000000000/password", { password: "nouveau mot de passe" })).status).toBe(404);
+  });
+
+  it("removes an account and its sessions, but never your own", async () => {
+    await owner.post("/api/auth/users", { username: "partant", password: PASSWORD, role: "staff" });
+    const leaving = new Client(running.base);
+    await leaving.post("/api/auth/login", { username: "partant", password: PASSWORD });
+    const id = await idOf("partant");
+    expect((await staff.del(`/api/auth/users/${id}`)).status).toBe(403);
+    expect((await owner.del(`/api/auth/users/${await idOf("patron")}`)).status).toBe(409);
+    expect((await owner.del(`/api/auth/users/${id}`)).status).toBe(204);
+    expect((await leaving.get("/api/auth/me")).status).toBe(401);
+    expect((await owner.del(`/api/auth/users/${id}`)).status).toBe(404);
+    expect((await owner.del("/api/auth/users/not-a-uuid")).status).toBe(404);
+  });
+});
+
+describe("link labels and grouped figures", () => {
+  let running: Running;
+  let owner: Client;
+  let viewer: Client;
+  let limited: Client;
+  let classA: string;
+  let classB: string;
+
+  beforeAll(async () => {
+    const spec = example("tutoring-register");
+    spec.entities.find((item) => item.key === "classes")!.fields.find((item) => item.key === "monthly_fee")!.level = 1;
+    // Staff here can't read classes at all, and see only the students they created.
+    const staffRole = spec.roles.find((item) => item.key === "staff")!;
+    staffRole.permissions = [{ entity: "students", actions: ["read", "create", "update"], rowScope: "own" }];
+    running = await start(spec);
+    owner = new Client(running.base);
+    await owner.post("/api/auth/setup", { username: "patron", password: PASSWORD });
+    for (const [username, role] of [["voir", "viewer"], ["salim", "staff"]] as const) await owner.post("/api/auth/users", { username, password: PASSWORD, role });
+    viewer = new Client(running.base);
+    await viewer.post("/api/auth/login", { username: "voir", password: PASSWORD });
+    limited = new Client(running.base);
+    await limited.post("/api/auth/login", { username: "salim", password: PASSWORD });
+    classA = (await owner.post("/api/e/classes", { code: "MATH", name: "Maths", monthly_fee: 1000 })).body._id;
+    classB = (await owner.post("/api/e/classes", { code: "PHYS", name: "Physique", monthly_fee: 3000 })).body._id;
+    const levels = spec.entities.find((item) => item.key === "students")!.fields.find((item) => item.key === "level") as { choices: { key: string }[] };
+    const [one, two] = levels.choices.map((item) => item.key);
+    for (const [name, level, target] of [["Ali", one, classA], ["Sara", one, classA], ["Nora", two, classB], ["Yani", two, classB]] as const) {
+      expect((await owner.post("/api/e/students", { full_name: name, level, class: target, parent_phone: "0555123456" })).status).toBe(201);
+    }
+    expect((await limited.post("/api/e/students", { full_name: "Mien", level: one, class: classA, parent_phone: "0555123456" })).status).toBe(201);
+  });
+  afterAll(() => running.close());
+
+  it("names a link's target beside its id, in lists and in one record", async () => {
+    const { rows } = (await owner.get("/api/e/students?sort=full_name")).body as { rows: Record<string, any>[] };
+    const ali = rows.find((row) => row.full_name === "Ali")!;
+    expect(ali.class).toBe(classA);
+    expect(ali._labels).toEqual({ class: "MATH" });
+    expect((await owner.get(`/api/e/students/${ali._id}`)).body._labels).toEqual({ class: "MATH" });
+    expect((await owner.patch(`/api/e/students/${ali._id}`, { class: classB, _version: ali._version })).body._labels).toEqual({ class: "PHYS" });
+    await owner.patch(`/api/e/students/${ali._id}`, { class: classA });
+  });
+
+  it("gives no label to someone who can't read the target", async () => {
+    const { rows } = (await limited.get("/api/e/students")).body as { rows: Record<string, any>[] };
+    expect(rows.map((row) => row.full_name)).toEqual(["Mien"]);
+    expect(rows[0]!.class).toBe(classA);
+    expect(rows[0]!._labels).toBeUndefined();
+  });
+
+  it("groups figures, with labels for links", async () => {
+    const count = (await owner.get("/api/e/students/aggregate?groupBy=class&aggregate=count")).body;
+    expect(count.truncated).toBe(false);
+    expect(count.groups).toEqual(
+      expect.arrayContaining([
+        { key: classA, value: 3, label: "MATH" },
+        { key: classB, value: 2, label: "PHYS" },
+      ]),
+    );
+    const sum = (await owner.get("/api/e/classes/aggregate?groupBy=code&aggregate=sum&field=monthly_fee")).body;
+    expect(sum.groups).toEqual([{ key: "MATH", value: 1000 }, { key: "PHYS", value: 3000 }]);
+    const avg = (await owner.get("/api/e/classes/aggregate?groupBy=name&aggregate=avg&field=monthly_fee&filter.code.eq=PHYS")).body;
+    expect(avg.groups).toEqual([{ key: "Physique", value: 3000 }]);
+  });
+
+  it("keeps a role's limits", async () => {
+    const own = (await limited.get("/api/e/students/aggregate?groupBy=class&aggregate=count")).body;
+    expect(own.groups).toEqual([{ key: classA, value: 1 }]); // Their own row only, and no target name.
+    expect((await limited.get("/api/e/classes/aggregate?groupBy=code&aggregate=count")).status).toBe(404);
+    expect((await viewer.get("/api/e/classes/aggregate?groupBy=code&aggregate=sum&field=monthly_fee")).status).toBe(400);
+    expect((await viewer.get("/api/e/classes/aggregate?groupBy=monthly_fee&aggregate=count")).status).toBe(400);
+  });
+
+  it("refuses a bad request", async () => {
+    expect((await owner.get("/api/e/students/aggregate")).status).toBe(400);
+    expect((await owner.get("/api/e/students/aggregate?groupBy=level&aggregate=drop")).status).toBe(400);
+    expect((await owner.get("/api/e/students/aggregate?groupBy=level&aggregate=sum")).status).toBe(400);
+    expect((await owner.get("/api/e/students/aggregate?groupBy=full_name&aggregate=sum&field=full_name")).status).toBe(400);
+    expect((await owner.get("/api/e/students/aggregate?groupBy=ghost&aggregate=count")).status).toBe(400);
+    expect((await owner.get("/api/e/ghost/aggregate?groupBy=level&aggregate=count")).status).toBe(404);
+    expect((await new Client(running.base).get("/api/e/students/aggregate?groupBy=level&aggregate=count")).status).toBe(401);
   });
 });
