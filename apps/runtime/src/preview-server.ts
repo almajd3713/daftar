@@ -56,6 +56,7 @@ export async function startPreview(options: PreviewOptions): Promise<Preview> {
       spec,
       db,
       seedDir: existsSync(seedDir) ? seedDir : undefined,
+      previewCookie: options.databaseName,
       config: {
         secret: randomBytes(32).toString("hex"),
         timezone: spec.app.timezone,

@@ -18,19 +18,17 @@ export const RUNTIME = Symbol("runtime");
 export interface Runtime {
   spec: DaftarSpec;
   config: Pick<Config, "timezone" | "processor" | "workerUrl">;
+  /** The session cookie's name. Only a preview changes it. */
+  sessionCookie: string;
+  preview: boolean;
   db: Db;
   auth: AuthService;
   records: RecordService;
   clock: () => Date;
 }
 
-const COOKIE = "daftar_session";
 const BOM = String.fromCharCode(0xfeff); // So Excel reads the CSV as UTF-8.
 const FILTER = /^filter\.([a-z][a-z0-9_]*)(?:\.([a-zA-Z]+))?$/;
-
-function tokenOf(request: Request): string | undefined {
-  return parseCookie(request.headers.cookie ?? "")[COOKIE];
-}
 
 function listQuery(query: Record<string, unknown>): ListQuery {
   const text = (key: string): string | undefined => (typeof query[key] === "string" ? (query[key]) : undefined);
@@ -53,8 +51,12 @@ function listQuery(query: Record<string, unknown>): ListQuery {
 export class ApiController {
   constructor(@Inject(RUNTIME) private readonly runtime: Runtime) {}
 
+  private tokenOf(request: Request): string | undefined {
+    return parseCookie(request.headers.cookie ?? "")[this.runtime.sessionCookie];
+  }
+
   private async user(request: Request): Promise<User> {
-    const user = await this.runtime.auth.fromToken(tokenOf(request));
+    const user = await this.runtime.auth.fromToken(this.tokenOf(request));
     if (!user) throw new Unauthorized();
     return user;
   }
@@ -62,7 +64,7 @@ export class ApiController {
   private setSession(request: Request, response: Response, token: string, expires: Date): void {
     response.setHeader(
       "Set-Cookie",
-      serialize(COOKIE, token, { httpOnly: true, sameSite: "lax", secure: request.secure, path: "/", expires }),
+      serialize(this.runtime.sessionCookie, token, { httpOnly: true, sameSite: "lax", secure: request.secure, path: "/", expires }),
     );
   }
 
@@ -70,7 +72,11 @@ export class ApiController {
   async status() {
     // Before anyone signs in, the page still needs the firm's name and language.
     const { name, locales, defaultLocale } = this.runtime.spec.app;
-    return { needsSetup: await this.runtime.auth.needsSetup(), app: { name, locales, defaultLocale } };
+    return {
+      needsSetup: await this.runtime.auth.needsSetup(),
+      app: { name, locales, defaultLocale },
+      ...(this.runtime.preview ? { preview: true } : {}),
+    };
   }
 
   @Post("auth/setup")
@@ -91,8 +97,8 @@ export class ApiController {
   @Post("auth/logout")
   @HttpCode(204)
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response): Promise<void> {
-    await this.runtime.auth.logout(tokenOf(request));
-    response.setHeader("Set-Cookie", serialize(COOKIE, "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 }));
+    await this.runtime.auth.logout(this.tokenOf(request));
+    response.setHeader("Set-Cookie", serialize(this.runtime.sessionCookie, "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 }));
   }
 
   @Get("auth/me")
@@ -127,7 +133,7 @@ export class ApiController {
   @Post("auth/password")
   @HttpCode(204)
   async changePassword(@Body() body: Record<string, unknown>, @Req() request: Request): Promise<void> {
-    await this.runtime.auth.changePassword(await this.user(request), tokenOf(request), body.currentPassword, body.newPassword);
+    await this.runtime.auth.changePassword(await this.user(request), this.tokenOf(request), body.currentPassword, body.newPassword);
   }
 
   @Get("meta")

@@ -679,7 +679,7 @@ class Generator:
                 cell = grid.get(row, column_index_from_string(letter))
                 if cell is None:
                     continue
-                value = self._convert(entry, cell, sheet, letter, row)
+                value = self._convert(entity, entry, cell, sheet, letter, row)
                 if value is not None:
                     record[entry["key"]] = value
                     filled = True
@@ -691,10 +691,10 @@ class Generator:
                 rows.append(record)
         return rows
 
-    def _convert(self, entry: dict[str, Any], cell: Any, sheet: str, letter: str, row: int) -> Any:
+    def _convert(self, entity: str, entry: dict[str, Any], cell: Any, sheet: str, letter: str, row: int) -> Any:
         value = convert_value(entry, cell)
         if value is None and cell.value is not None:
-            self.report.bad_values.append({"sheet": sheet, "cell": f"{letter}{row}", "field": entry["key"], "type": entry["type"]})
+            self.report.bad_values.append({"entity": entity, "sheet": sheet, "cell": f"{letter}{row}", "field": entry["key"], "type": entry["type"]})
         return value
 
     def _add_workflow(self, entity: dict[str, Any], outcome: str) -> None:
@@ -1013,7 +1013,9 @@ def write_project_outputs(output: Path, spec: dict[str, Any], seed: dict[str, li
     for key, rows in seed.items():
         lines = "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows)
         (seed_dir / f"{key}.jsonl").write_text(lines, encoding="utf-8")
-    (output / "generation-report.json").write_text(
+    # Last and whole, because the Studio can read it during the next generation.
+    partial = output / "generation-report.json.partial"
+    partial.write_text(
         json.dumps(
             {
                 "entities": report.entities,
@@ -1029,3 +1031,4 @@ def write_project_outputs(output: Path, spec: dict[str, Any], seed: dict[str, li
         + "\n",
         encoding="utf-8",
     )
+    partial.replace(output / "generation-report.json")
