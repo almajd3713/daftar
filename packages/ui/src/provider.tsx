@@ -105,9 +105,9 @@ export function useFrame(): { narrow: boolean } {
   return use(FrameContext);
 }
 
-/** Measures itself, and tells the components inside which layout they're in. */
-export function useFrameWidth(ref: RefObject<HTMLElement | null>): boolean {
-  const [narrow, setNarrow] = useState(false);
+/** Measures itself, and tells the components inside which layout they're in. Null until it has measured. */
+export function useFrameWidth(ref: RefObject<HTMLElement | null>): boolean | null {
+  const [narrow, setNarrow] = useState<boolean | null>(null);
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return undefined;
@@ -129,10 +129,12 @@ export interface FrameProps {
 export function Frame({ children, className }: FrameProps): ReactNode {
   const ref = useRef<HTMLDivElement>(null);
   const narrow = useFrameWidth(ref);
-  const value = useMemo(() => ({ narrow }), [narrow]);
+  const value = useMemo(() => ({ narrow: narrow ?? false }), [narrow]);
+  // Nothing inside until the width is known. Mounting a screen for the wrong layout, then again for the right one,
+  // would send every request it makes on mounting twice. A measure happens before the first paint, so nobody sees this.
   return (
-    <div ref={ref} className={className} data-layout={narrow ? "narrow" : "wide"}>
-      <FrameContext value={value}>{children}</FrameContext>
+    <div ref={ref} className={className} data-layout={narrow === null ? undefined : narrow ? "narrow" : "wide"}>
+      {narrow === null ? null : <FrameContext value={value}>{children}</FrameContext>}
     </div>
   );
 }

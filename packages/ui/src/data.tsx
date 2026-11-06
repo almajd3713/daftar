@@ -127,6 +127,19 @@ export function EmptyState({ title, children, actions }: { title: ReactNode; chi
   );
 }
 
+/** Where a long list has got to, and the way on. Pass the two buttons; leave one out at an end. */
+export function Pager({ label, status, previous, next }: { label: string; status: ReactNode; previous?: ReactNode; next?: ReactNode }): ReactNode {
+  return (
+    <nav className={classes.pager} aria-label={label}>
+      <span className={classes.pagerStatus}>{status}</span>
+      <div className={classes.pagerButtons}>
+        {previous}
+        {next}
+      </div>
+    </nav>
+  );
+}
+
 export interface NoticeProps {
   /** `wrong` is red pen: something failed or needs fixing. `note` is ink: worth reading, but nothing is wrong. */
   tone?: "note" | "wrong" | undefined;

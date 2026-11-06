@@ -14,6 +14,7 @@ The plan is in [`docs/03-blueprint.md`](docs/03-blueprint.md). The research note
 | `packages/ui` | Registre, the design system the Runtime and Studio share: see [`packages/ui/README.md`](packages/ui/README.md) |
 | `apps/worker` | The Python worker: reads, analyses, exports and diffs workbooks |
 | `apps/runtime` | The NestJS runtime: serves any valid spec on Postgres, with roles, history and computed fields |
+| `apps/runtime-ui` | The screens a firm uses, in React on `packages/ui`, which the runtime serves from its own origin. Being built: so far first start, login, lists and forms |
 | `eval` | The labelled evaluation set and its rules: see [`eval/README.md`](eval/README.md) |
 | `compose.dev.yaml` | Dev stack: Postgres and the worker image, with LibreOffice installed |
 
