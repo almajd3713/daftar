@@ -28,6 +28,7 @@ from daftar_worker.errors import WorkerError
 from daftar_worker.llm.client import settings_from_env
 from daftar_worker.project.decisions import accept_high_confidence, decide
 from daftar_worker.project.files import (
+    ANSWERS,
     project_answer,
     project_generate,
     project_init,
@@ -44,6 +45,7 @@ MAX_RANGE_CELLS = 20_000
 MAX_JOBS = 64
 UPLOADS = re.compile(r"^/api/projects(/[0-9a-f]{32}/reanalyze)?$")
 PROJECT_FILE = "project.json"
+REPORT_FILE = "generation-report.json"
 SHEET_SUMMARY_DROPPED = ("cells", "merges", "validations", "conditionalFormats", "hiddenRows", "hiddenColumns")
 SCHEMA_PATH = Path(__file__).parent.parent / "analyser" / "analysis.schema.json"
 BUSY = {"fr": "Une analyse est en cours sur ce projet. Attendez la fin.", "ar": "يجري تحليل هذا المشروع. انتظر حتى ينتهي."}
@@ -122,8 +124,11 @@ class Jobs:
         return job_id
 
     def is_busy(self, project: str) -> bool:
+        return self.running_on(project) is not None
+
+    def running_on(self, project: str) -> str | None:
         with self._lock:
-            return project in self._busy
+            return self._busy.get(project)
 
     def get(self, job_id: str) -> dict[str, Any] | None:
         return self._jobs.get(job_id)
@@ -132,11 +137,12 @@ class Jobs:
 class Store:
     """Projects on disk. A folder counts as a project once its first analysis has finished."""
 
-    def __init__(self, root: Path, who: str, jobs: Jobs) -> None:
+    def __init__(self, root: Path, who: str, jobs: Jobs, previews: Previews | None = None) -> None:
         root.mkdir(parents=True, exist_ok=True)
         self.root = root
         self.who = who
         self.jobs = jobs
+        self.previews = previews
         self.lock = threading.RLock()
         self.validator = _finding_validator()
 
@@ -163,8 +169,53 @@ class Store:
             for finding in findings:
                 counts[finding["decision"]["status"]] += 1
             modified = (path / "analysis.json").stat().st_mtime
-            out.append({**_read(path / PROJECT_FILE), "updatedAt": datetime.fromtimestamp(modified, UTC).isoformat(timespec="seconds"), "counts": counts})
+            out.append(
+                {
+                    **_read(path / PROJECT_FILE),
+                    "updatedAt": datetime.fromtimestamp(modified, UTC).isoformat(timespec="seconds"),
+                    "counts": counts,
+                    **self._live_state(path),
+                }
+            )
         return sorted(out, key=lambda item: item["updatedAt"], reverse=True)
+
+    def _live_state(self, folder: Path) -> dict[str, Any]:
+        """What a reloaded page can't remember: what's running, and whether the report still holds."""
+        job = self.jobs.running_on(folder.name)
+        report = folder / REPORT_FILE
+        inputs = (path for path in (folder / "analysis.json", folder / ANSWERS) if path.exists())
+        return {
+            **({"jobId": job} if job else {}),
+            "generated": report.exists(),
+            "generationStale": report.exists() and any(path.stat().st_mtime_ns > report.stat().st_mtime_ns for path in inputs),
+            "previewRunning": self.previews is not None and self.previews.running(folder.name) is not None,
+        }
+
+    def generation(self, project: str) -> dict[str, Any]:
+        folder = self.folder(project)
+        if not (folder / REPORT_FILE).exists():
+            raise Missing
+        report: dict[str, Any] = _read(folder / REPORT_FILE)
+        spec_path = folder / "daftar.spec.json"
+        entities = _read(spec_path)["entities"] if spec_path.exists() else []
+        return {
+            **report,
+            "questions": self._open_questions(folder, report["questions"]),
+            "labels": {
+                entity["key"]: {"label": entity["label"], "fields": {item["key"]: item["label"] for item in entity["fields"]}}
+                for entity in entities
+            },
+        }
+
+    @staticmethod
+    def _open_questions(folder: Path, questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        answers = _read(folder / ANSWERS) if (folder / ANSWERS).exists() else {"periodYears": {}, "retention": {}}
+        return [
+            item
+            for item in questions
+            if not (item["kind"] == "periodYear" and item["sheet"] in answers["periodYears"])
+            and not (item["kind"] == "confirmRetention" and item["entity"] in answers["retention"])
+        ]
 
     def decide(self, project: str, finding_id: str, status: Any, value: Any) -> dict[str, Any]:
         folder = self._editable(project)
@@ -222,15 +273,9 @@ class Store:
         if not valid:
             raise Refused(400, BAD_ANSWER)
         with self.lock:
-            answers = project_answer(folder, body)
-        report = folder / "generation-report.json"
-        questions: list[dict[str, Any]] = _read(report)["questions"] if report.exists() else []
-        return [
-            item
-            for item in questions
-            if not (item["kind"] == "periodYear" and item["sheet"] in answers["periodYears"])
-            and not (item["kind"] == "confirmRetention" and item["entity"] in answers["retention"])
-        ]
+            project_answer(folder, body)
+        report = folder / REPORT_FILE
+        return self._open_questions(folder, _read(report)["questions"] if report.exists() else [])
 
     def snapshot(self, project: str) -> dict[str, Any]:
         snapshot: dict[str, Any] = _read(self.folder(project) / "snapshot.json")
@@ -298,7 +343,7 @@ async def _save_upload(request: Request, directory: str, file_name: str) -> Path
 
 def create_studio_app(root: Path, who: str, port: int, previews: Previews | None = None) -> FastAPI:
     jobs = Jobs()
-    store = Store(root, who, jobs)
+    store = Store(root, who, jobs, previews)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -441,10 +486,13 @@ def create_studio_app(root: Path, who: str, port: int, previews: Previews | None
 
         def work() -> dict[str, Any]:
             project_generate(folder)
-            report: dict[str, Any] = _read(folder / "generation-report.json")
-            return report
+            return store.generation(project)
 
         return {"jobId": jobs.start(project, work)}
+
+    @app.get("/api/projects/{project}/generation")
+    def generation(project: str) -> dict[str, Any]:
+        return store.generation(project)
 
     @app.post("/api/projects/{project}/answers")
     def answers(project: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -469,7 +517,7 @@ def create_studio_app(root: Path, who: str, port: int, previews: Previews | None
 
     @app.get("/api/projects/{project}/preview/open")
     def open_preview(request: Request, project: str) -> Response:
-        """Signs this browser in to the preview, then goes there. A cookie doesn't care about ports."""
+        """Signs this browser in to the preview, then goes there. Cookies ignore ports, so each preview has its own name."""
         store.folder(project)
         running = previews.running(project) if previews else None
         if running is None:

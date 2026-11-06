@@ -37,6 +37,10 @@ describe("the operator's preview", () => {
       const list = await (await fetch(`${base}/api/e/classes`, signedIn)).json();
       expect(list.rows.map((row: { code: string }) => row.code)).toEqual(["MATH"]);
       expect((await fetch(`${base}/api/auth/me`)).status).toBe(401);
+      // Another Runtime on this host, whose cookie this browser also sends, must not be touched.
+      expect(preview.cookie.startsWith(`${name}=`)).toBe(true);
+      expect((await fetch(`${base}/api/auth/me`, { headers: { Cookie: preview.cookie.replace(name, "daftar_session") } })).status).toBe(401);
+      expect((await (await fetch(`${base}/api/auth/status`)).json()).preview).toBe(true);
     } finally {
       await preview.stop();
     }

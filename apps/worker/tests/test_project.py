@@ -314,7 +314,8 @@ def test_a_value_that_doesnt_fit_is_reported_not_lost_silently(tmp_path: Path) -
     sheet.write_string("B21", "voir facture")
     book.close()
     _, _, report = generate(path)
-    assert report.bad_values == [{"sheet": "S", "cell": "B21", "field": "montant", "type": "money"}]
+    assert report.bad_values == [{"entity": report.bad_values[0]["entity"], "sheet": "S", "cell": "B21", "field": "montant", "type": "money"}]
+    assert report.bad_values[0]["entity"]
 
 
 @pytest.mark.parametrize(

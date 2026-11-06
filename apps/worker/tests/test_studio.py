@@ -231,6 +231,68 @@ def test_answers_survive_a_rerun_and_reach_the_app(client: TestClient, tmp_path:
     assert second["rows"]["suivi_par_periode"] == 12
 
 
+def test_the_report_can_be_read_again_with_names_and_open_questions(client: TestClient, tmp_path: Path) -> None:
+    project = uploaded(client, _months(tmp_path, year=False))
+    assert client.get(f"/api/projects/{project}/generation").status_code == 404
+    for finding in analysis_of(client, project)["findings"]:
+        if finding["kind"] != "unsupported":
+            client.put(f"/api/projects/{project}/findings/{finding['id']}/decision", json={"status": "accepted"})
+    result = finished(client, client.post(f"/api/projects/{project}/generate", json={}).json()["jobId"])["result"]
+    read = client.get(f"/api/projects/{project}/generation").json()
+    assert read == result
+    sheet = next(item["sheet"] for item in read["questions"] if item["kind"] == "periodYear")
+    client.post(f"/api/projects/{project}/answers", json={"kind": "periodYear", "sheet": sheet, "year": 2026})
+    after = client.get(f"/api/projects/{project}/generation").json()["questions"]
+    assert sheet not in [item.get("sheet") for item in after]
+    assert len(after) == len(read["questions"]) - 1
+
+
+def test_the_report_names_things_in_the_words_of_the_workbook(client: TestClient, tmp_path: Path) -> None:
+    project = uploaded(client, _months(tmp_path))
+    for finding in analysis_of(client, project)["findings"]:
+        if finding["kind"] != "unsupported":
+            client.put(f"/api/projects/{project}/findings/{finding['id']}/decision", json={"status": "accepted"})
+    finished(client, client.post(f"/api/projects/{project}/generate", json={}).json()["jobId"])
+    read = client.get(f"/api/projects/{project}/generation").json()
+    assert set(read["labels"]) >= set(read["rows"]) and read["rows"]
+    entity = read["labels"][next(iter(read["rows"]))]
+    assert entity["label"]["fr"]
+    assert entity["fields"]
+    assert all(label["fr"] and label["ar"] for label in entity["fields"].values())
+
+
+def test_a_reload_finds_the_running_job_and_the_generated_state(client: TestClient, tutoring: bytes, monkeypatch: pytest.MonkeyPatch) -> None:
+    project = uploaded(client, tutoring)
+    state = client.get("/api/projects").json()[0]
+    assert "jobId" not in state
+    assert (state["generated"], state["generationStale"], state["previewRunning"]) == (False, False, False)
+
+    gate = {"open": False}
+    real = project_reanalyze
+
+    def slow(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        while not gate["open"]:
+            time.sleep(0.01)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr("daftar_worker.studio.app.project_reanalyze", slow)
+    job = client.post(f"/api/projects/{project}/reanalyze", json={}).json()["jobId"]
+    assert client.get("/api/projects").json()[0]["jobId"] == job
+    gate["open"] = True
+    finished(client, job)
+    assert "jobId" not in client.get("/api/projects").json()[0]
+
+    client.post(f"/api/projects/{project}/decisions/accept-high", json={})
+    finished(client, client.post(f"/api/projects/{project}/generate", json={}).json()["jobId"])
+    state = client.get("/api/projects").json()[0]
+    assert (state["generated"], state["generationStale"]) == (True, False)
+    finding = analysis_of(client, project)["findings"][0]
+    time.sleep(0.02)  # So the two files can't share a timestamp.
+    client.put(f"/api/projects/{project}/findings/{finding['id']}/decision", json={"status": "rejected"})
+    state = client.get("/api/projects").json()[0]
+    assert (state["generated"], state["generationStale"]) == (True, True)
+
+
 def test_nothing_is_changed_while_a_job_runs(client: TestClient, tutoring: bytes, monkeypatch: pytest.MonkeyPatch) -> None:
     project = uploaded(client, tutoring)
     finding = analysis_of(client, project)["findings"][0]
@@ -296,7 +358,7 @@ import json, os, sys
 assert os.environ["DAFTAR_PREVIEW_DATABASE"].startswith("daftar_preview_")
 assert os.path.exists(os.environ["DAFTAR_SPEC_PATH"])
 assert "SECRET_OF_THE_STUDIO" not in os.environ
-print(json.dumps({"port": 45678, "cookie": "daftar_session=abc"}), flush=True)
+print(json.dumps({"port": 45678, "cookie": "daftar_preview_x=abc"}), flush=True)
 sys.stdin.read()
 """
 
@@ -334,10 +396,11 @@ def test_a_preview_opens_signed_in_and_stops(with_preview: TestClient, previews:
     opened = with_preview.get(job["result"]["url"])
     assert opened.status_code == 303
     assert opened.headers["location"] == "http://127.0.0.1:45678/"
-    assert "daftar_session=abc" in opened.headers["set-cookie"]
+    assert "daftar_preview_x=abc" in opened.headers["set-cookie"]
     assert "httponly" in opened.headers["set-cookie"].lower()
     running = previews.running(project)
     assert running is not None
+    assert with_preview.get("/api/projects").json()[0]["previewRunning"] is True
     process, folder = running.process, Path(running.folder.name)
     assert with_preview.delete(f"/api/projects/{project}/preview").status_code == 204
     assert process.poll() is not None

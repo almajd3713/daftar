@@ -50,6 +50,8 @@ export interface AppOptions {
   clock?: () => Date;
   /** The accepted import data (C-8), loaded once on first start. */
   seedDir?: string;
+  /** Set only by the Studio's preview. Cookies ignore ports, so it can't share the usual name. */
+  previewCookie?: string;
 }
 
 export async function createApp(options: AppOptions): Promise<INestApplication> {
@@ -63,6 +65,8 @@ export async function createApp(options: AppOptions): Promise<INestApplication> 
     spec,
     db,
     config: { ...config, workerUrl: config.workerUrl },
+    sessionCookie: options.previewCookie ?? "daftar_session",
+    preview: options.previewCookie !== undefined,
     clock,
     auth: new AuthService(db, spec, config.secret),
     records,
