@@ -66,6 +66,7 @@ Spacing is `space-1`, `2`, `3`, `4`, `6`, `8`, `12`: multiples of 4 px, in rem. 
 - The radius is 2 px, on inputs and buttons only.
 - At most one primary button on a page.
 - Below 768 px of its own width a frame goes to its phone layout. Use `useFrame()` rather than a media query, so the Studio's embedded preview behaves like a phone.
+- Keep a screen's state above whatever `useFrame()` switches on. The shell and `Page` keep their children in place across the breakpoint, so turning a phone doesn't lose what someone typed, and a screen must not undo that.
 
 **Touch and keyboard**
 - A finger gets 44 px, and a mouse 24 px. `--target` and `--control` already do this.
@@ -79,7 +80,8 @@ Spacing is `space-1`, `2`, `3`, `4`, `6`, `8`, `12`: multiples of 4 px, in rem. 
 
 **Forms**
 - One column. `FieldPair` only for two short, related fields.
-- The order is label, hint, error, field. `ErrorSummary` goes at the top, even for one error, with the same words as the field, and takes focus.
+- The order is label, hint, error, field. `ErrorSummary` goes at the top, even for one error, and takes focus. Each line has the field's words and names the field, because three "this field is required" tell nobody what to fix.
+- A pinned foot sits outside the form, so give `FormBody` an `id` and its submit button the matching `form`.
 - Pick the field by the value, because each sets its own direction and keyboard: `TextField`, `LongTextField`, `NumberField`, `MoneyField`, `DateField`, `PhoneField`, `EmailField`, `ChoiceField`, `PasswordField`, `FileField`.
 
 **Empty, waiting and messages**
@@ -97,7 +99,7 @@ Spacing is `space-1`, `2`, `3`, `4`, `6`, `8`, `12`: multiples of 4 px, in rem. 
 | Root | `DaftarProvider`, `useDaftar`, `useStoredLocale`, `Frame`, `useFrame` |
 | Text | `UserText`, `CodeText`, `Amount`, `Money`, `Percent`, `DateText`, `DateTimeText`, `PhoneLink`, `LateTag`, `TextLink`, `StatusChip`, `Confidence` |
 | Layout | `AppFrame`, `BareFrame`, `AuthLayout`, `Page`, `ViewTabs`, `FootRow`, `LanguageSwitch`, `Button` |
-| Records | `LedgerTable`, `RecordList`, `RecordRow`, `EmptyState`, `Notice`, `Waiting`, `FactList`, `Fact`, `TwoColumns`, `Gutter`, `SectionHeading`, `HistoryList`, `Change`, `StateLine` |
+| Records | `LedgerTable`, `RecordList`, `RecordRow`, `Pager`, `EmptyState`, `Notice`, `Waiting`, `FactList`, `Fact`, `TwoColumns`, `Gutter`, `SectionHeading`, `HistoryList`, `Change`, `StateLine` |
 | Statements and dashboards | `Statement`, `StatementLine`, `HeroFigure`, `LeadRow`, `Panels`, `Panel`, `LineChart`, `BarList` |
 | Board | `BoardColumns`, `BoardColumn`, `BoardCard` |
 | Forms | The fields above, `SearchField`, `FormBody`, `FormSection`, `FieldPair`, `FormActions`, `ErrorSummary` |

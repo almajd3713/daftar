@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./styles.css": "./src/styles/index.css",
     "./format": "./src/format.ts",
-    "./tokens": "./src/tokens.ts"
+    "./tokens": "./src/tokens.ts",
+    "./testing": "./tests/browser/measure.ts"
   },
   "scripts": {
     "generate": "node scripts/generate-tokens.mjs",

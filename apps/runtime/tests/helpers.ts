@@ -6,7 +6,7 @@ import { sql } from "kysely";
 
 import type { DaftarSpec } from "@daftar/spec/types";
 
-import { createApp } from "../src/app.js";
+import { createApp, type AppOptions } from "../src/app.js";
 import { createDb, type Db } from "../src/db.js";
 import { parseSpec } from "../src/spec/loader.js";
 
@@ -50,9 +50,9 @@ export async function newDatabase(): Promise<{ db: Db; name: string; drop: () =>
   };
 }
 
-export async function start(spec: DaftarSpec, clock?: () => Date): Promise<Running> {
+export async function start(spec: DaftarSpec, clock?: () => Date, extra: Pick<AppOptions, "uiDir" | "previewCookie"> = {}): Promise<Running> {
   const { db, name, drop } = await newDatabase();
-  const app = await createApp({ spec, db, clock, config: { secret: "test-secret-value", timezone: "Africa/Algiers", processor: "Atelier de test" } });
+  const app = await createApp({ ...extra, spec, db, clock, config: { secret: "test-secret-value", timezone: "Africa/Algiers", processor: "Atelier de test" } });
   await app.listen(0, "127.0.0.1");
   const base = await app.getUrl();
   return {

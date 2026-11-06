@@ -12,6 +12,7 @@ import { sql } from "kysely";
 import { createApp } from "./app.js";
 import { createDb, type Db } from "./db.js";
 import { loadSpec } from "./spec/loader.js";
+import { findUiDir } from "./ui.js";
 
 const SAFE_NAME = /^[a-z][a-z0-9_]{0,62}$/;
 
@@ -32,6 +33,18 @@ async function dropDatabase(admin: Db, name: string): Promise<void> {
   await sql`DROP DATABASE IF EXISTS ${sql.ref(name)} WITH (FORCE)`.execute(admin);
 }
 
+/**
+ * destroy() asks each connection to close without waiting for the server to finish. FORCE would kill one still on
+ * its way out, and that client, out of the pool, has nobody to take the error, so it brings down the process.
+ */
+async function whenDisconnected(admin: Db, name: string): Promise<void> {
+  for (let tries = 0; tries < 100; tries += 1) {
+    const { rows } = await sql<{ open: number }>`SELECT count(*)::int AS open FROM pg_stat_activity WHERE datname = ${name}`.execute(admin);
+    if (!rows[0]?.open) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
 export async function startPreview(options: PreviewOptions): Promise<Preview> {
   if (!SAFE_NAME.test(options.databaseName)) throw new Error("unsafe preview database name");
   const spec = loadSpec(options.specPath);
@@ -41,6 +54,7 @@ export async function startPreview(options: PreviewOptions): Promise<Preview> {
   const stop = async (): Promise<void> => {
     await app?.close();
     await db?.destroy();
+    await whenDisconnected(admin, options.databaseName);
     await dropDatabase(admin, options.databaseName);
     await admin.destroy();
   };
@@ -56,6 +70,7 @@ export async function startPreview(options: PreviewOptions): Promise<Preview> {
       spec,
       db,
       seedDir: existsSync(seedDir) ? seedDir : undefined,
+      uiDir: findUiDir(),
       previewCookie: options.databaseName,
       config: {
         secret: randomBytes(32).toString("hex"),

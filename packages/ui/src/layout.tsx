@@ -76,50 +76,47 @@ function Shell({ firm, nav, current, onNavigate, moreKey = "more", user, languag
   const { narrow } = useFrame();
   const { ui } = useDaftar();
   const flat = nav.flat();
-  if (narrow) {
-    const onBar = flat.slice(0, 4);
-    const moreIsCurrent = current === moreKey || (current !== undefined && flat.slice(4).some((item) => item.key === current));
-    return (
-      <div className={classes.narrow}>
-        {children}
-        {!hideNavOnPhone && flat.length > 0 ? (
-          <nav className={classes.bar} aria-label={ui("menu")}>
-            <ul>
-              {onBar.map((item) => (
-                <li key={item.key}>
-                  <NavButton item={item} current={item.key === current} onNavigate={onNavigate} className={classes.barItem ?? ""} />
-                </li>
-              ))}
-              <li>
-                <NavButton item={{ key: moreKey, label: ui("more") }} current={moreIsCurrent} onNavigate={onNavigate} className={classes.barItem ?? ""} />
-              </li>
-            </ul>
-          </nav>
-        ) : null}
-      </div>
-    );
-  }
+  const onBar = flat.slice(0, 4);
+  const moreIsCurrent = current === moreKey || (current !== undefined && flat.slice(4).some((item) => item.key === current));
+  // One tree for both layouts, with `children` in the same place. Otherwise turning a phone or resizing a window
+  // across the breakpoint would rebuild the screen, and throw away whatever someone had typed into a form.
   return (
-    <div className={classes.wide}>
-      <aside className={classes.side}>
-        <strong className={classes.firm}>{firm}</strong>
-        <nav className={classes.index} aria-label={ui("menu")}>
-          {nav.map((group, index) => (
-            <ul key={index}>
-              {group.map((item) => (
-                <li key={item.key}>
-                  <NavButton item={item} current={item.key === current} onNavigate={onNavigate} className={classes.indexItem ?? ""} />
-                </li>
-              ))}
-            </ul>
-          ))}
-        </nav>
-        <div className={classes.sideFoot}>
-          {user}
-          {language}
-        </div>
-      </aside>
+    <div className={narrow ? classes.narrow : classes.wide}>
+      {narrow ? null : (
+        <aside className={classes.side}>
+          <strong className={classes.firm}>{firm}</strong>
+          <nav className={classes.index} aria-label={ui("menu")}>
+            {nav.map((group, index) => (
+              <ul key={index}>
+                {group.map((item) => (
+                  <li key={item.key}>
+                    <NavButton item={item} current={item.key === current} onNavigate={onNavigate} className={classes.indexItem ?? ""} />
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </nav>
+          <div className={classes.sideFoot}>
+            {user}
+            {language}
+          </div>
+        </aside>
+      )}
       {children}
+      {narrow && !hideNavOnPhone && flat.length > 0 ? (
+        <nav className={classes.bar} aria-label={ui("menu")}>
+          <ul>
+            {onBar.map((item) => (
+              <li key={item.key}>
+                <NavButton item={item} current={item.key === current} onNavigate={onNavigate} className={classes.barItem ?? ""} />
+              </li>
+            ))}
+            <li>
+              <NavButton item={{ key: moreKey, label: ui("more") }} current={moreIsCurrent} onNavigate={onNavigate} className={classes.barItem ?? ""} />
+            </li>
+          </ul>
+        </nav>
+      ) : null}
     </div>
   );
 }
@@ -199,40 +196,34 @@ export interface PageProps {
 export function Page({ title, subtitle, actions, foot, closing, onBack, children }: PageProps): ReactNode {
   const { narrow } = useFrame();
   const { ui } = useDaftar();
-  if (narrow) {
-    return (
-      <>
-        {title ? (
-          <header className={onBack ? `${classes.top} ${classes.topBack}` : classes.top}>
-            {onBack ? (
-              <button type="button" className={classes.backButton} aria-label={ui("back")} onClick={onBack}>
-                <BackIcon />
-              </button>
-            ) : null}
-            <h1 className={classes.title}>{title}</h1>
-          </header>
-        ) : null}
-        <main id="main" className={classes.mainNarrow} tabIndex={-1}>
-          {subtitle ? <div className={classes.subtitleNarrow}>{subtitle}</div> : null}
-          {children}
-        </main>
-        {foot ? <footer className={closing ? `${classes.foot} ${classes.footClosing}` : classes.foot}>{foot}</footer> : null}
-      </>
-    );
-  }
+  // As in the shell, `children` keeps its place in both layouts, so a field keeps its focus when a phone turns.
   return (
-    <main id="main" className={classes.mainWide} tabIndex={-1}>
-      {title ? (
-        <header className={classes.head}>
-          <div>
-            <h1 className={classes.title}>{title}</h1>
-            {subtitle ? <div className={classes.subtitle}>{subtitle}</div> : null}
-          </div>
-          {actions ? <div className={classes.actions}>{actions}</div> : null}
+    <>
+      {narrow && title ? (
+        <header className={onBack ? `${classes.top} ${classes.topBack}` : classes.top}>
+          {onBack ? (
+            <button type="button" className={classes.backButton} aria-label={ui("back")} onClick={onBack}>
+              <BackIcon />
+            </button>
+          ) : null}
+          <h1 className={classes.title}>{title}</h1>
         </header>
       ) : null}
-      {children}
-    </main>
+      <main id="main" className={narrow ? classes.mainNarrow : classes.mainWide} tabIndex={-1}>
+        {narrow && subtitle ? <div className={classes.subtitleNarrow}>{subtitle}</div> : null}
+        {!narrow && title ? (
+          <header className={classes.head}>
+            <div>
+              <h1 className={classes.title}>{title}</h1>
+              {subtitle ? <div className={classes.subtitle}>{subtitle}</div> : null}
+            </div>
+            {actions ? <div className={classes.actions}>{actions}</div> : null}
+          </header>
+        ) : null}
+        {children}
+      </main>
+      {narrow && foot ? <footer className={closing ? `${classes.foot} ${classes.footClosing}` : classes.foot}>{foot}</footer> : null}
+    </>
   );
 }
 

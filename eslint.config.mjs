@@ -25,7 +25,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["packages/ui/**/*.tsx"],
+    files: ["packages/ui/**/*.tsx", "apps/runtime-ui/**/*.tsx"],
     plugins: { "react-hooks": reactHooks },
     rules: { "react-hooks/rules-of-hooks": "error", "react-hooks/exhaustive-deps": "error" },
   },

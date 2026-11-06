@@ -264,6 +264,19 @@ def main() -> None:
         client = Client()
         status = client.call("auth/status")
         check(status["needsSetup"] is True, "first start asks for setup")
+        # Through the proxy, as a browser reaches it: a deep link has to work as well as the root.
+        for path in ("/", "/v/anything"):
+            with urllib.request.urlopen(f"http://127.0.0.1:{PORT}{path}", timeout=10) as page:
+                check('id="root"' in page.read().decode(), f"{path} serves the UI")
+                check(
+                    "frame-ancestors 'none'" in page.headers.get("Content-Security-Policy", ""),
+                    f"{path} can't be framed in a delivered app",
+                )
+        sources = subprocess.run(
+            ["docker", "compose", "exec", "-T", "runtime", "test", "!", "-e", "src"],
+            cwd=bundle, check=False, capture_output=True, env={**os.environ, "COMPOSE_PROJECT_NAME": PROJECT},
+        )  # fmt: skip
+        check(sources.returncode == 0, "the client runtime has no source files")
         try:
             Client().call("e/" + next(iter(seed)))
             check(False, "data needs a login")
