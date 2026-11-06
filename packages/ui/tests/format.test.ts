@@ -7,6 +7,7 @@ import {
   formatMoney,
   formatNumber,
   formatPercent,
+  formatPhone,
   monthName,
   parseAmount,
   parseDateInput,
@@ -17,6 +18,15 @@ import {
 import { chartScale, labelledPoints, labelWidth, lineRuns, pointPositions } from "../src/chart-scale.js";
 
 describe("R-21's formats", () => {
+  it("groups an Algerian phone number, in every form the server accepts, and leaves anything else alone", () => {
+    expect(formatPhone("0550123456")).toBe("0550 12 34 56");
+    expect(formatPhone("021123456")).toBe("021 12 34 56");
+    expect(formatPhone("+213550123456")).toBe("+213 550 12 34 56");
+    expect(formatPhone("00213550123456")).toBe("00213 550 12 34 56");
+    expect(formatPhone("+33612345678")).toBe("+33612345678");
+    expect(formatPhone("appeler Rafik")).toBe("appeler Rafik");
+  });
+
   it("writes DZD the way the blueprint spells it", () => {
     expect(formatMoney(1234567.89, "fr-DZ")).toBe("1\u00a0234\u00a0567,89\u00a0DA");
     expect(formatMoney(1234567.89, "ar-DZ")).toBe("\u200f1.234.567,89\u00a0د.ج.\u200f");

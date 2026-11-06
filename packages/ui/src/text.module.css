@@ -27,6 +27,8 @@
 .phone {
   display: inline-flex;
   align-items: center;
+  /* Width as well: a short code such as "MATH" is still something to tap. */
+  min-width: var(--target);
   min-height: var(--target);
   color: var(--accent);
   text-align: start;

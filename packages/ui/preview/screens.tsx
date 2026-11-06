@@ -35,6 +35,7 @@ import {
   HeroFigure,
   HistoryList,
   LanguageSwitch,
+  LastActions,
   LateTag,
   LeadRow,
   LineChart,
@@ -350,7 +351,7 @@ function RecordPage({ awkward }: { awkward: boolean }): ReactNode {
         <Gutter>
           <FactList>
             <Fact label={t("customer")}><UserText>Haddad Lynda</UserText></Fact>
-            <Fact label={t("phone")}><PhoneLink value="0550123456" display="0550 12 34 56" /></Fact>
+            <Fact label={t("phone")}><PhoneLink value="0550123456" /></Fact>
             <Fact label={t("problem")}><UserText>{problem}</UserText></Fact>
             <Fact label={t("assignee")}><UserText>Rafik</UserText></Fact>
             <Fact label={t("received")}><DateText value="2026-11-01" /></Fact>
@@ -371,6 +372,7 @@ function RecordPage({ awkward }: { awkward: boolean }): ReactNode {
           />
         </Gutter>
       </TwoColumns>
+      <Gutter><LastActions><Button>{t("delete")}</Button></LastActions></Gutter>
     </Page>
   );
 }

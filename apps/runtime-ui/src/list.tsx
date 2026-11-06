@@ -27,13 +27,11 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { useFetch, type ListResult, type Meta, type Row } from "./api.js";
 import { ProblemNotice } from "./auth.js";
-import { FieldValue } from "./fields.js";
+import { FieldValue, RecordTitle } from "./fields.js";
 import { navigate } from "./router.js";
 import { isListView, listPath, PAGE_SIZE } from "./views.js";
 import { isNumeric, kindOf, precisionOf } from "./values.js";
 import { rangeOf, useWords } from "./words.js";
-
-export const canDo = (meta: Meta, entity: string, action: string): boolean => meta.permissions.some((item) => item.entity === entity && item.actions.includes(action as never));
 
 function SearchBox({ view, q }: { view: string; q: string }): ReactNode {
   const [text, setText] = useState(q);
@@ -56,9 +54,8 @@ export function ListPage({ meta, view, entity, q, page }: { meta: Meta; view: Vi
   const t = useWords();
   const path = listPath(view, { q, page, today: todayIn(meta.app.timezone) });
   const { data, problem, loading, reload } = useFetch<ListResult>(path);
-  const editable = canDo(meta, entity.key, "update") && meta.forms.some((form) => form.entity === entity.key);
   const creatable = meta.forms.some((form) => form.entity === entity.key);
-  const open = (row: Row): void => navigate({ name: "edit", entity: entity.key, id: row._id, from: view.key });
+  const open = (row: Row): void => navigate({ name: "record", entity: entity.key, id: row._id, from: view.key });
   const add = creatable ? <Button primary leftSection={<PlusIcon />} onClick={() => navigate({ name: "new", entity: entity.key, from: view.key })}>{t("add")}</Button> : undefined;
   const tabs = meta.views.filter(isListView).filter((item) => item.entity === entity.key).map((item) => ({ key: item.key, label: say(item.label), ...(item.key === view.key && data ? { count: data.total } : {}) }));
   const header = <ViewTabs label={say(entity.label)} views={tabs} current={view.key} tools={<SearchBox key={view.key} view={view.key} q={q} />} onSelect={(key) => navigate({ name: "view", view: key, q: "", page: 1 })} />;
@@ -109,11 +106,11 @@ export function ListPage({ meta, view, entity, q, page }: { meta: Meta; view: Vi
           {data.rows.map((row) => (
             <RecordRow
               key={row._id}
-              title={titleField ? <FieldValue field={titleField} row={row} /> : <UserText>{row._name}</UserText>}
+              title={<RecordTitle entity={entity} row={row} />}
               amount={amount ? <FieldValue field={amount} row={row} /> : undefined}
               meta={<>{row._name !== row[entity.titleField] ? <UserText>{row._name}</UserText> : null}{date && row[date.key] ? <> · <FieldValue field={date} row={row} /></> : null}</>}
               status={status ? <FieldValue field={status} row={row} /> : undefined}
-              onClick={editable ? () => open(row) : undefined}
+              onClick={() => open(row)}
             />
           ))}
         </RecordList>
@@ -128,7 +125,7 @@ export function ListPage({ meta, view, entity, q, page }: { meta: Meta; view: Vi
     ...(kindOf(field) === "money" ? { unit: currencyLabel(locale) } : {}),
     numeric: isNumeric(field),
     nowrap: kindOf(field) === "date",
-    cell: (row: Row) => (index === 0 && editable ? <TextLink onClick={() => open(row)}><FieldValue field={field} row={row} /></TextLink> : <FieldValue field={field} row={row} />),
+    cell: (row: Row) => (index === 0 ? <TextLink onClick={() => open(row)}><FieldValue field={field} row={row} /></TextLink> : <FieldValue field={field} row={row} />),
   }));
   const totalCells = view.totals?.length ? Object.fromEntries(fieldsOf(entity, view.totals).map((field) => [field.key, <Amount key={field.key} value={totals[field.key] ?? 0} precision={precisionOf(field)} showZero />])) : undefined;
   return pageChrome(

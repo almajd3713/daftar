@@ -8,6 +8,7 @@ export type Route =
   | { name: "home" }
   | { name: "view"; view: string; q: string; page: number }
   | { name: "new"; entity: string; from: string | undefined }
+  | { name: "record"; entity: string; id: string; from: string | undefined }
   | { name: "edit"; entity: string; id: string; from: string | undefined }
   | { name: "more" }
   | { name: "missing" };
@@ -33,6 +34,7 @@ export function parseRoute(pathname: string, search: string): Route {
   }
   if (path[0] === "e" && path[1]) {
     if (path.length === 3 && path[2] === "new") return { name: "new", entity: path[1], from };
+    if (path.length === 3 && path[2]) return { name: "record", entity: path[1], id: path[2], from };
     if (path.length === 4 && path[2] && path[3] === "edit") return { name: "edit", entity: path[1], id: path[2], from };
   }
   return { name: "missing" };
@@ -55,6 +57,8 @@ export function pathOf(route: Route): string {
       return withQuery(`/v/${key(route.view)}`, { q: route.q, page: route.page > 1 ? String(route.page) : undefined });
     case "new":
       return withQuery(`/e/${key(route.entity)}/new`, { from: route.from });
+    case "record":
+      return withQuery(`/e/${key(route.entity)}/${key(route.id)}`, { from: route.from });
     case "edit":
       return withQuery(`/e/${key(route.entity)}/${key(route.id)}/edit`, { from: route.from });
   }
@@ -83,6 +87,17 @@ export function useRoute(): Route {
 }
 
 export function navigate(route: Route, options: { replace?: boolean } = {}): void {
-  history[options.replace ? "replaceState" : "pushState"](null, "", pathOf(route));
+  // Replacing an entry keeps what it knows about how it was reached.
+  if (options.replace) history.replaceState(history.state, "", pathOf(route));
+  else history.pushState({ inApp: true }, "", pathOf(route));
   listeners.forEach((listener) => listener());
+}
+
+/**
+ * Back within the app returns to the very page a person left, with its search and page number. An address that
+ * came from outside, such as a shared link, has nowhere to return to, so it goes up to `fallback` instead.
+ */
+export function goBack(fallback: Route): void {
+  if ((history.state as { inApp?: boolean } | null)?.inApp) history.back();
+  else navigate(fallback, { replace: true });
 }

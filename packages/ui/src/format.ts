@@ -60,6 +60,14 @@ export function formatPercent(ratio: number, locale: Locale): string {
   return locale === "fr-DZ" ? `${percent}${NBSP}%` : `${percent}%`;
 }
 
+/** An Algerian number as people read it out: 0550 12 34 56, 021 12 34 56. Anything else stays as stored. */
+export function formatPhone(value: string): string {
+  const match = /^(\+213|00213|0)(\d{2,3})(\d{2})(\d{2})(\d{2})$/.exec(value);
+  if (!match) return value;
+  const [, prefix, area, first, second, third] = match;
+  return `${prefix === "0" ? `0${area}` : `${prefix} ${area}`} ${first} ${second} ${third}`;
+}
+
 /** For chart axes: 150 k, 150 ألف. */
 export function formatCompact(value: number, locale: Locale): string {
   const abs = Math.abs(value);
