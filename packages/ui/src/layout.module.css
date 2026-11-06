@@ -1,0 +1,381 @@
+/* --frame-height lets a preview show a whole screen inside another page. */
+.frame {
+  position: relative;
+  min-height: var(--frame-height, 100dvh);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--t-body);
+  line-height: var(--l-body);
+}
+
+.bare {
+  display: flex;
+}
+
+.language {
+  color: var(--accent);
+  min-height: var(--target);
+  min-width: var(--target);
+  text-align: start;
+}
+
+.auth {
+  --form-gutter: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-8);
+}
+
+[data-layout="narrow"] .auth {
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.authTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.authBody {
+  display: grid;
+  gap: var(--space-6);
+  max-width: 26rem;
+}
+
+[data-layout="narrow"] .authBody {
+  max-width: none;
+}
+
+.authIntro {
+  margin-top: var(--space-1);
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.skip {
+  position: absolute;
+  inset-block-start: var(--space-2);
+  inset-inline-start: var(--space-2);
+  z-index: 20;
+  padding: var(--space-2) var(--space-3);
+  background: var(--accent);
+  color: var(--on-accent);
+  transform: translateY(-200%);
+}
+
+.skip:focus {
+  transform: none;
+}
+
+.wide {
+  display: flex;
+  min-height: var(--frame-height, 100dvh);
+}
+
+.narrow {
+  display: flex;
+  flex-direction: column;
+  height: var(--frame-height, 100dvh);
+}
+
+.side {
+  width: 14rem;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-4) var(--space-4);
+  border-inline-end: 1px solid var(--rule);
+}
+
+.firm {
+  font-weight: 700;
+}
+
+.index {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.indexItem {
+  display: block;
+  width: 100%;
+  min-height: var(--target);
+  padding-block: var(--space-1);
+  color: var(--muted);
+}
+
+.indexItem:hover {
+  color: var(--ink);
+}
+
+.indexItem[aria-current] {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.sideFoot {
+  margin-top: auto;
+  display: grid;
+  gap: var(--space-1);
+  color: var(--muted);
+  font-size: var(--t-small);
+  line-height: var(--l-small);
+}
+
+.mainWide {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-8);
+}
+
+.mainWide:focus,
+.mainNarrow:focus {
+  outline: none;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.title {
+  font-size: var(--t-h1);
+  line-height: var(--l-h1);
+  font-weight: 700;
+  text-wrap: balance;
+  min-width: 0;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: var(--t-small);
+  line-height: var(--l-small);
+}
+
+.subtitleNarrow {
+  padding: var(--space-1) var(--space-4) var(--space-2);
+  color: var(--muted);
+  font-size: var(--t-small);
+  line-height: var(--l-small);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  flex: none;
+  align-items: center;
+}
+
+/* Phone */
+.top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 3rem;
+  padding-inline: var(--space-4);
+  padding-block: var(--space-2) 0;
+}
+
+.topBack {
+  padding-inline-start: var(--space-1);
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.mainNarrow {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.bar {
+  flex: none;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.bar ul {
+  display: flex;
+}
+
+.bar li {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.barItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: var(--space-1);
+  color: var(--muted);
+  font-size: var(--t-small);
+  line-height: var(--l-small);
+  border-top: 2px solid transparent;
+  margin-top: -1px;
+  overflow-wrap: anywhere;
+}
+
+.barItem:hover {
+  color: var(--ink);
+}
+
+.barItem[aria-current] {
+  color: var(--accent);
+  font-weight: 700;
+  border-top-color: var(--accent);
+}
+
+.foot {
+  flex: none;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+}
+
+/* The accountant's close: a double rule above a total. */
+.footClosing {
+  border-top: 3px double var(--rule-strong);
+}
+
+.footRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+}
+
+.footTotal {
+  display: grid;
+  min-width: 0;
+}
+
+.footTotal b {
+  font-weight: 700;
+}
+
+.footLabel {
+  color: var(--muted);
+  font-size: var(--t-small);
+  line-height: var(--l-small);
+}
+
+.footAction {
+  flex: none;
+}
+
+.footActions {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.footActions > * {
+  flex: 1 1 auto;
+}
+
+/* Views */
+.viewsRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  border-bottom: 1px solid var(--rule);
+}
+
+.views {
+  display: flex;
+  gap: var(--space-6);
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
+}
+
+.views::-webkit-scrollbar {
+  display: none;
+}
+
+.view {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.5rem;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+
+.view:hover {
+  color: var(--ink);
+}
+
+.view[aria-current] {
+  color: var(--ink);
+  font-weight: 500;
+  border-bottom-color: var(--accent);
+}
+
+.count {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.tools {
+  display: flex;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  flex: none;
+}
+
+.toolsNarrow {
+  padding: var(--space-2) var(--space-4);
+}
+
+[data-layout="narrow"] .views {
+  gap: var(--space-4);
+  padding-inline: var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+[data-layout="narrow"] .view {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  justify-content: center;
+}
+
+@media (forced-colors: active) {
+  .view,
+  .barItem {
+    border-color: Canvas;
+  }
+
+  .view[aria-current],
+  .barItem[aria-current] {
+    border-color: Highlight;
+  }
+}

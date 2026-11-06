@@ -1,0 +1,143 @@
+.figure {
+  position: relative;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Positions are computed for each direction, so text anchors must stay physical. */
+  direction: ltr;
+}
+
+.chart text {
+  font-size: var(--t-small);
+  fill: var(--muted);
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart .endLabel {
+  fill: var(--ink);
+  font-weight: 500;
+}
+
+.gridLine {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.area {
+  fill: var(--chart);
+  fill-opacity: 0.1;
+  stroke: none;
+}
+
+.line {
+  fill: none;
+  stroke: var(--chart);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.dot {
+  fill: var(--chart);
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+
+.hit {
+  fill: transparent;
+  cursor: default;
+}
+
+.hit:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+.tip {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, calc(-100% - var(--space-2)));
+  padding: var(--space-1) var(--space-2);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: var(--t-small);
+  line-height: var(--l-small);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.numbers {
+  margin-top: var(--space-2);
+  font-size: var(--t-small);
+  line-height: var(--l-small);
+}
+
+.numbers summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--target);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.numbers table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--space-1);
+}
+
+.numbers th,
+.numbers td {
+  text-align: start;
+  font-weight: 400;
+  padding-block: var(--space-1);
+  border-top: 1px solid var(--rule);
+}
+
+.numbers .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bars {
+  display: grid;
+}
+
+.bar {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 2rem;
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fill {
+  display: block;
+  min-width: 2px;
+  height: 0.75rem;
+  background: var(--chart);
+  border-start-end-radius: 4px;
+  border-end-end-radius: 4px;
+  forced-color-adjust: none;
+}
+
+.value {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (forced-colors: active) {
+  .fill {
+    background: Highlight;
+  }
+}
