@@ -40,7 +40,11 @@ describe("the operator's preview", () => {
       // Another Runtime on this host, whose cookie this browser also sends, must not be touched.
       expect(preview.cookie.startsWith(`${name}=`)).toBe(true);
       expect((await fetch(`${base}/api/auth/me`, { headers: { Cookie: preview.cookie.replace(name, "daftar_session") } })).status).toBe(401);
-      expect((await (await fetch(`${base}/api/auth/status`)).json()).preview).toBe(true);
+      const status = await fetch(`${base}/api/auth/status`);
+      expect((await status.json()).preview).toBe(true);
+      // The Studio shows it in an iframe.
+      expect(status.headers.get("x-frame-options")).toBeNull();
+      expect(status.headers.get("content-security-policy")).toBeNull();
     } finally {
       await preview.stop();
     }

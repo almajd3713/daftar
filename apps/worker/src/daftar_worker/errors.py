@@ -3,7 +3,7 @@
 from typing import Literal
 
 
-ErrorCode = Literal["unreadable", "protected", "too_large", "unsupported_format", "invalid_spec"]
+ErrorCode = Literal["unreadable", "protected", "too_large", "unsupported_format", "invalid_spec", "internal"]
 
 MESSAGES: dict[ErrorCode, dict[str, str]] = {
     "unreadable": {
@@ -25,6 +25,11 @@ MESSAGES: dict[ErrorCode, dict[str, str]] = {
     "invalid_spec": {
         "fr": "La description de l'application n'est pas valide.",
         "ar": "وصف التطبيق غير صالح.",
+    },
+    # Only the Studio's jobs: the fault is on this machine, and the file may be fine.
+    "internal": {
+        "fr": "Un problème est survenu sur ce poste. Le fichier n'est pas en cause. Réessayez.",
+        "ar": "حدث خلل في هذا الجهاز، والملف ليس السبب. أعد المحاولة.",
     },
 }
 

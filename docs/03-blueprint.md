@@ -260,7 +260,7 @@ This plan gives you the goal, the required behaviour, the contracts and the chec
 - Round trip: `GET /api/export.xlsx`, `POST /api/import` → diff, `POST /api/import/{diffId}/apply {selected}`
 - Compliance and notifications: `GET /api/register`, `GET /api/notifications`
 - Accounts (added 2026-11-05, user approved): `GET /api/auth/users`, `DELETE /api/auth/users/{id}`, `POST /api/auth/users/{id}/password`, `POST /api/auth/password`
-- Charts (added 2026-11-05, user approved): `GET /api/e/{entity}/aggregate`
+- Charts (added 2026-11-05, user approved; `order` added 2026-11-06, user approved): `GET /api/e/{entity}/aggregate`
 - Errors:
   - 400 `{fields: {key: {fr, ar}}}`
   - 401, 403, 404
@@ -550,6 +550,7 @@ This plan gives you the goal, the required behaviour, the contracts and the chec
 
 ## Log
 
+- 2026-11-06 (WP-11, WP-12, R-13): The UI agent's remaining points, with the user's approval. **C-7:** aggregate takes `order=asc|desc`; with `desc` the 500 groups kept are the highest keys, and a null key comes last. Explanations now count properly in French and Arabic (Arabic has forms for one, two, three to ten, eleven to ninety-nine and hundreds, and the dual changes after a preposition or as an object). Where agreeing a verb or adjective with an Arabic count would need more rules, the sentence says "count: N" instead. Every inserted fact is wrapped in FSI and PDI, and bidi controls in a cell's text are removed from it. A language model gets the sentence without isolates, because it can't be trusted to keep invisible characters, and they're put back afterwards. The Studio's unexpected job failures and failed previews now have the code `internal` rather than `unreadable` or `invalid_spec`; C-4's worker routes don't use it. `/preview/open?lang=` passes `fr` or `ar` on. The Arabic and French wording still hasn't had a native speaker's review. The UI agent adds serving the Studio's UI in WP-11 and formats the grid's cells itself.
 - 2026-11-06 (WP-11, WP-12): From the UI agent's check of the Studio contract on PR #19: the generation report can be read again at `GET /api/projects/{id}/generation`, with `labels` from the spec and only the questions still open; `GET /api/projects` adds `jobId`, `generated`, `generationStale` and `previewRunning`; `badValues` items now name their entity; the report is written last and whole, since reads are allowed during a job. **A preview's session cookie is named after its database, and its `GET /api/auth/status` adds `preview: true`.** That route is outside C-7's list, per the 2026-11-04 note, and a delivered app's responses and `daftar_session` are unchanged, so this isn't a change to C-7. Not fixed: a project's first analysis still isn't listed until it finishes, so the UI keeps that job's id in `sessionStorage`.
 - 2026-11-03: Plan written from `01-refined-idea.md` and `02-research.md`. Client deployment target left open by the user (OQ-1).
 - 2026-11-03: Conversion no longer forces LibreOffice to recalculate; doing so would overwrite Excel's stored results, which the parity metric uses as its reference. Added `resultsFrom` to C-1, and the parity metric now counts only Excel-produced results.

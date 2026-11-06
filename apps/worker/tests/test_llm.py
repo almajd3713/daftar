@@ -538,6 +538,19 @@ def test_a_faithful_rewording_replaces_the_template(model: FakeModel, tmp_path: 
     assert after["explanation"]["fr"].startswith("Bonjour : ")
 
 
+def test_the_model_gets_a_plain_sentence_and_the_isolates_come_back(model: FakeModel, tmp_path: Path) -> None:
+    seen: list[str] = []
+
+    def rewrite(text: str) -> str:
+        seen.append(text)
+        return "Bonjour : " + text
+
+    before, after = reworded_analysis(model, tmp_path, rewrite)
+    assert seen and not any("\u2068" in text or "\u2069" in text for text in seen)
+    for language in ("fr", "ar"):
+        assert after["explanation"][language].count("\u2068") == before["explanation"][language].count("\u2068") > 0
+
+
 def test_rewording_is_off_unless_asked_for(model: FakeModel, tmp_path: Path) -> None:
     model.script = naming_answer
     analyze(read_file(workbook(tmp_path / "w.xlsx")), model.settings)

@@ -155,7 +155,7 @@ export class ApiController {
   @Get("e/:entity/aggregate")
   async aggregate(@Param("entity") entity: string, @Query() query: Record<string, unknown>, @Req() request: Request) {
     const text = (key: string): string | undefined => (typeof query[key] === "string" ? query[key] : undefined);
-    return this.runtime.records.aggregate(await this.user(request), entity, { ...listQuery(query), groupBy: text("groupBy"), aggregate: text("aggregate"), field: text("field") });
+    return this.runtime.records.aggregate(await this.user(request), entity, { ...listQuery(query), groupBy: text("groupBy"), aggregate: text("aggregate"), field: text("field"), order: text("order") });
   }
 
   @Get("e/:entity/:id")
