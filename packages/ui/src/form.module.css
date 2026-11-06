@@ -1,0 +1,117 @@
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The field is always left to right, but the page may not be. So its padding has to be physical, or the
+   unit, which follows the page, lands on the digits. Doubled to outrank Mantine's own rule. */
+.numberInput.numberInput {
+  direction: ltr;
+  text-align: right;
+  font-variant-numeric: tabular-nums lining-nums;
+  padding-inline: var(--space-3);
+}
+
+:global([dir="ltr"]) .withUnit.withUnit {
+  padding-left: var(--space-3);
+  padding-right: 3.25rem;
+}
+
+:global([dir="rtl"]) .withUnit.withUnit {
+  padding-left: 3.25rem;
+  padding-right: var(--space-3);
+}
+
+.ltrInput.ltrInput {
+  direction: ltr;
+  text-align: left;
+  font-variant-numeric: tabular-nums lining-nums;
+  padding-inline: var(--space-3);
+}
+
+.unit {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.search {
+  width: 16rem;
+}
+
+.form {
+  max-width: 40rem;
+}
+
+[data-layout="narrow"] .form {
+  max-width: none;
+  padding-bottom: var(--space-4);
+}
+
+.section {
+  padding-block: var(--space-4);
+}
+
+.section + .section {
+  border-top: 1px solid var(--rule);
+}
+
+/* A phone's side gutter, unless something around the form has already given one. */
+[data-layout="narrow"] .section {
+  padding-inline: var(--form-gutter, var(--space-4));
+}
+
+.section h2 {
+  font-size: var(--t-h2);
+  line-height: var(--l-h2);
+  font-weight: 700;
+  margin-bottom: var(--space-3);
+}
+
+.fields {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+[data-layout="narrow"] .pair {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.summary {
+  margin-block: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--late);
+}
+
+[data-layout="narrow"] .summary {
+  margin-inline: var(--space-4);
+  margin-block: var(--space-2) var(--space-4);
+}
+
+.summary h2 {
+  font-weight: 700;
+}
+
+.summary a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}

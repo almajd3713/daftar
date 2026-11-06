@@ -11,6 +11,7 @@ The plan is in [`docs/03-blueprint.md`](docs/03-blueprint.md). The research note
 | Path | What it holds |
 |---|---|
 | `packages/spec` | The app spec: one JSON Schema, TypeScript types and validators in both languages, and example specs |
+| `packages/ui` | Registre, the design system the Runtime and Studio share: see [`packages/ui/README.md`](packages/ui/README.md) |
 | `apps/worker` | The Python worker: reads, analyses, exports and diffs workbooks |
 | `apps/runtime` | The NestJS runtime: serves any valid spec on Postgres, with roles, history and computed fields |
 | `eval` | The labelled evaluation set and its rules: see [`eval/README.md`](eval/README.md) |

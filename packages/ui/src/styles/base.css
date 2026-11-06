@@ -1,0 +1,222 @@
+/* What every screen shares, and Mantine's parts pulled onto Registre's marks. */
+
+html {
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--t-body);
+  line-height: var(--l-body);
+  font-synthesis: none;
+  overflow-wrap: break-word;
+}
+
+:where(h1, h2, h3, p, ul, ol, dl, dd, dt, figure) {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+}
+
+:where(ul, ol) {
+  list-style: none;
+}
+
+:where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+  letter-spacing: 0;
+}
+
+:where(button) {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* A control's height and size come from the tokens through theme.ts. Long words or large text may wrap: a
+   label has to stay readable, and a spec's words can be any length. */
+.mantine-Button-root {
+  font-weight: 500;
+  height: auto;
+  min-height: var(--button-height);
+  padding-block: var(--space-1);
+  max-width: 100%;
+}
+
+.mantine-Button-inner {
+  height: auto;
+}
+
+.mantine-Button-root[data-variant="default"] {
+  font-weight: 400;
+}
+
+.mantine-Button-root:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* Mantine sets this to 1, which is too tight for Arabic's dots and tails. */
+.mantine-Button-label {
+  overflow: visible;
+  line-height: var(--l-body);
+  white-space: normal;
+  text-align: center;
+}
+
+.mantine-PasswordInput-visibilityToggle {
+  min-width: var(--target);
+  min-height: var(--target);
+}
+
+.mantine-PasswordInput-input {
+  color: var(--ink);
+}
+
+.mantine-PasswordInput-innerInput {
+  font-size: var(--t-input);
+}
+
+/* Mantine reads its border from its own grey, not the default-border token. */
+.mantine-Input-input {
+  --input-bd: var(--rule-input);
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.mantine-Input-input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.mantine-Input-input:focus,
+.mantine-Input-input:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: -1px;
+}
+
+/* Long text keeps the height it needs. */
+textarea.mantine-Input-input {
+  padding-block: var(--space-2);
+  min-height: 4.5rem;
+}
+
+/* Label, then any hint, then the error, then the field: a phone's keyboard can cover what's under a field. */
+.mantine-InputWrapper-label {
+  display: flex;
+  gap: var(--space-1);
+  font-size: var(--t-body);
+  line-height: var(--l-body);
+  font-weight: 500;
+  margin-bottom: var(--space-1);
+  color: var(--ink);
+}
+
+/* The required mark leads the label, where it's easiest to scan. */
+.mantine-InputWrapper-required {
+  order: -1;
+  color: var(--late);
+}
+
+.mantine-InputWrapper-description {
+  font-size: var(--t-small);
+  line-height: var(--l-small);
+  color: var(--muted);
+  margin-bottom: var(--space-1);
+}
+
+.mantine-InputWrapper-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  font-size: var(--t-small);
+  line-height: var(--l-small);
+  font-weight: 500;
+  color: var(--late);
+  margin-bottom: var(--space-1);
+  word-break: normal;
+}
+
+/* A red-pen mark in the margin ties the message to its field. Square, on no card, as GOV.UK does it. */
+.mantine-InputWrapper-root:has(> .mantine-InputWrapper-error) {
+  border-inline-start: 2px solid var(--late);
+  padding-inline-start: var(--space-3);
+}
+
+.mantine-Input-input[data-error] {
+  border-color: var(--late);
+  color: var(--ink);
+}
+
+.mantine-Input-input[data-error]::placeholder {
+  color: var(--muted);
+}
+
+/* A section's own icon, inside an error, keeps its colour rather than the input's. */
+.mantine-Input-section[data-position] {
+  color: var(--muted);
+}
+
+/* Floating parts: the only place a shadow is allowed, because they really do sit above the page. */
+.mantine-Popover-dropdown,
+.mantine-Combobox-dropdown,
+.mantine-Modal-content {
+  border: 1px solid var(--rule-input);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.mantine-Combobox-option {
+  min-height: var(--target);
+  align-items: center;
+}
+
+/* The calendar. Sizes come from theme.ts; these are what Mantine hard-codes. */
+.mantine-Popover-dropdown {
+  --mantine-color-gray-0: var(--raised);
+  --mantine-color-gray-1: var(--raised);
+  --mantine-color-dark-5: var(--raised);
+}
+
+.mantine-Popover-dropdown:has(.mantine-DateInput-calendarHeader) {
+  padding: var(--space-2);
+}
+
+/* Seven days and the dropdown's edges have to fit a 320 px phone at any text size, so a narrow screen shrinks
+   the width only, and the height stays a full target. Mantine sets the size as size / 2.8, which is under 13 px. */
+.mantine-DateInput-day {
+  width: min(var(--day-size), calc((100vw - 2.5rem) / 7));
+  font-size: var(--t-body);
+}
+
+.mantine-DateInput-calendarHeaderControl {
+  width: min(var(--dch-control-size), calc((100vw - 2.5rem) / 7));
+}
+
+/* Red means late or wrong here, so a weekend doesn't get it. */
+button[data-weekend]:not([data-selected], [data-outside], [data-disabled]) {
+  color: var(--ink);
+}
+
+/* Other months' days can still be picked, so they stay readable: Mantine fades them to half. */
+button[data-outside]:not([data-selected]) {
+  color: var(--muted);
+  opacity: 1;
+}
+
+@media (forced-colors: active) {
+  .mantine-Button-root {
+    border: 1px solid ButtonText;
+  }
+}
