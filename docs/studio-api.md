@@ -1,6 +1,6 @@
 # Daftar UI and server contract
 
-**Status:** the Runtime part is agreed and on `main`. The Studio part is on `main` too, including the preview. It's still open to change: the UI agent hasn't commented yet. The UI and the server each change this file before changing code that depends on it.
+**Status:** the Runtime part is agreed and on `main`. The Studio part is on `main` too, including the preview. It's still open to change: the UI agent's 12 points are on this PR, and points 1 to 4 are answered below. The UI and the server each change this file before changing code that depends on it.
 
 It starts from what the UI agent said it will assume (2026-11-05, `main` at `0d43875`). Marks:
 
@@ -141,9 +141,9 @@ The blueprint has no browser-facing Studio routes: C-7 is the Runtime, and C-4 i
 
 | Call | Request | Response | Based on |
 |---|---|---|---|
-| `GET /api/projects` | none | `[{id, name, fileName, updatedAt, counts: {pending, accepted, edited, rejected}}]` | new |
+| `GET /api/projects` | none | `[{id, name, fileName, updatedAt, counts: {pending, accepted, edited, rejected}, jobId?, generated, generationStale, previewRunning}]`. See "After a reload" | new |
 | `POST /api/projects?fileName=&name=&llm=on\|off` | raw file. `fileName` is required, as its extension gives the format | 202 `{id, jobId}` | `project_init`, C-4 |
-| `GET /api/jobs/{id}` | none | `{status, progress, result?, error?}` | C-4 |
+| `GET /api/jobs/{id}` | none | `{status: queued\|running\|done\|failed, progress, result?, error?}`. `progress` stays 0 until it's 1 | C-4 |
 | `GET /api/projects/{id}/snapshot` | none | C-1 without `cells`: `source`, sheet summaries, `definedNames`, `unsupported` | C-1 |
 | `GET /api/projects/{id}/sheets/{index}?range=A1:Z200` | none | that sheet's `cells`, `merges`, `validations`, `conditionalFormats`, `hiddenRows`, `hiddenColumns`, `rtl`, `dimension` for the range | C-1 |
 | `GET /api/projects/{id}/analysis` | none | C-2, with every finding's `decision` | C-2 |
@@ -151,7 +151,8 @@ The blueprint has no browser-facing Studio routes: C-7 is the Runtime, and C-4 i
 | `POST /api/projects/{id}/decisions/accept-high` | `{}` as JSON | `{acceptedHigh, accepted, rejected, pending}` | `project_decide` |
 | `POST /api/projects/{id}/reanalyze?fileName=&llm=` | a raw file with `fileName`, or `{}` as JSON to rerun the same workbook | 202 `{jobId}`, whose result is `{applied, moved, conflicts}` | `project_reanalyze` |
 | `GET /api/projects/{id}/conflicts` | none | `[{reason: gone\|changed, finding, now?}]`, where `now` is the new finding's id | `conflicts.json` |
-| `POST /api/projects/{id}/generate` | `{}` as JSON | 202 `{jobId}`, whose result is `{entities, rows, badValues, parityFailures, seriesFormulas, questions}`, the full lists, as in `generation-report.json` | `project_generate`, which runs a parity check and can be slow |
+| `POST /api/projects/{id}/generate` | `{}` as JSON | 202 `{jobId}`, whose result is what `GET .../generation` returns | `project_generate`, which runs a parity check and can be slow |
+| `GET /api/projects/{id}/generation` | none | `{entities, rows, badValues, parityFailures, seriesFormulas, questions, labels}`: `entities` counts them, `rows` counts rows per entity key, the next four are full lists, and `questions` holds only those still open. `labels` is `{entityKey: {label: {fr, ar}, fields: {fieldKey: {fr, ar}}}}`. 404 if not generated yet | `generation-report.json`, the spec |
 | `POST /api/projects/{id}/answers` | `{kind: periodYear, sheet, year}` or `{kind: confirmRetention, entity, months}` | `{questions}`, those still open. Generate again to apply the answers | `answers.json` |
 | `POST /api/projects/{id}/preview` | `{}` as JSON | 202 `{jobId}`, whose result is `{url}`. 409 if not generated yet, 503 if previews aren't set up on this machine | D-9, R-14 |
 | `GET /api/projects/{id}/preview/open` | none, opened by the browser | 303 to the running preview, with its session cookie set. 404 if none is running | new |
@@ -163,7 +164,13 @@ Changed from the UI agent's list: `generate` and `preview` are jobs, since both 
 
 - **Nothing is left behind by a rejected file (R-1).** `POST /api/projects` returns 202 before the file is read. If reading fails, the job ends with `status: failed` and `error`. A project joins the list only when its first analysis finishes, and its `id` gives 404 until then.
 - **Nothing changes during a job.** A decision, accept-high, answer, generate or rerun gets 409 `{reason}` while a job runs on that project. Reads still work.
-- **Jobs live in memory.** After a restart, a job id gives 404. The UI re-reads the project instead of waiting.
+- **Jobs live in memory.** After a restart, or once 64 newer jobs have finished, a job id gives 404. The UI re-reads the project instead of waiting.
+- **After a reload,** `GET /api/projects` and `GET .../generation` give back everything the screens need:
+  - `jobId` is set while a job runs on the project: wait on it. Writes get 409 until it ends.
+  - `generated` says a generation has finished at some point.
+  - `generationStale` says a decision, answer or rerun came after it, so the report and spec are out of date until the next generate.
+  - `previewRunning` says `GET .../preview/open` will work.
+  - A project's first analysis isn't listed until it finishes, so keep that `jobId` in `sessionStorage`. If it gives 404, re-read the list.
 - **An `edited` decision needs `value`**, holding the proposal's fields to change. The result must fit that finding kind's shape, or it gets 400 `{reason: {fr, ar}}`.
 - **Sheet data comes by range**, because a workbook can hold 1,000,000 cells. A range over 20,000 cells gets 400. `cells` and `merges` follow the range; `validations`, `conditionalFormats` and the hidden lists are the whole sheet's. The snapshot's sheet summaries give `cellCount`.
 - **Errors:** C-4's `{code, message: {fr, ar}}`, with `unreadable|protected|too_large|unsupported_format|invalid_spec`, as a job's `error` or directly: an upload with no file gets 422, one over the limit 413. Also 404 `{error: "not_found"}` for an unknown project, job or finding, and 409 `{reason: {fr, ar}}` if a decision targets a finding that a rerun removed.
@@ -178,13 +185,14 @@ These are warnings a person has to see. A report file alone isn't enough.
    - `notAFormula`: the tab has typed values there, or its formula wasn't accepted.
    - `differentFormula`: the tab's formula is different.
    - `parity`: the engine doesn't reproduce Excel's results on that tab.
-3. **`parityFailures`, `badValues` and `questions`:** each listed with its sheet and cell or field. A `questions` entry blocks nothing, but a `periodYear` tab stays out of the app until it's answered and generated again.
+3. **`parityFailures`, `badValues` and `questions`:** each listed with its sheet and cell or field. A `badValues` item is `{entity, sheet, cell, field, type}`. Use `labels` for names, because keys are ASCII even when the column's title is Arabic. A `questions` entry blocks nothing, but a `periodYear` tab stays out of the app until it's answered and generated again.
 
 The UI owns the French and Arabic wording for these codes. It shows `explanation.fr` or `.ar` as written, and wraps Latin text, ranges and formulas so they keep their order in Arabic.
 
 ### Open
 
-- **The preview's page.** The Runtime serves only its API until WP-10 adds the UI, so `url` leads to a 404 until then. Open `url` as a page, not with `fetch`. Export and re-import answer 503 in a preview, because it has no worker attached.
+- **The preview's page.** The Runtime serves only its API until WP-10 adds the UI, so `url` leads to a 404 until then. Open `url` as a page, not with `fetch`.
+- **A preview's session.** Each project's preview has its own cookie name, so previews and a local Runtime in the same browser don't sign each other out. Its owner's password is random, so nobody can log in. `GET /api/auth/status` adds `preview: true` only in a preview: on a 401 say "reopen from the Studio" instead of showing login, and hide export and re-import, which answer 503 because it has no worker attached. A delivered app never has this field and keeps `daftar_session`.
 - **Serving the Runtime UI.** `app.ts` serves no static files today. WP-10 adds that, and adds the UI to `apps/runtime/Dockerfile` and its `Dockerfile.dockerignore` allow-list.
 
 **Not in the UI for v1:** `daftar bundle` stays a command.
