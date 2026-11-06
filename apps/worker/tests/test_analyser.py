@@ -599,7 +599,7 @@ def test_explanations_quote_the_facts(tmp_path: Path) -> None:
     table = by_kind(analysis, "table")[0]["explanation"]
     assert "A1:E12" in table["fr"] and "A1:E12" in table["ar"]
     assert "Janvier" in table["fr"] and "Janvier" in table["ar"]
-    assert "10 lignes" in table["fr"] and "10 صف" in table["ar"]
+    assert "10 lignes" in table["fr"] and "10 صفوف" in table["ar"]
     total = by_kind(analysis, "totalRow")[0]["explanation"]
     assert "ligne 12" in total["fr"] and "12" in total["ar"]
 

@@ -12,7 +12,7 @@ from typing import Any
 
 from openpyxl.utils import range_boundaries
 
-from daftar_worker.analyser import confidence_level
+from daftar_worker.analyser import confidence_level, explain
 from daftar_worker.llm.client import LlmClient, LlmSettings, ModelUnavailable
 from daftar_worker.llm.glossary import gloss
 from daftar_worker.sheet.grid import Grid, column_index, text_of
@@ -276,7 +276,8 @@ def _reword(client: LlmClient, analysis: dict[str, Any]) -> None:
         if finding["kind"] not in REWORDED_KINDS:
             continue
         for language in ("fr", "ar"):
-            original = finding["explanation"][language]
+            template = finding["explanation"][language]
+            original = explain.plain(template)
 
             def valid(answer: dict[str, Any], source: str = original) -> bool:
                 text = answer["text"]
@@ -284,7 +285,7 @@ def _reword(client: LlmClient, analysis: dict[str, Any]) -> None:
 
             answer = client.ask("reword", WORDING_SYSTEM, original, schema, valid)
             if answer is not None:
-                finding["explanation"][language] = answer["text"].strip()
+                finding["explanation"][language] = explain.isolate_again(template, answer["text"].strip())
 
 
 def _fields_of(analysis: dict[str, Any], table: dict[str, Any]) -> list[dict[str, Any]]:

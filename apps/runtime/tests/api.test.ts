@@ -852,6 +852,9 @@ describe("link labels and grouped figures", () => {
     expect(sum.groups).toEqual([{ key: "MATH", value: 1000 }, { key: "PHYS", value: 3000 }]);
     const avg = (await owner.get("/api/e/classes/aggregate?groupBy=name&aggregate=avg&field=monthly_fee&filter.code.eq=PHYS")).body;
     expect(avg.groups).toEqual([{ key: "Physique", value: 3000 }]);
+    const newest = (await owner.get("/api/e/classes/aggregate?groupBy=code&aggregate=sum&field=monthly_fee&order=desc")).body;
+    expect(newest.groups.map((group: { key: string }) => group.key)).toEqual(["PHYS", "MATH"]);
+    expect((await owner.get("/api/e/classes/aggregate?groupBy=code&aggregate=count&order=drop")).status).toBe(400);
   });
 
   it("keeps a role's limits", async () => {

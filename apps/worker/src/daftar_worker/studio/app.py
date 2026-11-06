@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 import json
+import logging
 from pathlib import Path, PureWindowsPath
 import re
 import shutil
@@ -39,6 +40,7 @@ from daftar_worker.sheet.grid import REF, column_index
 from daftar_worker.studio.preview import PreviewError, Previews
 
 
+LOG = logging.getLogger(__name__)
 HOST = "127.0.0.1"
 PROJECT_ID = re.compile(r"^[0-9a-f]{32}\Z")
 MAX_RANGE_CELLS = 20_000
@@ -103,7 +105,9 @@ class Jobs:
             job["error"] = error.to_json()
             job["status"] = "failed"
         except Exception as error:
-            job["error"] = WorkerError("unreadable", type(error).__name__).to_json()
+            # The reader turns a damaged file into a WorkerError itself, so this one is our fault.
+            LOG.error("studio job failed: %s", type(error).__name__)
+            job["error"] = WorkerError("internal", type(error).__name__).to_json()
             job["status"] = "failed"
         finally:
             with self._lock:
@@ -510,13 +514,13 @@ def create_studio_app(root: Path, who: str, port: int, previews: Previews | None
             try:
                 previews.start(project, folder)
             except PreviewError as error:
-                raise WorkerError("invalid_spec", str(error)) from error
+                raise WorkerError("internal", str(error)) from error
             return {"url": f"/api/projects/{project}/preview/open"}
 
         return {"jobId": jobs.start(project, work)}
 
     @app.get("/api/projects/{project}/preview/open")
-    def open_preview(request: Request, project: str) -> Response:
+    def open_preview(request: Request, project: str, lang: str | None = None) -> Response:
         """Signs this browser in to the preview, then goes there. Cookies ignore ports, so each preview has its own name."""
         store.folder(project)
         running = previews.running(project) if previews else None
@@ -524,7 +528,9 @@ def create_studio_app(root: Path, who: str, port: int, previews: Previews | None
             raise Missing
         name, _, value = running.cookie.partition("=")
         hostname = (request.headers.get("host") or HOST).rsplit(":", 1)[0]
-        response = RedirectResponse(f"http://{hostname}:{running.port}/", status_code=303)
+        # Each preview has a new port, so it can't see the language this browser stored.
+        query = f"?lang={lang}" if lang in ("fr", "ar") else ""
+        response = RedirectResponse(f"http://{hostname}:{running.port}/{query}", status_code=303)
         response.set_cookie(name, value, httponly=True, samesite="lax", path="/")
         return response
 

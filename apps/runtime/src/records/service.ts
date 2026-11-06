@@ -52,6 +52,7 @@ export interface ListQuery {
 export interface AggregateQuery extends ListQuery {
   groupBy?: string;
   aggregate?: string;
+  order?: string;
   field?: string;
 }
 
@@ -144,10 +145,13 @@ export class RecordService {
     const group = this.filterableField(user, entity, query.groupBy ?? "", "groupBy");
     if (group.type === "multichoice") throw new BadQuery(`groupBy ${group.key}`);
     const value = this.aggregateOf(user, entity, query);
+    if (query.order !== undefined && query.order !== "asc" && query.order !== "desc") throw new BadQuery("order");
+    const descending = query.order === "desc";
     const rows = await this.applyFilters(this.scoped(user, entity), user, entity, query)
       .select([sql`${column(group.key)}`.as("key"), value.as("value")])
       .groupBy(column(group.key))
-      .orderBy(column(group.key))
+      // With desc the newest date survives the limit, and rows with no value don't take its place.
+      .orderBy(descending ? sql`${column(group.key)} DESC NULLS LAST` : column(group.key))
       .limit(MAX_GROUPS + 1)
       .execute();
     const names = group.type === "link" ? await this.namesOf(user, group.target, rows.map((row: Record<string, unknown>) => row.key)) : new Map<string, string>();

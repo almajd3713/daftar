@@ -24,6 +24,7 @@ STATUS: dict[ErrorCode, int] = {
     "too_large": 413,
     "unsupported_format": 415,
     "invalid_spec": 422,
+    "internal": 500,
 }
 # Room for the multipart boundaries and headers around the file itself.
 MAX_BODY_BYTES = MAX_FILE_BYTES + 64 * 1024

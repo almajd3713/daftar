@@ -247,6 +247,18 @@ def test_the_report_can_be_read_again_with_names_and_open_questions(client: Test
     assert len(after) == len(read["questions"]) - 1
 
 
+def test_a_crash_doesnt_blame_the_file(client: TestClient, tutoring: bytes, monkeypatch: pytest.MonkeyPatch) -> None:
+    project = uploaded(client, tutoring)
+
+    def crash(*_: Any) -> None:
+        raise RuntimeError("a bug")
+
+    monkeypatch.setattr("daftar_worker.studio.app.project_generate", crash)
+    job = finished(client, client.post(f"/api/projects/{project}/generate", json={}).json()["jobId"])
+    assert job["status"] == "failed"
+    assert job["error"]["code"] == "internal"
+
+
 def test_the_report_names_things_in_the_words_of_the_workbook(client: TestClient, tmp_path: Path) -> None:
     project = uploaded(client, _months(tmp_path))
     for finding in analysis_of(client, project)["findings"]:
@@ -396,6 +408,8 @@ def test_a_preview_opens_signed_in_and_stops(with_preview: TestClient, previews:
     opened = with_preview.get(job["result"]["url"])
     assert opened.status_code == 303
     assert opened.headers["location"] == "http://127.0.0.1:45678/"
+    assert with_preview.get(job["result"]["url"] + "?lang=ar").headers["location"] == "http://127.0.0.1:45678/?lang=ar"
+    assert with_preview.get(job["result"]["url"] + "?lang=//evil").headers["location"] == "http://127.0.0.1:45678/"
     assert "daftar_preview_x=abc" in opened.headers["set-cookie"]
     assert "httponly" in opened.headers["set-cookie"].lower()
     running = previews.running(project)
@@ -435,6 +449,7 @@ def test_a_preview_that_doesnt_start_is_a_failed_job(tmp_path: Path) -> None:
         project = _generated(client, tmp_path)
         job = finished(client, client.post(f"/api/projects/{project}/preview", json={}).json()["jobId"])
         assert job["status"] == "failed"
+        assert job["error"]["code"] == "internal"
         assert job["error"]["message"]["fr"]
         assert previews.running(project) is None
 
