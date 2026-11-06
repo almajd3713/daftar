@@ -1,6 +1,6 @@
 # Daftar UI and server contract
 
-**Status:** the Runtime part is agreed and on `main`. The Studio part is on `main` too, including the preview. It's still open to change: the UI agent's 12 points are on this PR, and points 1 to 4 are answered below. The UI and the server each change this file before changing code that depends on it.
+**Status:** the Runtime part is agreed and on `main`. The Studio part is on `main` too, including the preview. It's still open to change: the UI agent's 12 points are on this PR, and all of them are answered below. The UI and the server each change this file before changing code that depends on it.
 
 It starts from what the UI agent said it will assume (2026-11-05, `main` at `0d43875`). Marks:
 
@@ -100,10 +100,11 @@ The user approved these on 2026-11-05, and C-7 records them. They're on `main`.
 
 **Link labels.** A record carries `_labels: {field: name}` beside its link ids, wherever a record is returned. A label is left out if the user may not read that row of the target, so the UI needs a fallback for a link with no label.
 
-**Charts.** `GET /api/e/{entity}/aggregate?groupBy=&aggregate=&field=`, plus the list's `q` and `filter.<field>.<op>`:
+**Charts.** `GET /api/e/{entity}/aggregate?groupBy=&aggregate=&field=&order=`, plus the list's `q` and `filter.<field>.<op>`:
 
 - `aggregate` is `count`, `sum`, `avg`, `min` or `max`. Every one but `count` needs a numeric `field`.
-- Returns `{groups: [{key, value, label?}], truncated}`, sorted by `key`, at most 500 groups. `label` is set when `groupBy` is a link the user may read. `key` is null for rows with no value.
+- Returns `{groups: [{key, value, label?}], truncated}`, sorted by `key`, at most 500 groups. `label` is set when `groupBy` is a link the user may read. `key` is null for rows with no value, and `value` is null when a `sum`, `avg`, `min` or `max` sees only blanks.
+- `order` is `asc` (the default) or `desc`, and anything else gets 400 `bad_query`. With `desc`, the 500 kept are the highest keys, newest first for a date, and a null key comes last. So a daily line chart asks for `desc` and reverses the result.
 - `groupBy` and `field` get 400 `bad_query` if hidden from the role or if `groupBy` is `multichoice`. An entity the role can't read gets 404. Row scope applies.
 - There are no date buckets, since no C-3 widget asks for them. A line chart grouped by a date gets one point per distinct date.
 - Like list totals, a sum skips a row whose formula gave an Excel error.
@@ -173,7 +174,7 @@ Changed from the UI agent's list: `generate` and `preview` are jobs, since both 
   - A project's first analysis isn't listed until it finishes, so keep that `jobId` in `sessionStorage`. If it gives 404, re-read the list.
 - **An `edited` decision needs `value`**, holding the proposal's fields to change. The result must fit that finding kind's shape, or it gets 400 `{reason: {fr, ar}}`.
 - **Sheet data comes by range**, because a workbook can hold 1,000,000 cells. A range over 20,000 cells gets 400. `cells` and `merges` follow the range; `validations`, `conditionalFormats` and the hidden lists are the whole sheet's. The snapshot's sheet summaries give `cellCount`.
-- **Errors:** C-4's `{code, message: {fr, ar}}`, with `unreadable|protected|too_large|unsupported_format|invalid_spec`, as a job's `error` or directly: an upload with no file gets 422, one over the limit 413. Also 404 `{error: "not_found"}` for an unknown project, job or finding, and 409 `{reason: {fr, ar}}` if a decision targets a finding that a rerun removed.
+- **Errors:** C-4's `{code, message: {fr, ar}}`, with `unreadable|protected|too_large|unsupported_format|invalid_spec|internal`, as a job's `error` or directly: an upload with no file gets 422, one over the limit 413. `internal` is Studio only, and appears only as a job's `error`: the fault is on this machine, not in the file, including a preview that won't start. The server sends a default message, which the UI may replace with its own wording. Also 404 `{error: "not_found"}` for an unknown project, job or finding, and 409 `{reason: {fr, ar}}` if a decision targets a finding that a rerun removed.
 
 ### What the review screen must show
 
@@ -187,12 +188,15 @@ These are warnings a person has to see. A report file alone isn't enough.
    - `parity`: the engine doesn't reproduce Excel's results on that tab.
 3. **`parityFailures`, `badValues` and `questions`:** each listed with its sheet and cell or field. A `badValues` item is `{entity, sheet, cell, field, type}`. Use `labels` for names, because keys are ASCII even when the column's title is Arabic. A `questions` entry blocks nothing, but a `periodYear` tab stays out of the app until it's answered and generated again.
 
-The UI owns the French and Arabic wording for these codes. It shows `explanation.fr` or `.ar` as written, and wraps Latin text, ranges and formulas so they keep their order in Arabic.
+The UI owns the French and Arabic wording for these codes. It shows `explanation.fr` or `.ar` as written. Each inserted fact (a name, sample value, formula, range or list of row numbers) is already wrapped in FSI and PDI (U+2068, U+2069), so browsers keep its order in either language with no work in the UI. Don't strip them, except when copying a sentence to plain text.
 
 ### Open
 
-- **The preview's page.** The Runtime serves only its API until WP-10 adds the UI, so `url` leads to a 404 until then. Open `url` as a page, not with `fetch`.
+- **The preview's page.** The Runtime serves only its API until WP-10 adds the UI, so `url` leads to a 404 until then. Open `url` as a page or in an iframe, not with `fetch`: it sends no frame-blocking headers, and the Studio's port and the preview's are the same site. Add `?lang=fr` or `?lang=ar` to `url` and the redirect passes it on, because each preview has a new port and loses the language stored in the browser. Any other value is dropped.
 - **A preview's session.** Each project's preview has its own cookie name, so previews and a local Runtime in the same browser don't sign each other out. Its owner's password is random, so nobody can log in. `GET /api/auth/status` adds `preview: true` only in a preview: on a 401 say "reopen from the Studio" instead of showing login, and hide export and re-import, which answer 503 because it has no worker attached. A delivered app never has this field and keeps `daftar_session`.
+- **Serving the Studio's UI.** The UI agent adds this in WP-11: a folder that `daftar studio` serves behind the same guard, falling back to the app's page for paths outside `/api`.
+- **The grid's display text.** The sheet route gives `v` and `fmt`, and the browser applies the number format. The server won't add display text.
+- **Job progress.** There are no stages, so show a waiting state with no percentage.
 - **Serving the Runtime UI.** `app.ts` serves no static files today. WP-10 adds that, and adds the UI to `apps/runtime/Dockerfile` and its `Dockerfile.dockerignore` allow-list.
 
 **Not in the UI for v1:** `daftar bundle` stays a command.
