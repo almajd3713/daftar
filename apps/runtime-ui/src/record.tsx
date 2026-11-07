@@ -291,7 +291,7 @@ export function RecordPage({ meta, entity, id, from, onBack }: RecordPageProps):
   if (deleted) {
     const deletion = deletionOf(history.data?.changes ?? []);
     return (
-      <Page title={say(entity.label)} onBack={onBack}>
+      <Page title={deletion?.name ? <UserText>{deletion.name}</UserText> : say(entity.label)} subtitle={deletion?.name ? say(entity.label) : undefined} onBack={onBack}>
         <Gutter>
           <Notice title={t("deletedTitle")} actions={canRevert && deletion ? <Button primary loading={busy === deletion.id} onClick={() => undo(deletion)}>{t("restore")}</Button> : undefined} />
         </Gutter>

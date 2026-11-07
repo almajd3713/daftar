@@ -21,9 +21,10 @@ import {
 } from "@daftar/ui";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
-import { call, problemOf, whenSignedOut, type Meta, type Status } from "./api.js";
+import { call, canDo, problemOf, whenSignedOut, type Meta, type Status } from "./api.js";
 import { MissingPage, PreviewEndedScreen, SetupScreen, SignInScreen, UnreachableScreen } from "./auth.js";
 import { CalculatorPage } from "./calculator.js";
+import { DeletedPage } from "./deleted.js";
 import { EditRecordPage, NewRecordPage } from "./form.js";
 import { ListPage } from "./list.js";
 import { RecordPage } from "./record.js";
@@ -156,7 +157,7 @@ function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: S
       }}
       user={<span><UserText>{meta.user.username}</UserText> · <TextLink onClick={onSignOut}>{t("signOut")}</TextLink></span>}
       language={language}
-      hideNavOnPhone={route.name === "new" || route.name === "edit" || route.name === "record"}
+      hideNavOnPhone={route.name === "new" || route.name === "edit" || route.name === "record" || route.name === "deleted"}
     >
       <Screen route={route} meta={meta} entityOf={entityOf} firstView={nav[0]?.view} places={places} onLocale={onLocale} onSignOut={onSignOut} canSwitch={Boolean(language)} />
     </AppFrame>
@@ -168,7 +169,7 @@ function currentKey(route: Route, lists: ViewList[]): string | undefined {
     const entity = lists.find((view) => view.key === route.view)?.entity;
     return entity ? entityPlace(entity) : undefined;
   }
-  if (route.name === "new" || route.name === "edit" || route.name === "record") return entityPlace(route.entity);
+  if (route.name === "new" || route.name === "edit" || route.name === "record" || route.name === "deleted") return entityPlace(route.entity);
   if (route.name === "calculator") return calculatorPlace(route.calculator);
   return undefined;
 }
@@ -215,6 +216,12 @@ function Screen({ route, meta, entityOf, firstView, places, onLocale, onSignOut,
       if (route.name === "new") return <NewRecordPage entity={entity} form={form} onClose={toList} />;
       return <EditRecordPage key={route.id} entity={entity} form={form} id={route.id} onClose={() => goBack({ name: "record", entity: route.entity, id: route.id, from: route.from })} />;
     }
+  }
+  if (route.name === "deleted") {
+    const entity = entityOf(route.entity);
+    if (!entity || !canDo(meta, entity.key, "revert")) return <MissingPage />;
+    const list = meta.views.filter(isListView).find((view) => view.entity === entity.key);
+    return <DeletedPage key={entity.key} entity={entity} page={route.page} onBack={() => goBack(list ? { name: "view", view: list.key, q: "", page: 1 } : { name: "home" })} />;
   }
   if (route.name === "calculator") {
     const calculator = calculators.find((item) => item.key === route.calculator);

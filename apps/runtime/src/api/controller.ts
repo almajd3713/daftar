@@ -158,6 +158,12 @@ export class ApiController {
     return this.runtime.records.aggregate(await this.user(request), entity, { ...listQuery(query), groupBy: text("groupBy"), aggregate: text("aggregate"), field: text("field"), order: text("order") });
   }
 
+  // Before the route below, as with aggregate.
+  @Get("e/:entity/deleted")
+  async deleted(@Param("entity") entity: string, @Query() query: Record<string, unknown>, @Req() request: Request) {
+    return this.runtime.records.deleted(await this.user(request), entity, listQuery(query));
+  }
+
   @Get("e/:entity/:id")
   async get(@Param("entity") entity: string, @Param("id") id: string, @Req() request: Request) {
     return this.runtime.records.get(await this.user(request), entity, id);
