@@ -5,6 +5,7 @@ import { baseOf, expectGoodScreen, PASSWORD, PC, PHONE, signIn, signUp, watchFor
 
 const fee = baseOf("fee");
 const models = baseOf("models");
+const generated = baseOf("generated");
 
 /** The value on a result's line. */
 function resultOf(page: Page, label: string): Locator {
@@ -151,6 +152,34 @@ test.describe.serial("a calculator on a phone", () => {
   });
 });
 
+/**
+ * The hand-written examples have money and whole numbers. A generated calculator is what a client really gets, and
+ * so far every number in one is a decimal. The figures are checked without a currency, so this holds once it has one.
+ */
+test.describe.serial("a calculator generated from a real workbook", () => {
+  test.use(PHONE);
+
+  test("works in both languages, and a count doesn't read as 2,00", async ({ page }) => {
+    await signUp(page, generated);
+    const errors = watchForErrors(page);
+    await page.goto(`${generated}/c/calcul?lang=fr`);
+    await expect(page.getByLabel("Nombre de matières")).toHaveValue("2");
+    await expect(page.getByLabel("Prix par matière")).toHaveValue("3 000");
+    await expect(resultOf(page, "À payer")).toContainText("5 700");
+    await expectGoodScreen(page, "a generated calculator, in French");
+
+    await page.getByLabel("Nombre de matières").fill("3");
+    await page.getByLabel("Nombre de matières").press("Enter");
+    await expect(resultOf(page, "À payer")).toContainText("8 550");
+
+    await page.goto(`${generated}/c/calcul?lang=ar`);
+    await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    await expect(resultOf(page, "À payer")).toContainText("5.700");
+    await expectGoodScreen(page, "a generated calculator, in Arabic");
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe.serial("calculators beside a firm's lists", () => {
   test.use(PC);
 
@@ -177,7 +206,8 @@ test.describe.serial("calculators beside a firm's lists", () => {
     await expect(resultOf(page, "Fin")).toHaveText("01/12/2026");
     await expect(resultOf(page, "Mois de début")).toHaveText("11");
     await expect(resultOf(page, "Zone retenue")).toHaveText("Nord");
-    await expect(resultOf(page, "Coût par jour")).toHaveText("1 190,00");
+    // A whole result has no decimals, because the analyser calls any number a decimal.
+    await expect(resultOf(page, "Coût par jour")).toHaveText("1 190");
     await expect(resultOf(page, "Prime")).toHaveText("–");
     await expect(resultOf(page, "Remarque")).toHaveText("-");
     await expect(resultOf(page, "Longue durée")).toHaveText("Non");
@@ -204,6 +234,10 @@ test.describe.serial("calculators beside a firm's lists", () => {
     await expect(resultOf(page, "Mois de début")).toHaveText("12");
     await expect(resultOf(page, "Zone retenue")).toHaveText("Sud");
     await expect(resultOf(page, "Prix total")).toHaveText("22 000,00 DA");
+
+    await page.getByLabel("Taxe").fill("12,345");
+    await page.getByRole("button", { name: "Calculer" }).click();
+    await expect(resultOf(page, "Coût par jour")).toHaveText("2 246,90");
   });
 
   test("show an Excel error where its value would be, and say so in words", async ({ page }) => {

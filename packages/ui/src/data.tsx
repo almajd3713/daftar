@@ -239,7 +239,6 @@ export function LastActions({ children }: { children: ReactNode }): ReactNode {
   return <div className={classes.lastActions}>{children}</div>;
 }
 
-/** Label and value lines that may end in a total, like a short account. */
 export interface StatementProps {
   title?: ReactNode;
   /** It's where an answer arrives: a screen reader hears it, and `ref` can take focus to it, which closes a phone's keyboard. */
@@ -248,6 +247,7 @@ export interface StatementProps {
   children: ReactNode;
 }
 
+/** Label and value lines that may end in a total, like a short account. */
 export function Statement({ title, live, ref, children }: StatementProps): ReactNode {
   return (
     <div ref={ref} className={classes.statement} {...(live ? { tabIndex: -1, "aria-live": "polite" as const } : {})}>

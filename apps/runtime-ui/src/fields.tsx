@@ -104,7 +104,9 @@ export function OutputValue({ output, value }: { output: CalculatorOutput; value
   if (value === null || value === undefined || value === "") return "–";
   if (!fitsType(type, value)) return <UserText>{textOf(value)}</UserText>;
   if (type === "money") return <Money value={value as number} />;
-  return <Value field={{ key, label, type }} value={value} showZero />;
+  // The analyser calls any number a decimal, so a count mustn't read as "6,00".
+  const precision = type === "decimal" && Number.isInteger(value) ? { precision: 0 } : {};
+  return <Value field={{ key, label, type, ...precision }} value={value} showZero />;
 }
 
 /** What a record is called: its title field if this person can see one with a value, otherwise its name. */
