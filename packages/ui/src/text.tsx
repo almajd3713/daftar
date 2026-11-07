@@ -97,16 +97,16 @@ export function LateTag({ label }: { label?: string }): ReactNode {
 }
 
 /** A link that reads as one on any ground. The ink blue is too close to body text for colour to do it alone. */
-export function TextLink({ children, onClick, href }: { children: ReactNode; onClick?: (() => void) | undefined; href?: string | undefined }): ReactNode {
+export function TextLink({ children, onClick, href, id }: { children: ReactNode; onClick?: (() => void) | undefined; href?: string | undefined; id?: string | undefined }): ReactNode {
   if (href) {
     return (
-      <a className={classes.link} href={href} onClick={onClick}>
+      <a id={id} className={classes.link} href={href} onClick={onClick}>
         {children}
       </a>
     );
   }
   return (
-    <button type="button" className={classes.link} onClick={onClick}>
+    <button id={id} type="button" className={classes.link} onClick={onClick}>
       {children}
     </button>
   );

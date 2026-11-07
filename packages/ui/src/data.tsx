@@ -1,5 +1,5 @@
 /** How records are shown: the ledger table, its phone rows, facts, history, statements and the board. */
-import type { ReactNode, Ref } from "react";
+import { useState, type DragEvent, type ReactNode, type Ref } from "react";
 
 import { useFrame } from "./provider.js";
 import classes from "./data.module.css";
@@ -315,9 +315,35 @@ export function BoardColumns({ children }: { children: ReactNode }): ReactNode {
   return <div className={classes.board}>{children}</div>;
 }
 
-export function BoardColumn({ heading, count, children }: { heading: ReactNode; count: number; children: ReactNode }): ReactNode {
+export interface BoardColumnProps {
+  heading: ReactNode;
+  count: number;
+  /** A card was dropped here. Leave it out where cards can't be dragged. */
+  onDropCard?: (() => void) | undefined;
+  children: ReactNode;
+}
+
+export function BoardColumn({ heading, count, onDropCard, children }: BoardColumnProps): ReactNode {
+  const [over, setOver] = useState(false);
+  const dropping = onDropCard
+    ? {
+        onDragOver: (event: DragEvent) => {
+          event.preventDefault();
+          setOver(true);
+        },
+        onDragLeave: (event: DragEvent) => {
+          // Moving between the cards inside a column isn't leaving it.
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(false);
+        },
+        onDrop: (event: DragEvent) => {
+          event.preventDefault();
+          setOver(false);
+          onDropCard();
+        },
+      }
+    : {};
   return (
-    <section className={classes.column}>
+    <section className={classes.column} data-over={over || undefined} {...dropping}>
       <div className={classes.columnHead}>
         <h2>{heading}</h2>
         <span className={classes.columnCount}>{count}</span>
@@ -336,14 +362,27 @@ export interface BoardCardProps {
   action?: ReactNode;
   /** Why a move was refused (R-20). */
   refusal?: { title: ReactNode; reason: ReactNode } | undefined;
+  /** It can also be dragged to a column. Leave it out on a phone, which shows one state at a time. */
+  onDragStart?: (() => void) | undefined;
 }
 
-export function BoardCard({ title, number, subtitle, meta, action, refusal }: BoardCardProps): ReactNode {
+export function BoardCard({ title, number, subtitle, meta, action, refusal, onDragStart }: BoardCardProps): ReactNode {
   // On a PC a card sits under its column's heading. A phone shows one state, so nothing sits between it and the title.
   const { narrow } = useFrame();
   const Heading = narrow ? "h2" : "h3";
+  const dragging = onDragStart
+    ? {
+        draggable: true,
+        onDragStart: (event: DragEvent) => {
+          // Firefox won't start a drag that carries nothing.
+          event.dataTransfer.setData("text/plain", "");
+          event.dataTransfer.effectAllowed = "move";
+          onDragStart();
+        },
+      }
+    : {};
   return (
-    <article className={classes.card}>
+    <article className={classes.card} {...dragging}>
       <div className={classes.cardTop}>
         <Heading className={classes.cardTitle}>{title}</Heading>
         {number ? <span className={classes.cardNumber}>{number}</span> : null}

@@ -70,7 +70,7 @@ Spacing is `space-1`, `2`, `3`, `4`, `6`, `8`, `12`: multiples of 4 px, in rem. 
 
 **Touch and keyboard**
 - A finger gets 44 px, and a mouse 24 px. `--target` and `--control` already do this.
-- Every board card has a button for its next step, so moving a card never depends on dragging.
+- Every board card has a button for its next step, so moving a card never depends on dragging. Dragging is for a PC's mouse: a phone shows one state at a time, so there's nowhere to drag to.
 - Every chart has its numbers one tap away, in `LineChart`'s details. A tooltip never holds the only copy of a value.
 - Past 31 points a `LineChart` gives no tab stop per point, because the details table is the better way through them.
 

@@ -172,3 +172,24 @@ export function useFetch<Result>(path: string | null): Fetched<Result> {
   const reload = useCallback(() => setVersion((current) => current + 1), []);
   return { data: state.data, problem: state.problem, loading: state.loading, reload };
 }
+
+/** Reads several paths as one answer, for a page made of them. As above, what it last had stays until all have answered. */
+export function useFetchAll<Result>(paths: readonly string[]): Fetched<Result[]> {
+  const [version, setVersion] = useState(0);
+  const [state, setState] = useState<{ data?: Result[]; problem?: Problem; loading: boolean }>({ loading: true });
+  // Paths are built afresh on each render, so it's what they say that decides whether to read again.
+  const joined = paths.join("\n");
+  useEffect(() => {
+    const controller = new AbortController();
+    setState((previous) => ({ ...previous, loading: true }));
+    Promise.all(joined.split("\n").map((path) => call<Result>("GET", path, undefined, controller.signal))).then(
+      (data) => setState({ data, loading: false }),
+      (error: unknown) => {
+        if (!controller.signal.aborted) setState({ problem: problemOf(error), loading: false });
+      },
+    );
+    return () => controller.abort();
+  }, [joined, version]);
+  const reload = useCallback(() => setVersion((current) => current + 1), []);
+  return { data: state.data, problem: state.problem, loading: state.loading, reload };
+}

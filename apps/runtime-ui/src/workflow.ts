@@ -17,6 +17,20 @@ export function offeredSteps(workflow: Workflow, state: unknown, role: string): 
     .sort((a, b) => place(b.to) - place(a.to));
 }
 
+/**
+ * What moving a card to another state attempts. A step this role may not take still counts, so the server can say why
+ * not, rather than the card just refusing to move.
+ */
+export function stepBetween(workflow: Workflow, from: string, to: string, role: string): WorkflowTransition | undefined {
+  const steps = workflow.transitions.filter((step) => (step.from as readonly string[]).includes(from) && step.to === to);
+  return steps.find((step) => (step.roles as readonly string[]).includes(role)) ?? steps[0];
+}
+
+/** A state no step leaves, such as delivered. It only ever grows. */
+export function isEndState(workflow: Workflow, state: string): boolean {
+  return !workflow.transitions.some((step) => (step.from as readonly string[]).includes(state));
+}
+
 function keysIn(expr: Expr): string[] {
   switch (expr.kind) {
     case "field":

@@ -30,7 +30,7 @@ test.describe.serial("a record on a phone", () => {
     const errors = watchForErrors(page);
     await signUp(page, base);
     await add(page.request, "iPhone 11", { price: 9800, problem: "Écran cassé\nBatterie faible" });
-    await page.goto(base);
+    await page.goto(`${base}/v/repairs_all`);
     await page.getByRole("main").getByRole("button", { name: /iPhone 11/ }).click();
     await expect(page).toHaveURL(/\/e\/repairs\/[0-9a-f-]+\?from=/);
     await expect(page.getByRole("heading", { name: "iPhone 11", level: 1 })).toBeVisible();
@@ -58,7 +58,9 @@ test.describe.serial("a record on a phone", () => {
     expect((await page.request.patch(`${base}/api/e/repairs/${_id}`, { data: { price: 500, _version } })).status()).toBe(200);
     const before = await add(page.request, "Encore gratuit", { price: 0 });
     await openRecord(page, before._id);
-    await expect(fact(page, "السعر")).toHaveText("0,00");
+    // Standing alone, money carries its currency: only a column has it once, in the heading.
+    await expect(fact(page, "السعر")).toContainText("0,00");
+    await expect(fact(page, "السعر")).toContainText("د.ج.");
     await expect(fact(page, "تكلفة القطع")).toHaveText("–");
 
     await openRecord(page, _id);
