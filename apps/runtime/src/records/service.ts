@@ -242,7 +242,13 @@ export class RecordService {
     let rowsQuery = base.selectAll();
     for (const part of (query.sort ?? "").split(",").filter(Boolean)) {
       const descending = part.startsWith("-");
-      const field = this.filterableField(user, entity, descending ? part.slice(1) : part, "sort");
+      const key = descending ? part.slice(1) : part;
+      // Every record has this, and no spec's field can be called it, because a key can't start with an underscore.
+      if (key === "_updatedAt") {
+        rowsQuery = rowsQuery.orderBy("_updated_at", descending ? "desc" : "asc");
+        continue;
+      }
+      const field = this.filterableField(user, entity, key, "sort");
       rowsQuery = rowsQuery.orderBy(column(field.key), descending ? "desc" : "asc");
     }
     const rows = await rowsQuery.orderBy("_seq").limit(pageSize).offset((page - 1) * pageSize).execute();

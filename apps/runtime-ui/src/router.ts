@@ -6,7 +6,8 @@ import { useMemo, useSyncExternalStore } from "react";
 
 export type Route =
   | { name: "home" }
-  | { name: "view"; view: string; q: string; page: number }
+  /** `state` is the one a board shows on a phone. */
+  | { name: "view"; view: string; q: string; page: number; state?: string | undefined }
   | { name: "new"; entity: string; from: string | undefined }
   | { name: "record"; entity: string; id: string; from: string | undefined }
   | { name: "edit"; entity: string; id: string; from: string | undefined }
@@ -32,7 +33,7 @@ export function parseRoute(pathname: string, search: string): Route {
   if (path.length === 1 && path[0] === "more") return { name: "more" };
   const page = Number(query.get("page") ?? 1);
   const pageNumber = Number.isInteger(page) && page > 0 ? page : 1;
-  if (path.length === 2 && path[0] === "v" && path[1]) return { name: "view", view: path[1], q: query.get("q") ?? "", page: pageNumber };
+  if (path.length === 2 && path[0] === "v" && path[1]) return { name: "view", view: path[1], q: query.get("q") ?? "", page: pageNumber, state: query.get("state") ?? undefined };
   if (path.length === 2 && path[0] === "c" && path[1]) return { name: "calculator", calculator: path[1] };
   if (path[0] === "e" && path[1]) {
     if (path.length === 3 && path[2] === "new") return { name: "new", entity: path[1], from };
@@ -57,7 +58,7 @@ export function pathOf(route: Route): string {
     case "more":
       return "/more";
     case "view":
-      return withQuery(`/v/${key(route.view)}`, { q: route.q, page: route.page > 1 ? String(route.page) : undefined });
+      return withQuery(`/v/${key(route.view)}`, { q: route.q, page: route.page > 1 ? String(route.page) : undefined, state: route.state });
     case "new":
       return withQuery(`/e/${key(route.entity)}/new`, { from: route.from });
     case "record":

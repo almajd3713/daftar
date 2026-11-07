@@ -11,6 +11,7 @@ export const APPS = {
   models: { spec: "fixtures/calculators", port: 5186 },
   generated: { spec: "generated", port: 5187 },
   deleted: { spec: "payments-ledger", port: 5188 },
+  board: { spec: "repair-tracker", port: 5189 },
 } as const;
 
 export const PREVIEW_ENV = "DAFTAR_E2E_PREVIEW";

@@ -37,7 +37,7 @@ interface ValueProps {
   /** The name of a link's target. It's left out when this person may not read that row. */
   linkLabel?: string | undefined;
   excelError?: string | undefined;
-  /** A column's zero is a dash, as in Excel's Accounting format. Standing alone, it would read as nothing entered. */
+  /** It stands alone, rather than in a column: a zero isn't a dash, as in Excel's Accounting format, and money carries its currency. */
   showZero?: boolean | undefined;
 }
 
@@ -48,9 +48,12 @@ function Value({ field, value, linkLabel, excelError, showZero }: ValueProps): R
   if (excelError) return <bdi dir="ltr">{excelError}</bdi>;
   if (value === null || value === undefined) return null;
   switch (kindOf(field)) {
+    case "money":
+      // In a column the heading has the currency once. Standing alone, the amount has to carry it.
+      if (showZero) return <Money value={value as number} precision={precisionOf(field)} />;
+      return <Amount value={value as number} precision={precisionOf(field)} />;
     case "integer":
     case "decimal":
-    case "money":
       return <Amount value={value as number} precision={precisionOf(field)} showZero={showZero} />;
     case "percent":
       return <Percent ratio={value as number} />;
@@ -103,7 +106,6 @@ export function OutputValue({ output, value }: { output: CalculatorOutput; value
   if (excelError) return <Value field={{ key, label, type }} value={null} excelError={excelError} />;
   if (value === null || value === undefined || value === "") return "–";
   if (!fitsType(type, value)) return <UserText>{textOf(value)}</UserText>;
-  if (type === "money") return <Money value={value as number} />;
   // The analyser calls any number a decimal, so a count mustn't read as "6,00".
   const precision = type === "decimal" && Number.isInteger(value) ? { precision: 0 } : {};
   return <Value field={{ key, label, type, ...precision }} value={value} showZero />;

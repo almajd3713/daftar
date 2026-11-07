@@ -2,7 +2,7 @@
  * Starting up (docs/studio-api.md, Login), then the signed-in app. A later 401 returns here and shows login,
  * while the address keeps the person's page, so they land back on it.
  */
-import type { Entity, ViewList } from "@daftar/spec/types";
+import type { Entity } from "@daftar/spec/types";
 import {
   AppFrame,
   DaftarProvider,
@@ -23,13 +23,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 
 import { call, canDo, problemOf, whenSignedOut, type Meta, type Status } from "./api.js";
 import { MissingPage, PreviewEndedScreen, SetupScreen, SignInScreen, UnreachableScreen } from "./auth.js";
+import { BoardPage } from "./board.js";
 import { CalculatorPage } from "./calculator.js";
 import { DeletedPage } from "./deleted.js";
 import { EditRecordPage, NewRecordPage } from "./form.js";
 import { ListPage } from "./list.js";
 import { RecordPage } from "./record.js";
 import { goBack, navigate, useRoute, type Route } from "./router.js";
-import { isListView, usableCalculators } from "./views.js";
+import { boardWorkflow, isListView, usableCalculators, viewsOf } from "./views.js";
 import { useWords } from "./words.js";
 
 type Boot =
@@ -115,11 +116,10 @@ function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: S
   const { say } = useDaftar();
   const t = useWords();
   const route = useRoute();
-  const lists = meta.views.filter(isListView);
   const entityOf = (key: string): Entity | undefined => meta.entities.find((entity) => entity.key === key);
-  // One entry per entity. Its other views are tabs on its page.
+  // One entry per entity, opening on its first view. Its other views are tabs on its page.
   const nav = meta.entities.flatMap((entity) => {
-    const first = lists.find((view) => view.entity === entity.key);
+    const first = viewsOf(meta, entity.key)[0];
     return first ? [{ entity, view: first }] : [];
   });
   const groups: Place[][] = [
@@ -127,7 +127,7 @@ function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: S
     usableCalculators(meta).map((calculator) => ({ key: calculatorPlace(calculator.key), label: say(calculator.label), route: { name: "calculator", calculator: calculator.key } })),
   ];
   const places = groups.flat();
-  const current = currentKey(route, lists) ?? places[0]?.key;
+  const current = currentKey(route, meta.views) ?? places[0]?.key;
   const language = status.app.locales.length > 1 ? <LanguageSwitch onSwitch={onLocale} /> : undefined;
 
   // A new page moves focus to it, as a real page load would, so a screen reader and the keyboard start there.
@@ -164,9 +164,9 @@ function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: S
   );
 }
 
-function currentKey(route: Route, lists: ViewList[]): string | undefined {
+function currentKey(route: Route, views: Meta["views"]): string | undefined {
   if (route.name === "view") {
-    const entity = lists.find((view) => view.key === route.view)?.entity;
+    const entity = views.find((view) => view.key === route.view)?.entity;
     return entity ? entityPlace(entity) : undefined;
   }
   if (route.name === "new" || route.name === "edit" || route.name === "record" || route.name === "deleted") return entityPlace(route.entity);
@@ -178,11 +178,18 @@ interface ScreenProps {
   route: Route;
   meta: Meta;
   entityOf: (key: string) => Entity | undefined;
-  firstView: ViewList | undefined;
+  firstView: Meta["views"][number] | undefined;
   places: Place[];
   onLocale: (locale: Locale) => void;
   onSignOut: () => void;
   canSwitch: boolean;
+}
+
+/** A view as its own kind of page. One a role can't use, such as a board whose state it can't see, isn't there for them. */
+function ViewScreen({ meta, view, entity, q, page, state }: { meta: Meta; view: Meta["views"][number]; entity: Entity; q: string; page: number; state: string | undefined }): ReactNode {
+  if (isListView(view)) return <ListPage key={view.key} meta={meta} view={view} entity={entity} q={q} page={page} />;
+  const workflow = boardWorkflow(meta, view);
+  return workflow ? <BoardPage key={view.key} meta={meta} view={view} workflow={workflow} entity={entity} state={state} /> : <MissingPage />;
 }
 
 function Screen({ route, meta, entityOf, firstView, places, onLocale, onSignOut, canSwitch }: ScreenProps): ReactNode {
@@ -196,17 +203,17 @@ function Screen({ route, meta, entityOf, firstView, places, onLocale, onSignOut,
       return <Page title={say(meta.app.name)}><EmptyState title={t("nothingToShowTitle")}>{t("nothingToShowBody")}</EmptyState></Page>;
     }
     const entity = entityOf(firstView.entity);
-    return entity ? <ListPage meta={meta} view={firstView} entity={entity} q="" page={1} /> : null;
+    return entity ? <ViewScreen meta={meta} view={firstView} entity={entity} q="" page={1} state={undefined} /> : null;
   }
   if (route.name === "view") {
-    const view = meta.views.filter(isListView).find((item) => item.key === route.view);
+    const view = meta.views.find((item) => item.key === route.view);
     const entity = view ? entityOf(view.entity) : undefined;
-    if (view && entity) return <ListPage key={view.key} meta={meta} view={view} entity={entity} q={route.q} page={route.page} />;
+    if (view && entity) return <ViewScreen meta={meta} view={view} entity={entity} q={route.q} page={route.page} state={route.state} />;
   }
   if (route.name === "new" || route.name === "edit" || route.name === "record") {
     const entity = entityOf(route.entity);
-    const lists = meta.views.filter(isListView);
-    const list = lists.find((view) => view.key === route.from) ?? lists.find((view) => view.entity === route.entity);
+    const views = viewsOf(meta, route.entity);
+    const list = views.find((view) => view.key === route.from) ?? views[0];
     const toList = (): void => goBack(list ? { name: "view", view: list.key, q: "", page: 1 } : { name: "home" });
     if (route.name === "record") {
       return entity ? <RecordPage key={`${route.entity}/${route.id}`} meta={meta} entity={entity} id={route.id} from={route.from} onBack={toList} /> : <MissingPage />;
@@ -220,7 +227,7 @@ function Screen({ route, meta, entityOf, firstView, places, onLocale, onSignOut,
   if (route.name === "deleted") {
     const entity = entityOf(route.entity);
     if (!entity || !canDo(meta, entity.key, "revert")) return <MissingPage />;
-    const list = meta.views.filter(isListView).find((view) => view.entity === entity.key);
+    const list = viewsOf(meta, entity.key)[0];
     return <DeletedPage key={entity.key} entity={entity} page={route.page} onBack={() => goBack(list ? { name: "view", view: list.key, q: "", page: 1 } : { name: "home" })} />;
   }
   if (route.name === "calculator") {

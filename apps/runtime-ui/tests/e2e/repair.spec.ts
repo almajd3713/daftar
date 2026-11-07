@@ -35,7 +35,7 @@ test.describe.serial("the repair tracker", () => {
   test("a form shows the server's refusals, and saves what a person typed in their own habits", async ({ page }) => {
     const errors = watchForErrors(page);
     await signIn(page, base);
-    await page.goto(base);
+    await page.goto(`${base}/v/repairs_all`);
     await page.getByRole("button", { name: "إضافة" }).click();
     await expect(page.getByRole("heading", { name: "بطاقة التصليح" })).toBeVisible();
     await expect(page).toHaveURL(/\/e\/repairs\/new/);
@@ -81,7 +81,7 @@ test.describe.serial("the repair tracker", () => {
 
   test("an edit sends only what changed, and a stale one says so rather than overwriting", async ({ page }) => {
     await signIn(page, base);
-    await page.goto(base);
+    await page.goto(`${base}/v/repairs_all`);
     await page.getByRole("main").getByRole("button", { name: /Samsung A15/ }).click();
     await page.getByRole("button", { name: "تعديل", exact: true }).click();
     await expect(page.locator("#field-device")).toHaveValue("Samsung A15");
@@ -141,7 +141,7 @@ test.describe.serial("the repair tracker", () => {
 
   test("a call that finds the session gone mid-use also goes to login", async ({ page, context }) => {
     await signIn(page, base);
-    await page.goto(base);
+    await page.goto(`${base}/v/repairs_all`);
     await expect(page.getByRole("main").getByRole("button", { name: /Samsung A16/ })).toBeVisible();
     await context.clearCookies();
     await page.getByRole("main").getByRole("button", { name: /Samsung A16/ }).click();
@@ -151,7 +151,7 @@ test.describe.serial("the repair tracker", () => {
 
   test("More holds the language and signing out, and the language sticks", async ({ page }) => {
     await signIn(page, base);
-    await page.goto(base);
+    await page.goto(`${base}/v/repairs_all`);
     await page.getByRole("navigation", { name: "القائمة" }).getByRole("button", { name: "المزيد" }).click();
     await expect(page).toHaveURL(/\/more$/);
     await expectGoodScreen(page, "more");
@@ -159,6 +159,7 @@ test.describe.serial("the repair tracker", () => {
     expect(await page.evaluate(() => [document.documentElement.lang, document.documentElement.dir])).toEqual(["fr-DZ", "ltr"]);
     await page.getByRole("navigation", { name: "Menu" }).getByRole("button", { name: "Réparations" }).click();
     await expect(page.getByRole("heading", { name: "Réparations", level: 1 })).toBeVisible();
+    await page.getByRole("navigation", { name: "Réparations" }).getByRole("button", { name: "Toutes les réparations" }).click();
     await expect(page.getByRole("main").getByRole("button", { name: /Samsung A16/ })).toContainText("9\u00a0800,50");
     await expectGoodScreen(page, "list in French");
     await page.reload();
@@ -190,7 +191,7 @@ test.describe.serial("the repair tracker across the phone layout's edge", () => 
       if (request.url().includes("/api/e/repairs?")) asked.push(request.url());
     });
     page.on("requestfailed", (request) => dropped.push(request.url()));
-    await page.goto(base);
+    await page.goto(`${base}/v/repairs_all`);
     await expect(page.getByRole("main").getByRole("button", { name: /Samsung A16/ })).toBeVisible();
     expect(asked).toHaveLength(1);
     expect(dropped).toEqual([]);
@@ -227,7 +228,7 @@ test.describe.serial("the repair tracker for someone who may only read", () => {
     expect((await page.request.post(`${base}/api/auth/users`, { data: { username: "lecteur", password: PASSWORD, role: "viewer" } })).status()).toBe(201);
     await page.context().clearCookies();
     await signIn(page, base, "lecteur");
-    await page.goto(base);
+    await page.goto(`${base}/v/repairs_all`);
     await expect(page.getByRole("heading", { name: "التصليحات", level: 1 })).toBeVisible();
     await expect(page.getByRole("main").getByRole("button", { name: /Samsung A16/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "إضافة" })).toHaveCount(0);
@@ -246,7 +247,7 @@ test.describe("the repair tracker on a PC", () => {
     const errors = watchForErrors(page);
     await signIn(page, base);
     for (const [lang, title, form, add] of [["ar", "التصليحات", "بطاقة التصليح", "إضافة"], ["fr", "Réparations", "Fiche de réparation", "Ajouter"]] as const) {
-      await page.goto(`${base}/?lang=${lang}`);
+      await page.goto(`${base}/v/repairs_all?lang=${lang}`);
       await expect(page).not.toHaveURL(/lang=/);
       await expect(page.getByRole("heading", { name: title, level: 1 })).toBeVisible();
       await expect(page.locator("tbody tr")).toHaveCount(1);
