@@ -216,6 +216,8 @@ async function openCalendar(page: Page): Promise<Locator> {
   await page.locator("#received").click();
   const dropdown = page.locator(".mantine-Popover-dropdown");
   await expect(dropdown).toBeVisible();
+  // It fades in, and visible is true from the start. Part way through, axe reads its muted text as too faint.
+  await expect(dropdown).toHaveCSS("opacity", "1");
   return dropdown;
 }
 
