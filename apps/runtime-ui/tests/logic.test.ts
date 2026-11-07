@@ -1,11 +1,11 @@
-import type { Entity, Expr, Field, ViewList, Workflow, WorkflowState, WorkflowTransition } from "@daftar/spec/types";
+import type { CalculatorInput, CalculatorOutput, Entity, Expr, Field, ViewList, Workflow, WorkflowState, WorkflowTransition } from "@daftar/spec/types";
 import { describe, expect, it } from "vitest";
 
-import { classify, type AuditChange } from "../src/api.js";
+import { classify, type AuditChange, type MetaCalculator } from "../src/api.js";
 import { canUndo, deletionOf, isRestoration, linksIn, splitChanges } from "../src/history.js";
 import { parseRoute, pathOf, type Route } from "../src/router.js";
-import { allValues, changedValues, fromDraft, startingDrafts, toDraft } from "../src/values.js";
-import { listPath } from "../src/views.js";
+import { allValues, changedValues, everyValue, fieldOfInput, fitsType, fromDraft, outputError, startingDrafts, toDraft } from "../src/values.js";
+import { listPath, usableCalculators } from "../src/views.js";
 import { fieldsToCheck, offeredSteps } from "../src/workflow.js";
 
 const label = { fr: "x", ar: "x" };
@@ -24,6 +24,7 @@ describe("routes", () => {
     { name: "edit", entity: "repairs", id: "0b0c2c5e-1111-4222-8333-444455556666", from: "repairs_all" },
     { name: "record", entity: "repairs", id: "0b0c2c5e-1111-4222-8333-444455556666", from: "repairs_all" },
     { name: "record", entity: "repairs", id: "0b0c2c5e-1111-4222-8333-444455556666", from: undefined },
+    { name: "calculator", calculator: "tuition_fee" },
   ];
 
   it("read back what they wrote, so a reload lands on the same page", () => {
@@ -220,6 +221,66 @@ describe("what a form holds, and what the server stores", () => {
     expect(changedValues(fields, record, drafts)).toEqual({});
     expect(changedValues(fields, record, { ...drafts, name: "Samira" })).toEqual({ name: "Samira" });
     expect(changedValues(fields, record, { ...drafts, price: "" })).toEqual({ price: null });
+  });
+});
+
+describe("a calculator's inputs and results", () => {
+  const port = (key: string, type: CalculatorInput["type"], extra: Partial<CalculatorInput> = {}): CalculatorInput => ({ key, label, type, sheet: "S", cell: "A1", ...extra });
+  const choices: NonNullable<CalculatorInput["choices"]> = [{ key: "north", label }];
+
+  it("starts each input from the workbook's value, in the person's habits", () => {
+    const ports = [port("rate", "percent", { default: 0.19 }), port("price", "money", { default: 3000 }), port("on", "boolean", { default: true }), port("start", "date", { default: "2026-11-01" }), port("zone", "choice", { default: "north", choices })];
+    expect(startingDrafts(ports.map(fieldOfInput), undefined, "fr-DZ")).toEqual({ rate: "19,00", price: "3 000,00", on: true, start: "2026-11-01", zone: "north" });
+  });
+
+  it("shows a workbook's number with the decimals it has, because the analyser calls a count a decimal", () => {
+    const draftOf = (value: number): unknown => startingDrafts([fieldOfInput(port("n", "decimal", { default: value }))], undefined, "fr-DZ").n;
+    expect(draftOf(2)).toBe("2");
+    expect(draftOf(2.5)).toBe("2,5");
+    expect(draftOf(0.125)).toBe("0,125");
+    expect(draftOf(0.1 + 0.2)).toBe("0,300000");
+  });
+
+  it("leaves an input with no value blank", () => {
+    const fields = [fieldOfInput(port("a", "money")), fieldOfInput(port("b", "money", { default: null }))];
+    expect(startingDrafts(fields, undefined, "fr-DZ")).toEqual({ a: "", b: "" });
+  });
+
+  it("treats a choice with no list as text, since there's nothing to pick from", () => {
+    expect(fieldOfInput(port("a", "choice")).type).toBe("text");
+    expect(fieldOfInput(port("a", "choice", { choices })).type).toBe("choice");
+  });
+
+  it("sends a cleared input as null, because one left out would take its default", () => {
+    const fields = [fieldOfInput(port("a", "integer", { default: 1 })), fieldOfInput(port("b", "integer", { default: 1 }))];
+    expect(everyValue(fields, { a: "", b: "2" })).toEqual({ a: null, b: 2 });
+  });
+
+  it("sends text it can't read as it is, so the error is in the server's words", () => {
+    expect(everyValue([fieldOfInput(port("a", "integer"))], { a: "beaucoup" })).toEqual({ a: "beaucoup" });
+  });
+
+  it("knows an Excel error from a value", () => {
+    expect(outputError({ error: "#DIV/0!" })).toBe("#DIV/0!");
+    for (const value of [0, "", null, undefined, "#DIV/0!", true]) expect(outputError(value)).toBeUndefined();
+  });
+
+  it("notices when a formula gives something other than its output's type", () => {
+    expect(fitsType("money", 12)).toBe(true);
+    expect(fitsType("money", "-")).toBe(false);
+    expect(fitsType("percent", "n/a")).toBe(false);
+    expect(fitsType("date", "2026-11-01")).toBe(true);
+    expect(fitsType("date", "bientôt")).toBe(false);
+    expect(fitsType("date", 46357)).toBe(false);
+    expect(fitsType("boolean", false)).toBe(true);
+    expect(fitsType("boolean", "oui")).toBe(false);
+    expect(fitsType("text", 12)).toBe(true);
+  });
+
+  it("offers a calculator only to a role that may read something it gives", () => {
+    const calculator = (key: string, outputs: CalculatorOutput[]): MetaCalculator => ({ key, label, inputs: [port("a", "integer")], outputs });
+    const usable = usableCalculators({ calculators: [calculator("none", []), calculator("some", [{ key: "x", label, type: "money", sheet: "S", cell: "A2" }])] });
+    expect(usable.map((item) => item.key)).toEqual(["some"]);
   });
 });
 

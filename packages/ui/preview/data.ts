@@ -44,6 +44,7 @@ export const words = {
   device: { fr: "Appareil", ar: "الجهاز" },
   problem: { fr: "Panne", ar: "العطل" },
   assignee: { fr: "Technicien", ar: "التقني" },
+  warranty: { fr: "Sous garantie", ar: "تحت الضمان" },
   received: { fr: "Reçu le", ar: "تاريخ الاستلام" },
   promised: { fr: "Promis pour le", ar: "الموعد المتفق عليه" },
   price: { fr: "Prix", ar: "السعر" },

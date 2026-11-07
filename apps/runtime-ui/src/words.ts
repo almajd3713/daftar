@@ -65,6 +65,11 @@ const words = {
   sourceWorkflow: { fr: "Suivi", ar: "المسار" },
   sourceImport: { fr: "Import", ar: "استيراد" },
   sourceSystem: { fr: "Système", ar: "النظام" },
+  compute: { fr: "Calculer", ar: "احسب" },
+  result: { fr: "Résultat", ar: "النتيجة" },
+  couldNotCompute: { fr: "Le calcul n’a pas abouti", ar: "لم يكتمل الحساب" },
+  computeErrorTitle: { fr: "Le calcul donne une erreur avec ces valeurs", ar: "يعطي الحساب خطأ بهذه القيم" },
+  computeErrorBody: { fr: "Vérifiez les valeurs saisies, puis recalculez.", ar: "تحقق من القيم المدخلة ثم أعد الحساب." },
 } as const satisfies Record<string, Label>;
 
 export type Word = keyof typeof words;

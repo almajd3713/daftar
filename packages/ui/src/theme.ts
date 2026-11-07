@@ -71,6 +71,7 @@ export const theme = createTheme({
     }),
     Checkbox: Checkbox.extend({
       defaultProps: { iconColor: "var(--on-accent)" },
+      vars: () => ({ root: { "--checkbox-size": "var(--target)" } }),
     }),
     Modal: Modal.extend({
       defaultProps: { shadow: "md", centered: true },

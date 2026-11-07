@@ -3,7 +3,7 @@
  * language's habits, where `9.800,00` is a number. The server takes numbers and `YYYY-MM-DD`, and it stays the
  * only judge of what's valid: text that can't be read is sent as it is, so the error is in the server's words.
  */
-import type { Entity, Field } from "@daftar/spec/types";
+import type { CalculatorInput, CalculatorOutput, Entity, Field } from "@daftar/spec/types";
 import { formatNumber, parseAmount, type Locale } from "@daftar/ui/format";
 
 export type Draft = string | boolean | string[];
@@ -109,6 +109,50 @@ export function allValues(fields: readonly Field[], drafts: Drafts): Record<stri
     const value = fromDraft(field, drafts[field.key] ?? "");
     return value === null ? [] : [[field.key, value]];
   }));
+}
+
+/** A workbook's number has the decimals it has: a count of 2 isn't "2,00". Six is past anything a person types. */
+function decimalsIn(value: unknown): number {
+  if (typeof value !== "number" || Number.isInteger(value)) return 0;
+  return Math.min(String(value).split(".")[1]?.length ?? 2, 6);
+}
+
+/** A calculator's input takes the same input, and the same reading of what's typed, as a field of its type. */
+export function fieldOfInput(port: CalculatorInput): Field {
+  const { key, label, type, choices } = port;
+  const start = port.default === null || port.default === undefined ? {} : { default: port.default };
+  if (type === "choice") return choices ? { key, label, type, choices, ...start } : { key, label, type: "text", ...start };
+  return { key, label, type, ...start, ...(type === "decimal" ? { precision: decimalsIn(port.default) } : {}) };
+}
+
+/**
+ * What a calculator sends: every input, blank ones as null. The server gives an input it isn't sent its default, so
+ * leaving a cleared one out would calculate with a number the person just removed.
+ */
+export function everyValue(fields: readonly Field[], drafts: Drafts): Record<string, unknown> {
+  return Object.fromEntries(fields.map((field) => [field.key, fromDraft(field, drafts[field.key] ?? "")]));
+}
+
+export function outputError(value: unknown): string | undefined {
+  if (typeof value !== "object" || value === null || !("error" in value)) return undefined;
+  return textOf(value.error);
+}
+
+/** A result comes from a workbook's formula, so it isn't always what its type says: `=IF(A1>0,A1,"-")` is common. */
+export function fitsType(type: CalculatorOutput["type"], value: unknown): boolean {
+  switch (type) {
+    case "integer":
+    case "decimal":
+    case "money":
+    case "percent":
+      return typeof value === "number";
+    case "date":
+      return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+    case "boolean":
+      return typeof value === "boolean";
+    default:
+      return true;
+  }
 }
 
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);

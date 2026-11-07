@@ -168,6 +168,23 @@ textarea.mantine-Input-input {
   color: var(--muted);
 }
 
+/* A checkbox is a full target, so its label centres on it rather than sitting at its top. */
+.mantine-Checkbox-body {
+  align-items: center;
+}
+
+/* As with an input, Mantine reads its border and fill from its own greys. */
+.mantine-Checkbox-input:not(:checked) {
+  border-color: var(--rule-input);
+  background-color: var(--surface);
+}
+
+.mantine-Checkbox-label {
+  font-size: var(--t-body);
+  line-height: var(--l-body);
+  color: var(--ink);
+}
+
 /* Floating parts: the only place a shadow is allowed, because they really do sit above the page. */
 .mantine-Popover-dropdown,
 .mantine-Combobox-dropdown,
