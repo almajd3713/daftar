@@ -2,7 +2,7 @@
 
 The screens a firm uses: React on [`packages/ui`](../../packages/ui/README.md), driven by the spec through `GET /api/meta`. The Runtime serves the build from its own origin, so the session cookie just works and nothing needs CORS. `docs/studio-api.md` is the contract with the server.
 
-Being built under WP-10. So far: first start, login, list views, forms, a record's own page with its steps, history, undo and delete, and calculators. Still to come: the board, dashboards, reminders, sort and filter controls, a searching link picker, and the owner's page for accounts, the processing register and the audit download. Export and import belong to WP-13.
+Being built under WP-10. So far: first start, login, list views, forms, a record's own page with its steps, history, undo and delete, a list of what's been deleted, and calculators. Still to come: the board, dashboards, reminders, sort and filter controls, a searching link picker, and the owner's page for accounts, the processing register and the audit download. Export and import belong to WP-13.
 
 ## Running it
 

@@ -10,6 +10,7 @@ export type Route =
   | { name: "new"; entity: string; from: string | undefined }
   | { name: "record"; entity: string; id: string; from: string | undefined }
   | { name: "edit"; entity: string; id: string; from: string | undefined }
+  | { name: "deleted"; entity: string; page: number }
   | { name: "calculator"; calculator: string }
   | { name: "more" }
   | { name: "missing" };
@@ -29,13 +30,13 @@ export function parseRoute(pathname: string, search: string): Route {
   if (!path) return { name: "missing" };
   if (path.length === 0) return { name: "home" };
   if (path.length === 1 && path[0] === "more") return { name: "more" };
-  if (path.length === 2 && path[0] === "v" && path[1]) {
-    const page = Number(query.get("page") ?? 1);
-    return { name: "view", view: path[1], q: query.get("q") ?? "", page: Number.isInteger(page) && page > 0 ? page : 1 };
-  }
+  const page = Number(query.get("page") ?? 1);
+  const pageNumber = Number.isInteger(page) && page > 0 ? page : 1;
+  if (path.length === 2 && path[0] === "v" && path[1]) return { name: "view", view: path[1], q: query.get("q") ?? "", page: pageNumber };
   if (path.length === 2 && path[0] === "c" && path[1]) return { name: "calculator", calculator: path[1] };
   if (path[0] === "e" && path[1]) {
     if (path.length === 3 && path[2] === "new") return { name: "new", entity: path[1], from };
+    if (path.length === 3 && path[2] === "deleted") return { name: "deleted", entity: path[1], page: pageNumber };
     if (path.length === 3 && path[2]) return { name: "record", entity: path[1], id: path[2], from };
     if (path.length === 4 && path[2] && path[3] === "edit") return { name: "edit", entity: path[1], id: path[2], from };
   }
@@ -63,6 +64,8 @@ export function pathOf(route: Route): string {
       return withQuery(`/e/${key(route.entity)}/${key(route.id)}`, { from: route.from });
     case "edit":
       return withQuery(`/e/${key(route.entity)}/${key(route.id)}/edit`, { from: route.from });
+    case "deleted":
+      return withQuery(`/e/${key(route.entity)}/deleted`, { page: route.page > 1 ? String(route.page) : undefined });
     case "calculator":
       return `/c/${key(route.calculator)}`;
   }

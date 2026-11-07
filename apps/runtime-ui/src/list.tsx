@@ -6,6 +6,8 @@ import {
   currencyLabel,
   EmptyState,
   FootRow,
+  Gutter,
+  LastActions,
   LedgerTable,
   Money,
   Page,
@@ -25,7 +27,7 @@ import {
 } from "@daftar/ui";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { useFetch, type ListResult, type Meta, type Row } from "./api.js";
+import { canDo, useFetch, type ListResult, type Meta, type Row } from "./api.js";
 import { ProblemNotice } from "./auth.js";
 import { FieldValue, RecordTitle } from "./fields.js";
 import { navigate } from "./router.js";
@@ -66,7 +68,13 @@ export function ListPage({ meta, view, entity, q, page }: { meta: Meta; view: Vi
   const foot = narrow && (add || totalField) ? (
     <FootRow totalLabel={totalField ? say(totalField.label) : undefined} total={totalField && typeof totalValue === "number" ? <Money value={totalValue} precision={precisionOf(totalField)} /> : undefined}>{add}</FootRow>
   ) : undefined;
-  const pageChrome = (children: ReactNode): ReactNode => <Page title={say(entity.label)} actions={add} foot={foot} closing={Boolean(totalField)}>{children}</Page>;
+  // Once the list has arrived, or this link would jump down the page as it does.
+  const toDeleted = data && canDo(meta, entity.key, "revert") ? (
+    <Gutter>
+      <LastActions><TextLink onClick={() => navigate({ name: "deleted", entity: entity.key, page: 1 })}>{t("deletedList")}</TextLink></LastActions>
+    </Gutter>
+  ) : null;
+  const pageChrome = (children: ReactNode): ReactNode => <Page title={say(entity.label)} actions={add} foot={foot} closing={Boolean(totalField)}>{children}{toDeleted}</Page>;
 
   if (!data) {
     return pageChrome(<>{header}{loading ? <Waiting>{say(view.label)}</Waiting> : <><ProblemNotice problem={problem} /><Button onClick={reload}>{t("retry")}</Button></>}</>);
@@ -103,16 +111,20 @@ export function ListPage({ meta, view, entity, q, page }: { meta: Meta; view: Vi
         {header}
         <ProblemNotice problem={problem} />
         <RecordList titleHeading={titleField ? say(titleField.label) : undefined} amountHeading={amount ? `${say(amount.label)}${kindOf(amount) === "money" ? ` (${currencyLabel(locale)})` : ""}` : undefined}>
-          {data.rows.map((row) => (
-            <RecordRow
-              key={row._id}
-              title={<RecordTitle entity={entity} row={row} />}
-              amount={amount ? <FieldValue field={amount} row={row} /> : undefined}
-              meta={<>{row._name !== row[entity.titleField] ? <UserText>{row._name}</UserText> : null}{date && row[date.key] ? <> · <FieldValue field={date} row={row} /></> : null}</>}
-              status={status ? <FieldValue field={status} row={row} /> : undefined}
-              onClick={() => open(row)}
-            />
-          ))}
+          {data.rows.map((row) => {
+            const name = row._name !== row[entity.titleField] ? <UserText>{row._name}</UserText> : null;
+            const when = date && row[date.key] ? <FieldValue field={date} row={row} /> : null;
+            return (
+              <RecordRow
+                key={row._id}
+                title={<RecordTitle entity={entity} row={row} />}
+                amount={amount ? <FieldValue field={amount} row={row} /> : undefined}
+                meta={<>{name}{name && when ? " · " : null}{when}</>}
+                status={status ? <FieldValue field={status} row={row} /> : undefined}
+                onClick={() => open(row)}
+              />
+            );
+          })}
         </RecordList>
         {pager}
       </>,
