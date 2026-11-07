@@ -1,4 +1,5 @@
 /** Every screen, drawn only from @daftar/ui's components. If a screen needs raw CSS, the system has a gap. */
+import { Checkbox } from "@mantine/core";
 import { useState, type ReactNode } from "react";
 
 import {
@@ -264,6 +265,7 @@ function FormPage(): ReactNode {
           <TextField id="device" label={t("device")} required defaultValue="iPhone 11" />
           <LongTextField id="problem" label={t("problem")} value={problem} onChange={(event) => setProblem(event.currentTarget.value)} />
           <ChoiceField id="assignee" label={t("assignee")} data={["Rafik", "Yacine"]} />
+          <Checkbox id="warranty" label={t("warranty")} />
           <FieldPair>
             <DateField id="received" label={t("received")} required defaultValue="2026-11-01" />
             <DateField id="promised" label={t("promised")} defaultValue="2026-11-04" />

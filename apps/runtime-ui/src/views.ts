@@ -1,10 +1,17 @@
 /** A spec's view becomes query parameters here, because the server has no view route. */
 import type { Filter, ViewBoard, ViewList } from "@daftar/spec/types";
 
+import type { Meta, MetaCalculator } from "./api.js";
+
 export const PAGE_SIZE = 50;
 
 export function isListView(view: ViewList | ViewBoard): view is ViewList {
   return view.type === "list";
+}
+
+/** A role that may read none of a calculator's outputs has nothing to get from it. */
+export function usableCalculators(meta: Pick<Meta, "calculators">): MetaCalculator[] {
+  return meta.calculators.filter((calculator) => calculator.outputs.length);
 }
 
 function addDays(date: string, days: number): string {

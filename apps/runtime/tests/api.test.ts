@@ -1,3 +1,4 @@
+import type { DaftarSpec } from "@daftar/spec/types";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { Client, PASSWORD, example, ownerOf, start, userOf, type Running } from "./helpers.js";
@@ -548,8 +549,63 @@ describe("calculators", () => {
     expect((await owner.post("/api/calc/ghost", {})).status).toBe(404);
   });
 
+  it("treats an input sent blank as blank, rather than as its default", async () => {
+    const result = await owner.post("/api/calc/tuition_fee", { subjects: null });
+    expect(result.status).toBe(200);
+    expect(result.body.outputs.total).toBe(0);
+  });
+
   it("needs a signed-in user", async () => {
     expect((await new Client(running.base).post("/api/calc/tuition_fee", {})).status).toBe(401);
+  });
+
+  describe("with a date and a choice", () => {
+    const label = { fr: "x", ar: "x" };
+    const port = (key: string, cell: string, type: string, extra: object = {}): object => ({ key, label, type, sheet: "C", cell, ...extra });
+    let dated: Running;
+    let client: Client;
+
+    beforeAll(async () => {
+      dated = await start({
+        ...example("fee-calculator"),
+        calculators: [
+          {
+            key: "rental",
+            label,
+            inputs: [
+              port("start", "A1", "date", { default: "2026-11-01" }),
+              port("days", "A2", "integer", { default: 30 }),
+              port("zone", "A3", "choice", { default: "north", choices: [{ key: "north", label }, { key: "south", label }] }),
+            ],
+            outputs: [port("end", "B1", "date"), port("month", "B2", "integer"), port("zone_word", "B3", "text"), port("not_a_date", "B4", "date")],
+            cells: [
+              { sheet: "C", ref: "A1", v: "2026-11-01" },
+              { sheet: "C", ref: "A2", v: 30 },
+              { sheet: "C", ref: "A3", v: "north" },
+              { sheet: "C", ref: "B1", f: "=A1+A2" },
+              { sheet: "C", ref: "B2", f: "=MONTH(A1)" },
+              { sheet: "C", ref: "B3", f: '=IF(A3="north","N","S")' },
+              { sheet: "C", ref: "B4", f: '=IF(A2>100,A1,"-")' },
+            ],
+            testCases: [],
+          },
+        ],
+      } as DaftarSpec);
+      client = await ownerOf(dated);
+    });
+    afterAll(() => dated.close());
+
+    it("gives a formula a real date, and gives one back as the API writes every date", async () => {
+      const result = await client.post("/api/calc/rental", { start: "2026-12-25", days: 10 });
+      expect(result.status).toBe(200);
+      expect(result.body.outputs).toEqual({ end: "2027-01-04", month: 12, zone_word: "N", not_a_date: "-" });
+    });
+
+    it("refuses a choice that isn't on its list, as a form would", async () => {
+      const refused = await client.post("/api/calc/rental", { zone: "nowhere" });
+      expect(refused.status).toBe(400);
+      expect(refused.body.fields.zone.fr).toBeTruthy();
+    });
   });
 
   it("doesn't reveal the model through meta", async () => {

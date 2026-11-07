@@ -23,11 +23,12 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 
 import { call, problemOf, whenSignedOut, type Meta, type Status } from "./api.js";
 import { MissingPage, PreviewEndedScreen, SetupScreen, SignInScreen, UnreachableScreen } from "./auth.js";
+import { CalculatorPage } from "./calculator.js";
 import { EditRecordPage, NewRecordPage } from "./form.js";
 import { ListPage } from "./list.js";
 import { RecordPage } from "./record.js";
 import { goBack, navigate, useRoute, type Route } from "./router.js";
-import { isListView } from "./views.js";
+import { isListView, usableCalculators } from "./views.js";
 import { useWords } from "./words.js";
 
 type Boot =
@@ -99,6 +100,16 @@ export function App(): ReactNode {
   );
 }
 
+/** Somewhere the navigation leads. Its key says what kind, so an entity and a calculator can share a name. */
+interface Place {
+  key: string;
+  label: string;
+  route: Route;
+}
+
+const entityPlace = (key: string): string => `entity:${key}`;
+const calculatorPlace = (key: string): string => `calculator:${key}`;
+
 function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: Status; onLocale: (locale: Locale) => void; onSignOut: () => void }): ReactNode {
   const { say } = useDaftar();
   const t = useWords();
@@ -110,7 +121,12 @@ function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: S
     const first = lists.find((view) => view.entity === entity.key);
     return first ? [{ entity, view: first }] : [];
   });
-  const current = currentKey(route, lists);
+  const groups: Place[][] = [
+    nav.map(({ entity, view }) => ({ key: entityPlace(entity.key), label: say(entity.label), route: { name: "view", view: view.key, q: "", page: 1 } })),
+    usableCalculators(meta).map((calculator) => ({ key: calculatorPlace(calculator.key), label: say(calculator.label), route: { name: "calculator", calculator: calculator.key } })),
+  ];
+  const places = groups.flat();
+  const current = currentKey(route, lists) ?? places[0]?.key;
   const language = status.app.locales.length > 1 ? <LanguageSwitch onSwitch={onLocale} /> : undefined;
 
   // A new page moves focus to it, as a real page load would, so a screen reader and the keyboard start there.
@@ -132,28 +148,29 @@ function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: S
   return (
     <AppFrame
       firm={say(meta.app.name)}
-      nav={[nav.map(({ entity }) => ({ key: entity.key, label: say(entity.label) }))]}
+      nav={groups.filter((group) => group.length)}
       current={route.name === "more" ? "more" : current}
       onNavigate={(key) => {
-        if (key === "more") navigate({ name: "more" });
-        else {
-          const target = nav.find(({ entity }) => entity.key === key);
-          if (target) navigate({ name: "view", view: target.view.key, q: "", page: 1 });
-        }
+        const target = key === "more" ? { name: "more" as const } : places.find((place) => place.key === key)?.route;
+        if (target) navigate(target);
       }}
       user={<span><UserText>{meta.user.username}</UserText> · <TextLink onClick={onSignOut}>{t("signOut")}</TextLink></span>}
       language={language}
       hideNavOnPhone={route.name === "new" || route.name === "edit" || route.name === "record"}
     >
-      <Screen route={route} meta={meta} entityOf={entityOf} firstView={nav[0]?.view} nav={nav} onLocale={onLocale} onSignOut={onSignOut} canSwitch={Boolean(language)} />
+      <Screen route={route} meta={meta} entityOf={entityOf} firstView={nav[0]?.view} places={places} onLocale={onLocale} onSignOut={onSignOut} canSwitch={Boolean(language)} />
     </AppFrame>
   );
 }
 
 function currentKey(route: Route, lists: ViewList[]): string | undefined {
-  if (route.name === "view") return lists.find((view) => view.key === route.view)?.entity;
-  if (route.name === "new" || route.name === "edit" || route.name === "record") return route.entity;
-  return lists[0]?.entity;
+  if (route.name === "view") {
+    const entity = lists.find((view) => view.key === route.view)?.entity;
+    return entity ? entityPlace(entity) : undefined;
+  }
+  if (route.name === "new" || route.name === "edit" || route.name === "record") return entityPlace(route.entity);
+  if (route.name === "calculator") return calculatorPlace(route.calculator);
+  return undefined;
 }
 
 interface ScreenProps {
@@ -161,17 +178,20 @@ interface ScreenProps {
   meta: Meta;
   entityOf: (key: string) => Entity | undefined;
   firstView: ViewList | undefined;
-  nav: { entity: Entity; view: ViewList }[];
+  places: Place[];
   onLocale: (locale: Locale) => void;
   onSignOut: () => void;
   canSwitch: boolean;
 }
 
-function Screen({ route, meta, entityOf, firstView, nav, onLocale, onSignOut, canSwitch }: ScreenProps): ReactNode {
+function Screen({ route, meta, entityOf, firstView, places, onLocale, onSignOut, canSwitch }: ScreenProps): ReactNode {
   const { say } = useDaftar();
   const t = useWords();
+  const calculators = usableCalculators(meta);
   if (route.name === "home") {
     if (!firstView) {
+      const first = calculators[0];
+      if (first) return <CalculatorPage key={first.key} calculator={first} />;
       return <Page title={say(meta.app.name)}><EmptyState title={t("nothingToShowTitle")}>{t("nothingToShowBody")}</EmptyState></Page>;
     }
     const entity = entityOf(firstView.entity);
@@ -196,24 +216,28 @@ function Screen({ route, meta, entityOf, firstView, nav, onLocale, onSignOut, ca
       return <EditRecordPage key={route.id} entity={entity} form={form} id={route.id} onClose={() => goBack({ name: "record", entity: route.entity, id: route.id, from: route.from })} />;
     }
   }
-  if (route.name === "more") return <MorePage meta={meta} nav={nav} onLocale={onLocale} onSignOut={onSignOut} canSwitch={canSwitch} />;
+  if (route.name === "calculator") {
+    const calculator = calculators.find((item) => item.key === route.calculator);
+    if (calculator) return <CalculatorPage key={calculator.key} calculator={calculator} />;
+  }
+  if (route.name === "more") return <MorePage meta={meta} places={places} onLocale={onLocale} onSignOut={onSignOut} canSwitch={canSwitch} />;
   return <MissingPage />;
 }
 
 /** On a phone, what doesn't fit along the bottom: pages past the first four, the language, and signing out. */
-function MorePage({ meta, nav, onLocale, onSignOut, canSwitch }: Pick<ScreenProps, "meta" | "nav" | "onLocale" | "onSignOut" | "canSwitch">): ReactNode {
+function MorePage({ meta, places, onLocale, onSignOut, canSwitch }: Pick<ScreenProps, "meta" | "places" | "onLocale" | "onSignOut" | "canSwitch">): ReactNode {
   const { say, locale } = useDaftar();
   const { narrow } = useFrame();
   const t = useWords();
-  const beyond = narrow ? nav.slice(4) : [];
+  const beyond = narrow ? places.slice(4) : [];
   return (
     <Page title={say(meta.app.name)}>
       <MenuList>
         {beyond.length ? (
           <>
             <MenuHeading>{t("otherPages")}</MenuHeading>
-            {beyond.map(({ entity, view }) => (
-              <MenuItem key={entity.key} label={say(entity.label)} onClick={() => navigate({ name: "view", view: view.key, q: "", page: 1 })} />
+            {beyond.map((place) => (
+              <MenuItem key={place.key} label={place.label} onClick={() => navigate(place.route)} />
             ))}
           </>
         ) : null}

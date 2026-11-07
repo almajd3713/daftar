@@ -1,5 +1,5 @@
 /** One place that knows each field type: how to show its value, and which input takes it. */
-import type { Entity, Field } from "@daftar/spec/types";
+import type { CalculatorOutput, Entity, Field } from "@daftar/spec/types";
 import {
   Amount,
   ChoiceField,
@@ -8,6 +8,7 @@ import {
   DateTimeText,
   EmailField,
   LongTextField,
+  Money,
   MoneyField,
   NumberField,
   Percent,
@@ -23,7 +24,7 @@ import { Checkbox, MultiSelect } from "@mantine/core";
 import type { ReactNode } from "react";
 
 import { useFetch, type ListResult, type Row } from "./api.js";
-import { kindOf, precisionOf, textOf, type Draft } from "./values.js";
+import { fitsType, kindOf, outputError, precisionOf, textOf, type Draft } from "./values.js";
 import { useWords } from "./words.js";
 
 function choiceOf(field: Field, key: unknown): { label: { fr: string; ar: string }; colour?: string } | undefined {
@@ -93,6 +94,19 @@ export function PastValue({ field, value, linkLabel }: { field: Field; value: un
     return choice ? say(choice.label) : <UserText>{textOf(value)}</UserText>;
   }
   return <Value field={field} value={value} linkLabel={linkLabel} showZero />;
+}
+
+/** A calculator's result. It stands alone, so money carries its currency and a zero is a zero. */
+export function OutputValue({ output, value }: { output: CalculatorOutput; value: unknown }): ReactNode {
+  const { key, label, type } = output;
+  const excelError = outputError(value);
+  if (excelError) return <Value field={{ key, label, type }} value={null} excelError={excelError} />;
+  if (value === null || value === undefined || value === "") return "–";
+  if (!fitsType(type, value)) return <UserText>{textOf(value)}</UserText>;
+  if (type === "money") return <Money value={value as number} />;
+  // The analyser calls any number a decimal, so a count mustn't read as "6,00".
+  const precision = type === "decimal" && Number.isInteger(value) ? { precision: 0 } : {};
+  return <Value field={{ key, label, type, ...precision }} value={value} showZero />;
 }
 
 /** What a record is called: its title field if this person can see one with a value, otherwise its name. */

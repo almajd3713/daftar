@@ -1,5 +1,5 @@
 /** The Runtime's API (C-7, docs/studio-api.md), and the few shapes of failure a screen has to tell apart. */
-import type { App, Entity, Form, Label, Permission, ViewBoard, ViewList, Workflow } from "@daftar/spec/types";
+import type { App, Calculator, CalculatorOutput, Entity, Form, Label, Permission, ViewBoard, ViewList, Workflow } from "@daftar/spec/types";
 import { useCallback, useEffect, useState } from "react";
 
 export interface Status {
@@ -8,6 +8,9 @@ export interface Status {
   /** Only in the Studio's preview, where nobody knows the password. */
   preview?: true;
 }
+
+/** A calculator as a role sees it: never its formulas, and only the outputs this role may read, which can be none. */
+export type MetaCalculator = Omit<Calculator, "cells" | "testCases" | "outputs"> & { outputs: CalculatorOutput[] };
 
 export interface Meta {
   specVersion: string;
@@ -18,6 +21,12 @@ export interface Meta {
   views: (ViewList | ViewBoard)[];
   forms: Form[];
   workflows: Workflow[];
+  calculators: MetaCalculator[];
+}
+
+/** Each output is its value, or `{error}` with the Excel error its formula gave. */
+export interface CalcResult {
+  outputs: Record<string, unknown>;
 }
 
 export const canDo = (meta: Meta, entity: string, action: string): boolean => meta.permissions.some((item) => item.entity === entity && item.actions.includes(action as never));

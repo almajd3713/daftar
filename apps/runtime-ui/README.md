@@ -2,7 +2,7 @@
 
 The screens a firm uses: React on [`packages/ui`](../../packages/ui/README.md), driven by the spec through `GET /api/meta`. The Runtime serves the build from its own origin, so the session cookie just works and nothing needs CORS. `docs/studio-api.md` is the contract with the server.
 
-Being built under WP-10. So far: first start, login, list views, forms, and a record's own page with its steps, history, undo and delete. Still to come: the board, dashboards, calculators, reminders, sort and filter controls, a searching link picker, and the owner's page for accounts, the processing register and the audit download. Export and import belong to WP-13.
+Being built under WP-10. So far: first start, login, list views, forms, a record's own page with its steps, history, undo and delete, and calculators. Still to come: the board, dashboards, reminders, sort and filter controls, a searching link picker, and the owner's page for accounts, the processing register and the audit download. Export and import belong to WP-13.
 
 ## Running it
 
@@ -21,6 +21,7 @@ That serves the app on port 3000. To change the screens with a live reload, leav
 - **The address is the state.** A reload, a shared link or signing in again lands on the same page, search and page number. Back within the app returns to the page a person left, and a shared link's back goes up to its list.
 - **A refusal explains itself.** It shows the server's sentence. When a step's condition wasn't met, it also names the fields that condition reads, because the server's sentence can't. A field this person can't see is never named.
 - **History says what happened in a person's words.** A link shows its target's name, a hidden field only says that it changed, and a creation or a deletion is one word.
+- **A calculator's figure only stands beside the values it came from.** It goes as soon as one changes, and an answer that arrives after that is dropped. A cleared input is sent as blank, because one left out would take its default.
 - **`src/fields.tsx` is the one place that knows a field type.** A new type belongs there, both how it shows and which input takes it.
 - **State stays above what `useFrame()` switches on,** so turning a phone keeps what's been typed.
 

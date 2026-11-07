@@ -144,22 +144,24 @@ test.describe("what the design promises", () => {
     }
   });
 
-  test("gives an input's border 3:1 against the page, which axe doesn't check", async ({ page }) => {
+  test("gives an input's and a checkbox's border 3:1 against the page, which axe doesn't check", async ({ page }) => {
     for (const mode of ["light", "dark"]) {
       await open(page, "form", "fr", mode, "normal");
-      const contrast = await page.locator("#customer").evaluate((input) => {
-        const channels = (color: string): number[] => (/rgba?\(([^)]+)\)/.exec(color)?.[1] ?? "0 0 0").split(/[ ,/]+/).map(Number);
-        const lum = (color: string): number => {
-          const [r = 0, g = 0, b = 0] = channels(color).map((value) => {
-            const v = value / 255;
-            return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-          });
-          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        };
-        const [high = 0, low = 0] = [lum(getComputedStyle(input).borderTopColor), lum(getComputedStyle(document.body).backgroundColor)].sort((x, y) => y - x);
-        return (high + 0.05) / (low + 0.05);
-      });
-      expect(contrast, mode).toBeGreaterThanOrEqual(3);
+      for (const field of ["#customer", "#warranty"]) {
+        const contrast = await page.locator(field).evaluate((input) => {
+          const channels = (color: string): number[] => (/rgba?\(([^)]+)\)/.exec(color)?.[1] ?? "0 0 0").split(/[ ,/]+/).map(Number);
+          const lum = (color: string): number => {
+            const [r = 0, g = 0, b = 0] = channels(color).map((value) => {
+              const v = value / 255;
+              return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+            });
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          };
+          const [high = 0, low = 0] = [lum(getComputedStyle(input).borderTopColor), lum(getComputedStyle(document.body).backgroundColor)].sort((x, y) => y - x);
+          return (high + 0.05) / (low + 0.05);
+        });
+        expect(contrast, `${field} in ${mode}`).toBeGreaterThanOrEqual(3);
+      }
     }
   });
 

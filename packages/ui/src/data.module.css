@@ -364,6 +364,11 @@
   align-content: start;
 }
 
+/* It takes focus so a screen reader and a long page both land here. It's a result rather than a control, and a ring would be the only box on the page. */
+.statement:focus {
+  outline: none;
+}
+
 .line {
   display: flex;
   justify-content: space-between;

@@ -1,5 +1,5 @@
 /** How records are shown: the ledger table, its phone rows, facts, history, statements and the board. */
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 import { useFrame } from "./provider.js";
 import classes from "./data.module.css";
@@ -239,10 +239,18 @@ export function LastActions({ children }: { children: ReactNode }): ReactNode {
   return <div className={classes.lastActions}>{children}</div>;
 }
 
+export interface StatementProps {
+  title?: ReactNode;
+  /** It's where an answer arrives: a screen reader hears it, and `ref` can take focus to it, which closes a phone's keyboard. */
+  live?: boolean | undefined;
+  ref?: Ref<HTMLDivElement> | undefined;
+  children: ReactNode;
+}
+
 /** Label and value lines that may end in a total, like a short account. */
-export function Statement({ title, children }: { title?: ReactNode; children: ReactNode }): ReactNode {
+export function Statement({ title, live, ref, children }: StatementProps): ReactNode {
   return (
-    <div className={classes.statement}>
+    <div ref={ref} className={classes.statement} {...(live ? { tabIndex: -1, "aria-live": "polite" as const } : {})}>
       {title ? <SectionHeading ruled>{title}</SectionHeading> : null}
       <dl>{children}</dl>
     </div>
