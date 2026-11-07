@@ -5,7 +5,6 @@
 import type { Entity, ViewList } from "@daftar/spec/types";
 import {
   AppFrame,
-  Button,
   DaftarProvider,
   EmptyState,
   LanguageSwitch,
@@ -23,10 +22,11 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { call, problemOf, whenSignedOut, type Meta, type Status } from "./api.js";
-import { PreviewEndedScreen, SetupScreen, SignInScreen, UnreachableScreen } from "./auth.js";
+import { MissingPage, PreviewEndedScreen, SetupScreen, SignInScreen, UnreachableScreen } from "./auth.js";
 import { EditRecordPage, NewRecordPage } from "./form.js";
 import { ListPage } from "./list.js";
-import { navigate, useRoute, type Route } from "./router.js";
+import { RecordPage } from "./record.js";
+import { goBack, navigate, useRoute, type Route } from "./router.js";
 import { isListView } from "./views.js";
 import { useWords } from "./words.js";
 
@@ -143,7 +143,7 @@ function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: S
       }}
       user={<span><UserText>{meta.user.username}</UserText> · <TextLink onClick={onSignOut}>{t("signOut")}</TextLink></span>}
       language={language}
-      hideNavOnPhone={route.name === "new" || route.name === "edit"}
+      hideNavOnPhone={route.name === "new" || route.name === "edit" || route.name === "record"}
     >
       <Screen route={route} meta={meta} entityOf={entityOf} firstView={nav[0]?.view} nav={nav} onLocale={onLocale} onSignOut={onSignOut} canSwitch={Boolean(language)} />
     </AppFrame>
@@ -152,7 +152,7 @@ function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: S
 
 function currentKey(route: Route, lists: ViewList[]): string | undefined {
   if (route.name === "view") return lists.find((view) => view.key === route.view)?.entity;
-  if (route.name === "new" || route.name === "edit") return route.entity;
+  if (route.name === "new" || route.name === "edit" || route.name === "record") return route.entity;
   return lists[0]?.entity;
 }
 
@@ -182,21 +182,22 @@ function Screen({ route, meta, entityOf, firstView, nav, onLocale, onSignOut, ca
     const entity = view ? entityOf(view.entity) : undefined;
     if (view && entity) return <ListPage key={view.key} meta={meta} view={view} entity={entity} q={route.q} page={route.page} />;
   }
-  if (route.name === "new" || route.name === "edit") {
+  if (route.name === "new" || route.name === "edit" || route.name === "record") {
     const entity = entityOf(route.entity);
+    const lists = meta.views.filter(isListView);
+    const list = lists.find((view) => view.key === route.from) ?? lists.find((view) => view.entity === route.entity);
+    const toList = (): void => goBack(list ? { name: "view", view: list.key, q: "", page: 1 } : { name: "home" });
+    if (route.name === "record") {
+      return entity ? <RecordPage key={`${route.entity}/${route.id}`} meta={meta} entity={entity} id={route.id} from={route.from} onBack={toList} /> : <MissingPage />;
+    }
     const form = meta.forms.find((item) => item.entity === route.entity);
-    const back = meta.views.filter(isListView).find((view) => view.key === route.from) ?? meta.views.filter(isListView).find((view) => view.entity === route.entity);
-    const close = (): void => navigate(back ? { name: "view", view: back.key, q: "", page: 1 } : { name: "home" });
     if (entity && form) {
-      return route.name === "new" ? <NewRecordPage entity={entity} form={form} onClose={close} /> : <EditRecordPage key={route.id} entity={entity} form={form} id={route.id} onClose={close} />;
+      if (route.name === "new") return <NewRecordPage entity={entity} form={form} onClose={toList} />;
+      return <EditRecordPage key={route.id} entity={entity} form={form} id={route.id} onClose={() => goBack({ name: "record", entity: route.entity, id: route.id, from: route.from })} />;
     }
   }
   if (route.name === "more") return <MorePage meta={meta} nav={nav} onLocale={onLocale} onSignOut={onSignOut} canSwitch={canSwitch} />;
-  return (
-    <Page title={t("missingTitle")}>
-      <EmptyState title={t("missingTitle")} actions={<Button onClick={() => navigate({ name: "home" })}>{t("goHome")}</Button>}>{t("missingBody")}</EmptyState>
-    </Page>
-  );
+  return <MissingPage />;
 }
 
 /** On a phone, what doesn't fit along the bottom: pages past the first four, the language, and signing out. */

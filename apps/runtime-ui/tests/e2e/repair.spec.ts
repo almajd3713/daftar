@@ -83,6 +83,7 @@ test.describe.serial("the repair tracker", () => {
     await signIn(page, base);
     await page.goto(base);
     await page.getByRole("main").getByRole("button", { name: /Samsung A15/ }).click();
+    await page.getByRole("button", { name: "تعديل", exact: true }).click();
     await expect(page.locator("#field-device")).toHaveValue("Samsung A15");
     await expect(page.locator("#field-price")).toHaveValue("9.800,50");
     await expect(page.locator("#field-received_on")).toHaveValue("03/11/2026");
@@ -110,7 +111,7 @@ test.describe.serial("the repair tracker", () => {
     await expect(page.locator("#field-problem")).toHaveValue("Écran et batterie");
     await page.locator("#field-device").fill("Samsung A16");
     await page.getByRole("button", { name: "حفظ" }).click();
-    await expect(page.getByRole("main").getByRole("button", { name: /Samsung A16/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Samsung A16", level: 1 })).toBeVisible();
   });
 
   test("losing the session goes to login, and signing in lands back on the same page", async ({ page, context }) => {
@@ -145,7 +146,7 @@ test.describe.serial("the repair tracker", () => {
     await context.clearCookies();
     await page.getByRole("main").getByRole("button", { name: /Samsung A16/ }).click();
     await expect(page.getByRole("heading", { name: "تسجيل الدخول" })).toBeVisible();
-    await expect(page).toHaveURL(/\/edit/);
+    await expect(page).toHaveURL(/\/e\/repairs\/[0-9a-f-]+/);
   });
 
   test("More holds the language and signing out, and the language sticks", async ({ page }) => {
@@ -231,7 +232,8 @@ test.describe.serial("the repair tracker for someone who may only read", () => {
     await expect(page.getByRole("main").getByRole("button", { name: /Samsung A16/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "إضافة" })).toHaveCount(0);
     await page.getByRole("main").getByRole("button", { name: /Samsung A16/ }).click();
-    await expect(page).not.toHaveURL(/\/edit/);
+    await expect(page.getByRole("heading", { name: "Samsung A16", level: 1 })).toBeVisible();
+    await expect(page.getByRole("button", { name: "تعديل", exact: true })).toHaveCount(0);
     await page.goto(`${base}/e/repairs/new`);
     await expect(page.getByRole("heading", { name: "الصفحة غير موجودة", level: 1 })).toBeVisible();
   });

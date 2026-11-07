@@ -1,8 +1,9 @@
 /** First start, signing in, and what a person sees when nothing can go further. */
-import { AuthLayout, Button, ErrorSummary, FormBody, FormSection, LanguageSwitch, Notice, PasswordField, TextField, useDaftar, type Locale } from "@daftar/ui";
+import { AuthLayout, Button, EmptyState, ErrorSummary, FormBody, FormSection, LanguageSwitch, Notice, Page, PasswordField, TextField, useDaftar, type Locale } from "@daftar/ui";
 import { useState, type ReactNode } from "react";
 
 import { call, problemOf, type Problem, type Status } from "./api.js";
+import { navigate } from "./router.js";
 import { aboutField, useWords } from "./words.js";
 
 interface AuthProps {
@@ -23,6 +24,16 @@ export function ProblemNotice({ problem, title }: { problem: Problem | undefined
   if (problem.kind === "refused") return <Notice tone="wrong" title={t("refusedTitle")}>{t("refusedBody")}</Notice>;
   if (problem.kind === "missing") return <Notice tone="wrong" title={t("missingTitle")}>{t("missingBody")}</Notice>;
   return <Notice tone="wrong" title={t("failedTitle")}>{t("failedBody")}</Notice>;
+}
+
+/** An address with nothing behind it, or nothing this person may see. */
+export function MissingPage(): ReactNode {
+  const t = useWords();
+  return (
+    <Page title={t("missingTitle")}>
+      <EmptyState title={t("missingTitle")} actions={<Button onClick={() => navigate({ name: "home" })}>{t("goHome")}</Button>}>{t("missingBody")}</EmptyState>
+    </Page>
+  );
 }
 
 function useSubmit(path: string, onDone: () => void): { busy: boolean; problem: Problem | undefined; submit: (body: unknown) => void } {

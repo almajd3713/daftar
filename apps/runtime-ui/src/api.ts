@@ -1,5 +1,5 @@
 /** The Runtime's API (C-7, docs/studio-api.md), and the few shapes of failure a screen has to tell apart. */
-import type { App, Entity, Form, Label, Permission, ViewBoard, ViewList } from "@daftar/spec/types";
+import type { App, Entity, Form, Label, Permission, ViewBoard, ViewList, Workflow } from "@daftar/spec/types";
 import { useCallback, useEffect, useState } from "react";
 
 export interface Status {
@@ -17,7 +17,10 @@ export interface Meta {
   entities: Entity[];
   views: (ViewList | ViewBoard)[];
   forms: Form[];
+  workflows: Workflow[];
 }
+
+export const canDo = (meta: Meta, entity: string, action: string): boolean => meta.permissions.some((item) => item.entity === entity && item.actions.includes(action as never));
 
 /** A record, as every route returns it: its fields, plus these. */
 export interface Row {
@@ -35,6 +38,19 @@ export interface ListResult {
   page: number;
   pageSize: number;
   totals: Record<string, number | null>;
+}
+
+/** One line of a record's history, newest first. A field this person can't see has `*` for both its values. */
+export interface AuditChange {
+  id: string;
+  at: string;
+  actor: string;
+  source: string;
+  op: string;
+  changes: Record<string, [unknown, unknown]>;
+  batchId?: string;
+  revertOf?: string;
+  revertedBy?: string;
 }
 
 export type Problem =

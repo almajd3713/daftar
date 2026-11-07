@@ -43,6 +43,28 @@ const words = {
   missingBody: { fr: "Cette page n’existe pas, ou votre compte n’y a pas accès.", ar: "هذه الصفحة غير موجودة، أو ليس لحسابك وصول إليها." },
   goHome: { fr: "Retour à l’accueil", ar: "العودة إلى الرئيسية" },
   couldNotSave: { fr: "L’enregistrement n’a pas abouti", ar: "لم يتم الحفظ" },
+  edit: { fr: "Modifier", ar: "تعديل" },
+  delete: { fr: "Supprimer", ar: "حذف" },
+  deleteQuestion: { fr: "Supprimer cet élément ?", ar: "حذف هذا العنصر؟" },
+  deleteUndoable: { fr: "Vous pourrez le restaurer depuis cette page.", ar: "يمكنك استرجاعه من هذه الصفحة." },
+  deleteFinal: { fr: "Seul un compte autorisé pourra le restaurer.", ar: "لن يتمكن من استرجاعه إلا حساب مخوّل." },
+  deleteYes: { fr: "Oui, supprimer", ar: "نعم، احذف" },
+  deleteNo: { fr: "Non, le garder", ar: "لا، أبقِه" },
+  deletedTitle: { fr: "Cet élément a été supprimé", ar: "حُذف هذا العنصر" },
+  restore: { fr: "Restaurer", ar: "استرجاع" },
+  history: { fr: "Historique", ar: "سجل التعديلات" },
+  historyEmpty: { fr: "Aucun historique conservé.", ar: "لا يوجد سجل محفوظ." },
+  created: { fr: "Créé", ar: "أُنشئ" },
+  deleted: { fr: "Supprimé", ar: "حُذف" },
+  restored: { fr: "Restauré", ar: "استُرجع" },
+  undo: { fr: "Annuler cette modification", ar: "إلغاء هذا التعديل" },
+  undone: { fr: "Annulée", ar: "أُلغي" },
+  undoLine: { fr: "Annulation d’une modification", ar: "إلغاء تعديل" },
+  hiddenChanged: { fr: "Un champ masqué a changé", ar: "تغيّر حقل مخفي" },
+  sourceUi: { fr: "Interface", ar: "الواجهة" },
+  sourceWorkflow: { fr: "Suivi", ar: "المسار" },
+  sourceImport: { fr: "Import", ar: "استيراد" },
+  sourceSystem: { fr: "Système", ar: "النظام" },
 } as const satisfies Record<string, Label>;
 
 export type Word = keyof typeof words;
@@ -55,6 +77,21 @@ export function useWords(): (word: Word) => string {
 /** A message with its field's name, for the summary: a server's "required" says nothing without it. */
 export function aboutField(field: string, message: string, locale: string): string {
   return locale === "ar-DZ" ? `${field}: ${message}` : `${field}\u00a0: ${message}`;
+}
+
+/** A field's name before what's said about it, in a history line. */
+export function withColon(label: string, locale: string): string {
+  return locale === "ar-DZ" ? `${label}:` : `${label}\u00a0:`;
+}
+
+/** The heading over why a step didn't go through. */
+export function refusedOf(step: string, locale: string): string {
+  return locale === "ar-DZ" ? `تعذّر «${step}»` : `«\u00a0${step}\u00a0» refusé`;
+}
+
+/** Where to look after a condition wasn't met: the fields it reads. */
+export function fieldsToLookAt(labels: readonly string[], locale: string): string {
+  return locale === "ar-DZ" ? `يرجى التحقق من: ${labels.join("، ")}` : `À vérifier\u00a0: ${labels.join(", ")}`;
 }
 
 /** Where a long list has got to: "1–50 sur 120". */

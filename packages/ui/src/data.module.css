@@ -289,8 +289,20 @@
   line-height: var(--l-small);
 }
 
+/* A long text keeps the lines it was typed in. */
 .fact dd {
   min-width: 0;
+  white-space: pre-line;
+}
+
+/* A record's other lists, under its facts. On a phone their heading already keeps this distance. */
+[data-layout="wide"] .facts + .statement,
+[data-layout="wide"] .statement + .statement {
+  margin-top: var(--space-6);
+}
+
+.lastActions {
+  margin-block: var(--space-6);
 }
 
 .twoColumns {

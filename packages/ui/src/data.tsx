@@ -234,6 +234,11 @@ export function Change({ label, from, to, arrow }: { label: ReactNode; from: Rea
   );
 }
 
+/** What a page offers last and least, such as deleting: away from what's used every day. */
+export function LastActions({ children }: { children: ReactNode }): ReactNode {
+  return <div className={classes.lastActions}>{children}</div>;
+}
+
 /** Label and value lines that may end in a total, like a short account. */
 export function Statement({ title, children }: { title?: ReactNode; children: ReactNode }): ReactNode {
   return (
