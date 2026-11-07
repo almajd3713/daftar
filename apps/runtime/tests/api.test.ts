@@ -158,6 +158,23 @@ describe("roles (R-17)", () => {
     expect((await viewer.patch(`/api/e/payments/${paymentId}`, { payer: "x" })).status).toBe(403);
   });
 
+  it("drops a dashboard's widget filtered on a hidden field, rather than a figure that couldn't be asked for", async () => {
+    const spec = example("payments-ledger");
+    const widgets = spec.dashboards[0]!.widgets as unknown as Record<string, unknown>[];
+    widgets.push({ key: "costly", label: { fr: "x", ar: "x" }, type: "kpi", entity: "payments", aggregate: "count", filters: [{ field: "cost", op: "gt", value: 0 }] });
+    const running = await start(spec);
+    try {
+      const boss = await ownerOf(running);
+      const reader = await userOf(running, boss, "viewer");
+      const keysFor = async (client: Client): Promise<string[]> => (await client.get("/api/meta")).body.dashboards[0].widgets.map((widget: any) => widget.key);
+      expect(await keysFor(boss)).toContain("costly");
+      expect(await keysFor(reader)).not.toContain("costly");
+      expect(await keysFor(reader)).toContain("total_unpaid");
+    } finally {
+      await running.close();
+    }
+  });
+
   it("a hidden field can't be sorted, filtered or totalled, which would reveal it", async () => {
     expect((await viewer.get("/api/e/payments?sort=cost")).status).toBe(400);
     expect((await viewer.get("/api/e/payments?filter.cost.gt=100")).status).toBe(400);

@@ -315,6 +315,16 @@ for (const [device, config] of Object.entries(WIDTHS)) {
   });
 }
 
+test.describe("a chart at any width", () => {
+  test("draws in real pixels, so its text can't scale away from the type scale, which the CSS alone wouldn't show", async ({ page }) => {
+    for (const width of [1280, 1000, 800]) {
+      await page.setViewportSize({ width, height: 800 });
+      await open(page, "dash", "fr", "light", "normal");
+      await expect.poll(() => page.locator("figure svg").first().evaluate((svg: SVGSVGElement) => Math.abs(svg.getBoundingClientRect().width - svg.viewBox.baseVal.width))).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
 test.describe("a short series", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 

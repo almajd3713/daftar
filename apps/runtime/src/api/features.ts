@@ -67,8 +67,14 @@ export function metaFor(spec: DaftarSpec, user: User): Record<string, unknown> {
     dashboards: spec.dashboards
       .map((dashboard) => ({
         ...dashboard,
+        // A widget filtered on a field this role can't see goes altogether. The server would refuse that filter, and
+        // dropping just the filter would show a different figure under the same name.
         widgets: dashboard.widgets.filter(
-          (widget) => keys.has(widget.entity) && (!widget.field || seen(widget.entity, widget.field)) && (widget.type === "kpi" || seen(widget.entity, widget.groupBy)),
+          (widget) =>
+            keys.has(widget.entity) &&
+            (!widget.field || seen(widget.entity, widget.field)) &&
+            (widget.type === "kpi" || seen(widget.entity, widget.groupBy)) &&
+            (widget.filters ?? []).every((filter) => seen(widget.entity, filter.field)),
         ),
       }))
       .filter((dashboard) => dashboard.widgets.length),

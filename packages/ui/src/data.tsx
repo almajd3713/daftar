@@ -310,6 +310,11 @@ export function Panel({ title, wide, children }: { title?: ReactNode; wide?: boo
   );
 }
 
+/** A quiet line in a panel: that it has nothing to draw, or that it shows only part of what there is. */
+export function PanelNote({ children }: { children: ReactNode }): ReactNode {
+  return <p className={classes.panelNote}>{children}</p>;
+}
+
 /** The board's columns on a PC. On a phone a board shows one state at a time, chosen with `ViewTabs`. */
 export function BoardColumns({ children }: { children: ReactNode }): ReactNode {
   return <div className={classes.board}>{children}</div>;

@@ -77,6 +77,7 @@ Spacing is `space-1`, `2`, `3`, `4`, `6`, `8`, `12`: multiples of 4 px, in rem. 
 **Charts**
 - `LineChart` takes what `/aggregate` returns. Give every point `at` when dates aren't evenly spaced, or a gap in the data won't show. A null `value` breaks the line rather than reading as zero.
 - Set `money` only for money, so a count doesn't get a currency.
+- A `LineChart` draws in real pixels for the width it's given, so its text is the type scale's at any width. A `BarList` keeps the same room for its values on every row, so a long value can't squeeze its bar and make two amounts look equal.
 
 **Forms**
 - One column. `FieldPair` only for two short, related fields.
@@ -100,7 +101,7 @@ Spacing is `space-1`, `2`, `3`, `4`, `6`, `8`, `12`: multiples of 4 px, in rem. 
 | Text | `UserText`, `CodeText`, `Amount`, `Money`, `Percent`, `DateText`, `DateTimeText`, `PhoneLink`, `LateTag`, `TextLink`, `StatusChip`, `Confidence` |
 | Layout | `AppFrame`, `BareFrame`, `AuthLayout`, `Page`, `ViewTabs`, `FootRow`, `LanguageSwitch`, `Button` |
 | Records | `LedgerTable`, `RecordList`, `RecordRow`, `Pager`, `EmptyState`, `Notice`, `Waiting`, `FactList`, `Fact`, `TwoColumns`, `Gutter`, `SectionHeading`, `HistoryList`, `Change`, `StateLine`, `LastActions` |
-| Statements and dashboards | `Statement`, `StatementLine`, `HeroFigure`, `LeadRow`, `Panels`, `Panel`, `LineChart`, `BarList` |
+| Statements and dashboards | `Statement`, `StatementLine`, `HeroFigure`, `LeadRow`, `Panels`, `Panel`, `PanelNote`, `LineChart`, `BarList` |
 | Board | `BoardColumns`, `BoardColumn`, `BoardCard` |
 | Forms | The fields above, `SearchField`, `FormBody`, `FormSection`, `FieldPair`, `FormActions`, `ErrorSummary` |
 | Phone menu | `MenuList`, `MenuHeading`, `MenuItem` |

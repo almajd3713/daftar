@@ -12,6 +12,9 @@ export const APPS = {
   generated: { spec: "generated", port: 5187 },
   deleted: { spec: "payments-ledger", port: 5188 },
   board: { spec: "repair-tracker", port: 5189 },
+  dashPayments: { spec: "payments-ledger", port: 5190 },
+  dashModels: { spec: "fixtures/dashboards", port: 5191 },
+  dashGenerated: { spec: "generated", port: 5192 },
 } as const;
 
 export const PREVIEW_ENV = "DAFTAR_E2E_PREVIEW";

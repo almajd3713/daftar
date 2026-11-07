@@ -2,7 +2,7 @@
 
 The screens a firm uses: React on [`packages/ui`](../../packages/ui/README.md), driven by the spec through `GET /api/meta`. The Runtime serves the build from its own origin, so the session cookie just works and nothing needs CORS. `docs/studio-api.md` is the contract with the server.
 
-Being built under WP-10. So far: first start, login, list views, forms, a record's own page with its steps, history, undo and delete, a list of what's been deleted, calculators, and the board. Still to come: dashboards, reminders, sort and filter controls, a searching link picker, and the owner's page for accounts, the processing register and the audit download. Export and import belong to WP-13.
+Being built under WP-10. So far: first start, login, list views, forms, a record's own page with its steps, history, undo and delete, a list of what's been deleted, calculators, the board, and dashboards. Still to come: reminders, sort and filter controls, a searching link picker, and the owner's page for accounts, the processing register and the audit download. Export and import belong to WP-13.
 
 ## Running it
 
@@ -23,6 +23,7 @@ That serves the app on port 3000. To change the screens with a live reload, leav
 - **History says what happened in a person's words.** A link shows its target's name, a hidden field only says that it changed, and a creation or a deletion is one word.
 - **A card stays where it is until the server has answered.** Moving one only ever asks, by button or by dragging, and a refusal is said on the card. The one thing the page answers itself is a drop where no step leads, because there's nothing to ask.
 - **An entity opens on its first view in the spec,** whichever kind it is.
+- **A dashboard's figures come from the server's rows,** so a role only ever adds up what it may read. A blank isn't a zero: it doesn't lower an average, and it isn't the smallest value.
 - **A calculator's figure only stands beside the values it came from.** It goes as soon as one changes, and an answer that arrives after that is dropped. A cleared input is sent as blank, because one left out would take its default.
 - **`src/fields.tsx` is the one place that knows a field type.** A new type belongs there, both how it shows and which input takes it.
 - **State stays above what `useFrame()` switches on,** so turning a phone keeps what's been typed.
