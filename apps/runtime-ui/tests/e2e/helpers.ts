@@ -7,6 +7,9 @@ export const APPS = {
   payments: { spec: "payments-ledger", port: 5182 },
   tutoring: { spec: "tutoring-register", port: 5183 },
   records: { spec: "repair-tracker", port: 5184 },
+  fee: { spec: "fee-calculator", port: 5185 },
+  models: { spec: "fixtures/calculators", port: 5186 },
+  generated: { spec: "generated", port: 5187 },
 } as const;
 
 export const PREVIEW_ENV = "DAFTAR_E2E_PREVIEW";

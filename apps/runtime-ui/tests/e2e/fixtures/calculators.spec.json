@@ -1,0 +1,151 @@
+{
+  "specVersion": "1.0.0",
+  "app": {
+    "name": { "fr": "Atelier de calcul", "ar": "ورشة الحساب" },
+    "locales": ["fr-DZ", "ar-DZ"],
+    "defaultLocale": "fr-DZ",
+    "currency": "DZD",
+    "timezone": "Africa/Algiers"
+  },
+  "entities": [
+    {
+      "key": "clients",
+      "label": { "fr": "Clients", "ar": "الزبائن" },
+      "kind": "reference",
+      "naming": { "type": "field", "field": "name" },
+      "titleField": "name",
+      "searchFields": ["name"],
+      "personalData": false,
+      "fields": [{ "key": "name", "label": { "fr": "Nom", "ar": "الاسم" }, "type": "text", "required": true }]
+    }
+  ],
+  "calculators": [
+    {
+      "key": "rental",
+      "label": { "fr": "Location", "ar": "الكراء" },
+      "inputs": [
+        { "key": "start", "label": { "fr": "Début", "ar": "البداية" }, "type": "date", "sheet": "C", "cell": "B1", "default": "2026-11-01" },
+        { "key": "days", "label": { "fr": "Jours", "ar": "الأيام" }, "type": "integer", "sheet": "C", "cell": "B2", "default": 30 },
+        { "key": "tax", "label": { "fr": "Taxe", "ar": "الضريبة" }, "type": "percent", "sheet": "C", "cell": "B3", "default": 0.19 },
+        { "key": "urgent", "label": { "fr": "Urgent", "ar": "مستعجل" }, "type": "boolean", "sheet": "C", "cell": "B4", "default": false },
+        {
+          "key": "zone",
+          "label": { "fr": "Zone", "ar": "المنطقة" },
+          "type": "choice",
+          "sheet": "C",
+          "cell": "B5",
+          "default": "north",
+          "choices": [
+            { "key": "north", "label": { "fr": "Nord", "ar": "الشمال" } },
+            { "key": "south", "label": { "fr": "Sud", "ar": "الجنوب" } }
+          ]
+        },
+        { "key": "weeks_per_block", "label": { "fr": "Semaines par bloc", "ar": "الأسابيع في كل مجموعة" }, "type": "decimal", "sheet": "C", "cell": "B6", "default": 4 }
+      ],
+      "outputs": [
+        { "key": "end", "label": { "fr": "Fin", "ar": "النهاية" }, "type": "date", "sheet": "C", "cell": "C1" },
+        { "key": "month", "label": { "fr": "Mois de début", "ar": "شهر البداية" }, "type": "integer", "sheet": "C", "cell": "C2" },
+        { "key": "zone_word", "label": { "fr": "Zone retenue", "ar": "المنطقة المعتمدة" }, "type": "text", "sheet": "C", "cell": "C3" },
+        { "key": "per_day", "label": { "fr": "Coût par jour", "ar": "التكلفة لليوم" }, "type": "decimal", "sheet": "C", "cell": "C4" },
+        { "key": "bonus", "label": { "fr": "Prime", "ar": "العلاوة" }, "type": "money", "sheet": "C", "cell": "C5" },
+        { "key": "note", "label": { "fr": "Remarque", "ar": "ملاحظة" }, "type": "money", "sheet": "C", "cell": "C6" },
+        { "key": "is_long", "label": { "fr": "Longue durée", "ar": "مدة طويلة" }, "type": "boolean", "sheet": "C", "cell": "C7" },
+        { "key": "tax_share", "label": { "fr": "Part de la taxe", "ar": "حصة الضريبة" }, "type": "percent", "sheet": "C", "cell": "C8" },
+        { "key": "price", "label": { "fr": "Prix total", "ar": "السعر الإجمالي" }, "type": "money", "sheet": "C", "cell": "C9" }
+      ],
+      "cells": [
+        { "sheet": "C", "ref": "B1", "v": "2026-11-01" },
+        { "sheet": "C", "ref": "B2", "v": 30 },
+        { "sheet": "C", "ref": "B3", "v": 0.19 },
+        { "sheet": "C", "ref": "B4", "v": false },
+        { "sheet": "C", "ref": "B5", "v": "north" },
+        { "sheet": "C", "ref": "B6", "v": 4 },
+        { "sheet": "C", "ref": "C1", "f": "=B1+B2" },
+        { "sheet": "C", "ref": "C2", "f": "=MONTH(B1)" },
+        { "sheet": "C", "ref": "C3", "f": "=IF(B5=\"north\",\"Nord\",\"Sud\")" },
+        { "sheet": "C", "ref": "C4", "f": "=C9/B2" },
+        { "sheet": "C", "ref": "C5", "f": "=IF(B2>100,B2,\"\")" },
+        { "sheet": "C", "ref": "C6", "f": "=IF(B2>100,B2,\"-\")" },
+        { "sheet": "C", "ref": "C7", "f": "=B2>100" },
+        { "sheet": "C", "ref": "C8", "f": "=B3/(1+B3)" },
+        { "sheet": "C", "ref": "C9", "f": "=IF(B4,2000,1000)*B2*(1+B3)" }
+      ],
+      "testCases": []
+    },
+    {
+      "key": "margin",
+      "label": { "fr": "Marge", "ar": "الهامش" },
+      "inputs": [{ "key": "cost", "label": { "fr": "Coût", "ar": "التكلفة" }, "type": "money", "sheet": "C", "cell": "A1" }],
+      "outputs": [
+        { "key": "sale", "label": { "fr": "Prix de vente", "ar": "سعر البيع" }, "type": "money", "sheet": "C", "cell": "A2" },
+        { "key": "kept", "label": { "fr": "Marge gardée", "ar": "الهامش المحتفظ به" }, "type": "money", "sheet": "C", "cell": "A3", "level": 1 }
+      ],
+      "cells": [
+        { "sheet": "C", "ref": "A1", "v": 100 },
+        { "sheet": "C", "ref": "A2", "f": "=A1*1.5" },
+        { "sheet": "C", "ref": "A3", "f": "=A2-A1" }
+      ],
+      "testCases": []
+    },
+    {
+      "key": "owners_only",
+      "label": { "fr": "Réservé", "ar": "محجوز" },
+      "inputs": [{ "key": "base", "label": { "fr": "Base", "ar": "الأساس" }, "type": "money", "sheet": "C", "cell": "A1", "default": 100 }],
+      "outputs": [{ "key": "share", "label": { "fr": "Part du patron", "ar": "حصة صاحب العمل" }, "type": "money", "sheet": "C", "cell": "A2", "level": 1 }],
+      "cells": [
+        { "sheet": "C", "ref": "A1", "v": 100 },
+        { "sheet": "C", "ref": "A2", "f": "=A1/2" }
+      ],
+      "testCases": []
+    },
+    {
+      "key": "clients",
+      "label": { "fr": "Barème clients", "ar": "جدول الزبائن" },
+      "inputs": [{ "key": "visits", "label": { "fr": "Visites", "ar": "الزيارات" }, "type": "integer", "sheet": "C", "cell": "A1", "default": 2 }],
+      "outputs": [{ "key": "points", "label": { "fr": "Points", "ar": "النقاط" }, "type": "integer", "sheet": "C", "cell": "A2" }],
+      "cells": [
+        { "sheet": "C", "ref": "A1", "v": 2 },
+        { "sheet": "C", "ref": "A2", "f": "=A1*10" }
+      ],
+      "testCases": []
+    }
+  ],
+  "views": [
+    {
+      "key": "clients_all",
+      "label": { "fr": "Tous les clients", "ar": "كل الزبائن" },
+      "entity": "clients",
+      "type": "list",
+      "columns": ["name"]
+    }
+  ],
+  "forms": [
+    {
+      "key": "client_form",
+      "label": { "fr": "Client", "ar": "زبون" },
+      "entity": "clients",
+      "sections": [{ "key": "main", "label": { "fr": "Client", "ar": "الزبون" }, "fields": ["name"] }]
+    }
+  ],
+  "dashboards": [],
+  "roles": [
+    {
+      "key": "owner",
+      "label": { "fr": "Propriétaire", "ar": "المالك" },
+      "fieldLevel": 1,
+      "permissions": [{ "entity": "clients", "actions": ["read", "create", "update", "delete", "export", "import", "revert"], "rowScope": "all" }]
+    },
+    {
+      "key": "staff",
+      "label": { "fr": "Employé", "ar": "موظف" },
+      "fieldLevel": 0,
+      "permissions": [{ "entity": "clients", "actions": ["read", "create", "update"], "rowScope": "all" }]
+    },
+    { "key": "accountant", "label": { "fr": "Comptable", "ar": "محاسب" }, "fieldLevel": 1, "permissions": [{ "entity": "clients", "actions": ["read", "export"], "rowScope": "all" }] },
+    { "key": "viewer", "label": { "fr": "Lecteur", "ar": "قارئ" }, "fieldLevel": 0, "permissions": [{ "entity": "clients", "actions": ["read"], "rowScope": "all" }] }
+  ],
+  "workflows": [],
+  "reminders": [],
+  "history": {},
+  "mapping": []
+}

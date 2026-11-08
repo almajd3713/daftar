@@ -9,7 +9,11 @@ import { APPS, PREVIEW_ENV } from "./helpers.js";
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 const ADMIN = process.env.DAFTAR_TEST_DATABASE_URL ?? "postgres://postgres:test@127.0.0.1:5434/postgres";
-const specPath = (name: string): string => `${ROOT}packages/spec/examples/${name}.spec.json`;
+/** An example spec, one kept here because it covers what no example has, or the one the worker really generated. */
+function specPath(name: string): string {
+  if (name === "generated") return `${ROOT}packages/spec/fixtures/generated/daftar.spec.json`;
+  return name.startsWith("fixtures/") ? fileURLToPath(new URL(`${name}.spec.json`, import.meta.url)) : `${ROOT}packages/spec/examples/${name}.spec.json`;
+}
 
 async function admin<Result>(work: (client: pg.Client) => Promise<Result>): Promise<Result> {
   const client = new pg.Client({ connectionString: ADMIN });

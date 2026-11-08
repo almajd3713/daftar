@@ -1,13 +1,13 @@
 /** Reads built on the spec: what a role may see of it, calculators, reminders and the register. */
-import type { Calculator, DaftarSpec, Entity, Filter } from "@daftar/spec/types";
+import type { Calculator, CalculatorInput, CalculatorOutput, DaftarSpec, Entity, Field, Filter } from "@daftar/spec/types";
 
 import { tableOf, column, type Db } from "../db.js";
 import { BadQuery, FieldErrors, Forbidden, NotFound } from "../errors.js";
 import type { Message } from "../messages.js";
-import { evaluateCells, loadEngine } from "../expr/engine.js";
+import { evaluateCells, fromSerial, loadEngine } from "../expr/engine.js";
 import { ExcelError, type Scalar } from "../expr/evaluate.js";
 import { can, canSeeField, ownOnly, roleOf, visibleFields, type User } from "../records/access.js";
-import { checkValue } from "../records/values.js";
+import { checkValue, toScalar } from "../records/values.js";
 
 const CELL = /^([A-Z]+)([0-9]+)$/;
 
@@ -79,8 +79,17 @@ export function metaFor(spec: DaftarSpec, user: User): Record<string, unknown> {
   });
 }
 
-function outcome(value: Scalar): unknown {
-  return value instanceof ExcelError ? { error: value.code } : value;
+/** An output as the API gives any value. A date is `YYYY-MM-DD` here too, though the engine only knows serial numbers. */
+function outcome(output: CalculatorOutput, value: Scalar): unknown {
+  if (value instanceof ExcelError) return { error: value.code };
+  return output.type === "date" && typeof value === "number" ? fromSerial(value).toISOString().slice(0, 10) : value;
+}
+
+/** An input is checked like a field of its type. A choice with no list has nothing to be checked against. */
+function fieldOf(port: CalculatorInput): Field {
+  const { key, label } = port;
+  if (port.type !== "choice") return { key, label, type: port.type };
+  return port.choices ? { key, label, type: "choice", choices: port.choices } : { key, label, type: "text" };
 }
 
 export async function runCalculator(spec: DaftarSpec, user: User, key: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -91,12 +100,13 @@ export async function runCalculator(spec: DaftarSpec, user: User, key: string, i
   const problems: Record<string, Message> = {};
   for (const port of calculator.inputs) {
     const raw = input[port.key] === undefined ? port.default : input[port.key];
-    const checked = checkValue({ key: port.key, label: port.label, type: port.type === "choice" ? "text" : port.type }, raw ?? null);
+    const field = fieldOf(port);
+    const checked = checkValue(field, raw ?? null);
     if ("error" in checked) {
       problems[port.key] = checked.error;
       continue;
     }
-    values.set(`${port.sheet}!${port.cell}`, (checked.value as Scalar) ?? null);
+    values.set(`${port.sheet}!${port.cell}`, toScalar(field, checked.value));
   }
   if (Object.keys(problems).length) throw new FieldErrors(problems);
   const cells = calculator.cells.map((cell) => {
@@ -107,7 +117,7 @@ export async function runCalculator(spec: DaftarSpec, user: User, key: string, i
   });
   const outputs = calculator.outputs.filter((output) => canSeeField(spec, user, output));
   const results = evaluateCells(cells, outputs.map((output) => place(output.sheet, output.cell)));
-  return { outputs: Object.fromEntries(outputs.map((output, index) => [output.key, outcome(results[index] ?? null)])) };
+  return { outputs: Object.fromEntries(outputs.map((output, index) => [output.key, outcome(output, results[index] ?? null)])) };
 }
 
 function todayIn(timezone: string, now: Date): string {

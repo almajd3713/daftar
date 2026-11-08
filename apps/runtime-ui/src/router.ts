@@ -10,6 +10,7 @@ export type Route =
   | { name: "new"; entity: string; from: string | undefined }
   | { name: "record"; entity: string; id: string; from: string | undefined }
   | { name: "edit"; entity: string; id: string; from: string | undefined }
+  | { name: "calculator"; calculator: string }
   | { name: "more" }
   | { name: "missing" };
 
@@ -32,6 +33,7 @@ export function parseRoute(pathname: string, search: string): Route {
     const page = Number(query.get("page") ?? 1);
     return { name: "view", view: path[1], q: query.get("q") ?? "", page: Number.isInteger(page) && page > 0 ? page : 1 };
   }
+  if (path.length === 2 && path[0] === "c" && path[1]) return { name: "calculator", calculator: path[1] };
   if (path[0] === "e" && path[1]) {
     if (path.length === 3 && path[2] === "new") return { name: "new", entity: path[1], from };
     if (path.length === 3 && path[2]) return { name: "record", entity: path[1], id: path[2], from };
@@ -61,6 +63,8 @@ export function pathOf(route: Route): string {
       return withQuery(`/e/${key(route.entity)}/${key(route.id)}`, { from: route.from });
     case "edit":
       return withQuery(`/e/${key(route.entity)}/${key(route.id)}/edit`, { from: route.from });
+    case "calculator":
+      return `/c/${key(route.calculator)}`;
   }
 }
 
