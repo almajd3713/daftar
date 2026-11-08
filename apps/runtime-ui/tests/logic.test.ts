@@ -25,6 +25,8 @@ describe("routes", () => {
     { name: "record", entity: "repairs", id: "0b0c2c5e-1111-4222-8333-444455556666", from: "repairs_all" },
     { name: "record", entity: "repairs", id: "0b0c2c5e-1111-4222-8333-444455556666", from: undefined },
     { name: "calculator", calculator: "tuition_fee" },
+    { name: "deleted", entity: "repairs", page: 1 },
+    { name: "deleted", entity: "repairs", page: 3 },
   ];
 
   it("read back what they wrote, so a reload lands on the same page", () => {
@@ -230,7 +232,7 @@ describe("a calculator's inputs and results", () => {
 
   it("starts each input from the workbook's value, in the person's habits", () => {
     const ports = [port("rate", "percent", { default: 0.19 }), port("price", "money", { default: 3000 }), port("on", "boolean", { default: true }), port("start", "date", { default: "2026-11-01" }), port("zone", "choice", { default: "north", choices })];
-    expect(startingDrafts(ports.map(fieldOfInput), undefined, "fr-DZ")).toEqual({ rate: "19,00", price: "3 000,00", on: true, start: "2026-11-01", zone: "north" });
+    expect(startingDrafts(ports.map(fieldOfInput), undefined, "fr-DZ")).toEqual({ rate: "19,00", price: "3\u00a0000,00", on: true, start: "2026-11-01", zone: "north" });
   });
 
   it("shows a workbook's number with the decimals it has, because the analyser calls a count a decimal", () => {

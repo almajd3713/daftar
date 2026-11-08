@@ -398,6 +398,171 @@ describe("history, revert and batch undo (R-18)", () => {
   });
 });
 
+describe("records that can still be brought back", () => {
+  let running: Running;
+  let owner: Client;
+  let staff: Client;
+
+  beforeAll(async () => {
+    running = await start(example("tutoring-register"));
+    owner = await ownerOf(running);
+    staff = await userOf(running, owner, "staff");
+  });
+  afterAll(() => running.close());
+
+  const klass = async (code: string): Promise<string> => (await owner.post("/api/e/classes", { code, name: `N ${code}`, monthly_fee: 1000 })).body._id;
+  const remove = async (id: string): Promise<void> => {
+    expect((await owner.del(`/api/e/classes/${id}`)).status).toBe(204);
+  };
+  const deleted = async (query = ""): Promise<any> => (await owner.get(`/api/e/classes/deleted${query}`)).body;
+  const lastChange = async (id: string): Promise<any> => (await owner.get(`/api/e/classes/${id}/history`)).body.changes[0];
+
+  it("lists each deletion newest first, with its name, when and by whom", async () => {
+    const first = await klass("L1");
+    const second = await klass("L2");
+    await remove(first);
+    await remove(second);
+    const list = await deleted();
+    expect(list.rows.slice(0, 2).map((row: any) => row.recordId)).toEqual([second, first]);
+    expect(list.rows[0]).toMatchObject({ name: (await lastChange(second)).name, actor: "owner", changeId: (await lastChange(second)).id });
+    expect(list.rows[0].at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("names a deleted record in its history, since the record itself has gone", async () => {
+    const id = (await owner.post("/api/e/classes", { code: "L3", name: "Maths du soir", monthly_fee: 1000 })).body._id;
+    await remove(id);
+    expect((await lastChange(id)).name).toBe((await deleted()).rows[0].name);
+    expect((await deleted()).rows[0].name).toBeTruthy();
+  });
+
+  it("drops a record once it's restored, and lists it once if it's deleted again", async () => {
+    const id = await klass("L4");
+    await remove(id);
+    const { id: change } = await lastChange(id);
+    expect((await owner.post(`/api/changes/${change}/revert`)).status).toBe(204);
+    expect((await deleted()).rows.map((row: any) => row.recordId)).not.toContain(id);
+    await remove(id);
+    expect((await deleted()).rows.filter((row: any) => row.recordId === id)).toHaveLength(1);
+  });
+
+  it("doesn't list what was removed by undoing its creation, which nobody deleted", async () => {
+    const id = await klass("L5");
+    const { id: creation } = await lastChange(id);
+    expect((await owner.post(`/api/changes/${creation}/revert`)).status).toBe(204);
+    expect((await owner.get(`/api/e/classes/${id}`)).status).toBe(404);
+    expect((await deleted()).rows.map((row: any) => row.recordId)).not.toContain(id);
+  });
+
+  it("pages, and counts what's there", async () => {
+    await remove(await klass("L6"));
+    await remove(await klass("L7"));
+    const { total } = await deleted();
+    const page = await deleted("?page=2&pageSize=1");
+    expect(page).toMatchObject({ total, page: 2, pageSize: 1 });
+    expect(page.rows.map((row: any) => row.recordId)).toEqual([(await deleted()).rows[1].recordId]);
+  });
+
+  it("is only for those who may restore", async () => {
+    expect((await staff.get("/api/e/classes")).status).toBe(200);
+    expect((await staff.get("/api/e/classes/deleted")).status).toBe(403);
+    expect((await owner.get("/api/e/ghost/deleted")).status).toBe(404);
+    expect((await new Client(running.base).get("/api/e/classes/deleted")).status).toBe(401);
+  });
+
+  it("refuses in words to restore a record whose unique value has been taken, and can once it's free", async () => {
+    const id = await klass("L8");
+    await remove(id);
+    const { id: change } = await lastChange(id);
+    const taker = await klass("L8");
+    const refused = await owner.post(`/api/changes/${change}/revert`);
+    expect(refused.status).toBe(409);
+    expect(refused.body.reason.fr).toContain("Code");
+    expect(refused.body.reason.ar).toContain("الرمز");
+    expect((await owner.get(`/api/e/classes/${id}`)).status).toBe(404);
+    expect((await deleted()).rows.map((row: any) => row.recordId)).toContain(id);
+
+    await remove(taker);
+    expect((await owner.post(`/api/changes/${change}/revert`)).status).toBe(204);
+    expect((await owner.get(`/api/e/classes/${id}`)).body.code).toBe("L8");
+  });
+
+  it("refuses in words to undo an edit whose old unique value has been taken", async () => {
+    const id = await klass("L9");
+    await owner.patch(`/api/e/classes/${id}`, { code: "L9-B" });
+    const { id: change } = await lastChange(id);
+    await klass("L9");
+    const refused = await owner.post(`/api/changes/${change}/revert`);
+    expect(refused.status).toBe(409);
+    expect(refused.body.reason.fr).toContain("Code");
+    expect((await owner.get(`/api/e/classes/${id}`)).body.code).toBe("L9-B");
+  });
+
+  describe("when a deletion takes linked records with it", () => {
+    let cascading: Running;
+    let boss: Client;
+
+    beforeAll(async () => {
+      const spec = example("tutoring-register");
+      const link = spec.entities.find((item) => item.key === "students")?.fields.find((item) => item.key === "class");
+      if (link?.type === "link") link.onDelete = "cascade";
+      cascading = await start(spec);
+      boss = await ownerOf(cascading);
+    });
+    afterAll(() => cascading.close());
+
+    it("lists each one, and restoring the parent leaves the others to be restored in their own right", async () => {
+      const klassId = (await boss.post("/api/e/classes", { code: "C1", name: "Maths", monthly_fee: 1000 })).body._id;
+      const studentId = (await boss.post("/api/e/students", { full_name: "Amina", parent_phone: "0550123456", level: "cem", class: klassId })).body._id;
+      expect((await boss.del(`/api/e/classes/${klassId}`)).status).toBe(204);
+      expect((await boss.get(`/api/e/students/${studentId}`)).status).toBe(404);
+
+      const listed = async (entity: string): Promise<any[]> => (await boss.get(`/api/e/${entity}/deleted`)).body.rows;
+      expect((await listed("classes")).map((row) => row.recordId)).toEqual([klassId]);
+      expect((await listed("students")).map((row) => row.recordId)).toEqual([studentId]);
+
+      expect((await boss.post(`/api/changes/${(await listed("classes"))[0].changeId}/revert`)).status).toBe(204);
+      expect((await boss.get(`/api/e/classes/${klassId}`)).status).toBe(200);
+      expect((await boss.get(`/api/e/students/${studentId}`)).status).toBe(404);
+      expect((await listed("students")).map((row) => row.recordId)).toEqual([studentId]);
+
+      expect((await boss.post(`/api/changes/${(await listed("students"))[0].changeId}/revert`)).status).toBe(204);
+      expect((await boss.get(`/api/e/students/${studentId}`)).body.class).toBe(klassId);
+    });
+  });
+
+  describe("for a role that sees only its own records", () => {
+    let scoped: Running;
+    let boss: Client;
+    let clerk: Client;
+
+    beforeAll(async () => {
+      const spec = example("payments-ledger");
+      const role = spec.roles.find((item) => item.key === "staff");
+      if (role) role.permissions = [{ entity: "payments", actions: ["read", "create", "update", "delete", "revert"], rowScope: "own" }];
+      scoped = await start(spec);
+      boss = await ownerOf(scoped);
+      clerk = await userOf(scoped, boss, "staff");
+    });
+    afterAll(() => scoped.close());
+
+    const payment = async (client: Client, receipt_no: string): Promise<string> => {
+      const created = await client.post("/api/e/payments", { receipt_no, payer: "x", period: "2026-01-01", amount_due: 1 });
+      expect(created.status).toBe(201);
+      return created.body._id;
+    };
+
+    it("lists only those", async () => {
+      const mine = await payment(clerk, "S1");
+      const theirs = await payment(boss, "S2");
+      expect((await clerk.del(`/api/e/payments/${mine}`)).status).toBe(204);
+      expect((await boss.del(`/api/e/payments/${theirs}`)).status).toBe(204);
+      const ids = (list: any): string[] => list.rows.map((row: any) => row.recordId);
+      expect(ids((await clerk.get("/api/e/payments/deleted")).body)).toEqual([mine]);
+      expect(ids((await boss.get("/api/e/payments/deleted")).body)).toEqual([theirs, mine]);
+    });
+  });
+});
+
 describe("computed fields (R-19)", () => {
   let running: Running;
   let owner: Client;

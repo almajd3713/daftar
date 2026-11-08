@@ -4,6 +4,14 @@ export interface Message {
   ar: string;
 }
 
+/** Undoing has no form to show a field's error on, so this says in a sentence which value is in the way. */
+export function valueTaken(field: Message): Message {
+  return {
+    fr: `Un autre élément utilise déjà cette valeur de «\u00a0${field.fr}\u00a0». Changez-la sur cet autre élément, puis réessayez.`,
+    ar: `عنصر آخر يستعمل هذه القيمة في «${field.ar}». غيّرها في ذلك العنصر ثم أعد المحاولة.`,
+  };
+}
+
 export const MESSAGES = {
   workerUnavailable: { fr: "Le service Excel ne répond pas. Réessayez dans un instant.", ar: "خدمة Excel لا تستجيب. أعد المحاولة بعد قليل." },
   required: { fr: "Ce champ est obligatoire.", ar: "هذا الحقل إجباري." },

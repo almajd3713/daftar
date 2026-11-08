@@ -8,7 +8,7 @@ import { HttpException, HttpStatus } from "@nestjs/common";
 
 import { BadQuery, Conflict, FieldErrors, Forbidden, MESSAGES, NotFound } from "../errors.js";
 import { evaluate, ExcelError } from "../expr/evaluate.js";
-import type { Message } from "../messages.js";
+import { valueTaken, type Message } from "../messages.js";
 import { can, canSeeField, ownOnly, SYSTEM_USER, visibleFields, type Action, type User } from "./access.js";
 import { computedFields, computeRow, recomputeDependents, recomputeEngineFields } from "./computed.js";
 import { checkValue, recordScalars, UUID } from "./values.js";
@@ -70,6 +70,10 @@ function isNumeric(field: Field): boolean {
 
 function same(left: unknown, right: unknown): boolean {
   return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
+function pageOf(query: Pick<ListQuery, "page" | "pageSize">): { page: number; pageSize: number } {
+  return { page: Math.max(1, Math.trunc(query.page ?? 1)), pageSize: Math.min(MAX_PAGE_SIZE, Math.max(1, Math.trunc(query.pageSize ?? 50))) };
 }
 
 export class RecordService {
@@ -232,8 +236,7 @@ export class RecordService {
   async list(user: User, entityKey: string, query: ListQuery): Promise<Record<string, unknown>> {
     const entity = this.entity(entityKey);
     this.require(user, entity, "read");
-    const page = Math.max(1, Math.trunc(query.page ?? 1));
-    const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, Math.trunc(query.pageSize ?? 50)));
+    const { page, pageSize } = pageOf(query);
     const base = this.applyFilters(this.scoped(user, entity), user, entity, query);
 
     let rowsQuery = base.selectAll();
@@ -391,14 +394,22 @@ export class RecordService {
     await recomputeDependents(tx, this.spec, entity, id, this.clock(), row);
   }
 
-  private uniqueError(error: unknown, entity: Entity): unknown {
+  /** The field a unique violation is about. Any other error isn't one. */
+  private uniqueKey(error: unknown, entity: Entity): string | undefined {
     const pg = error as { code?: string; constraint?: string };
-    if (pg.code === "23505") {
-      const match = /__([a-z0-9_]+)__unique$/.exec(pg.constraint ?? "");
-      const key = match?.[1] ?? entity.titleField;
-      return new FieldErrors({ [key]: MESSAGES.notUnique });
-    }
-    return error;
+    if (pg.code !== "23505") return undefined;
+    return /__([a-z0-9_]+)__unique$/.exec(pg.constraint ?? "")?.[1] ?? entity.titleField;
+  }
+
+  private uniqueError(error: unknown, entity: Entity): unknown {
+    const key = this.uniqueKey(error, entity);
+    return key ? new FieldErrors({ [key]: MESSAGES.notUnique }) : error;
+  }
+
+  private revertRefusal(error: unknown, entity: Entity): unknown {
+    const key = this.uniqueKey(error, entity);
+    if (!key) return error;
+    return new Conflict(valueTaken(entity.fields.find((field) => field.key === key)?.label ?? entity.label));
   }
 
   /** Create inside an open transaction. Seed loads and imports come through here too. */
@@ -468,7 +479,7 @@ export class RecordService {
       await this.afterWrite(tx, entity, before._id as string, updated);
       return { row: await tx.selectFrom(tableOf(entity.key)).selectAll().where("_id", "=", before._id).executeTakeFirstOrThrow(), auditId };
     } catch (error) {
-      throw this.uniqueError(error, entity);
+      throw op === "revert" ? this.revertRefusal(error, entity) : this.uniqueError(error, entity);
     }
   }
 
@@ -564,7 +575,27 @@ export class RecordService {
     if (row.batch_id) entry.batchId = row.batch_id;
     if (row.revert_of) entry.revertOf = row.revert_of;
     if (row.reverted_by) entry.revertedBy = row.reverted_by;
+    // The record has gone, so this is the only place left that can say what it was called.
+    if (row.op === "delete") entry.name = (row.snapshot as { _name?: string } | null)?._name ?? null;
     return entry;
+  }
+
+  /** What can still be brought back: each deletion nobody has undone. Undoing a creation removes a record too, but nobody deleted that. */
+  async deleted(user: User, entityKey: string, query: Pick<ListQuery, "page" | "pageSize">): Promise<Record<string, unknown>> {
+    const entity = this.entity(entityKey);
+    this.require(user, entity, "read");
+    this.require(user, entity, "revert");
+    const { page, pageSize } = pageOf(query);
+    let base = this.db.selectFrom("_audit").where("entity", "=", entity.key).where("op", "=", "delete").where("reverted_by", "is", null).where("revert_of", "is", null);
+    if (ownOnly(this.spec, user, entity.key)) base = base.where(sql`snapshot->>'_created_by'`, "=", user.id);
+    const rows = await base.select(["id", "at", "actor", "record_id", "snapshot"]).orderBy("seq", "desc").limit(pageSize).offset((page - 1) * pageSize).execute();
+    const counted = await base.select(sql<number>`count(*)`.as("count")).executeTakeFirst();
+    return {
+      rows: rows.map((row) => ({ changeId: row.id, recordId: row.record_id, name: (row.snapshot as { _name?: string } | null)?._name ?? null, at: row.at, actor: row.actor })),
+      total: Number(counted?.count ?? 0),
+      page,
+      pageSize,
+    };
   }
 
   async history(user: User, entityKey: string, id: string): Promise<Record<string, unknown>[]> {
@@ -607,7 +638,10 @@ export class RecordService {
         .insertInto(tableOf(entity.key))
         .values({ _id: id, _name: snapshot._name as string, _created_by: (snapshot._created_by) ?? null, _errors: row._errors ? JSON.stringify(row._errors) : null, ...this.writable(entity, row) })
         .returningAll()
-        .executeTakeFirstOrThrow();
+        .executeTakeFirstOrThrow()
+        .catch((error: unknown) => {
+          throw this.revertRefusal(error, entity);
+        });
       auditId = await this.audit(tx, context, entity, id, "revert", this.changesOf(entity, {}, inserted), { revertOf: change.id as string, snapshot });
       await this.afterWrite(tx, entity, id, inserted);
     } else if (op === "update" || op === "transition") {

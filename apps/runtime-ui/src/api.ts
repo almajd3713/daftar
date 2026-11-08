@@ -60,6 +60,24 @@ export interface AuditChange {
   batchId?: string;
   revertOf?: string;
   revertedBy?: string;
+  /** On a deletion: what the record was called, since it has gone. */
+  name?: string | null;
+}
+
+/** A deletion nobody has undone. `changeId` is what restoring it reverts. */
+export interface DeletedRecord {
+  changeId: string;
+  recordId: string;
+  name: string | null;
+  at: string;
+  actor: string;
+}
+
+export interface DeletedList {
+  rows: DeletedRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export type Problem =
