@@ -153,8 +153,9 @@ test.describe.serial("a calculator on a phone", () => {
 });
 
 /**
- * The hand-written examples have money and whole numbers. A generated calculator is what a client really gets, and
- * so far every number in one is a decimal. The figures are checked without a currency, so this holds once it has one.
+ * The hand-written examples have money and whole numbers. A generated calculator is what a client really gets: its
+ * price and total are money, read from their labels, and its count stays a decimal. Figures are checked without the
+ * currency, which the unit shows.
  */
 test.describe.serial("a calculator generated from a real workbook", () => {
   test.use(PHONE);
@@ -164,7 +165,7 @@ test.describe.serial("a calculator generated from a real workbook", () => {
     const errors = watchForErrors(page);
     await page.goto(`${generated}/c/calcul?lang=fr`);
     await expect(page.getByLabel("Nombre de matières")).toHaveValue("2");
-    await expect(page.getByLabel("Prix par matière")).toHaveValue("3\u00a0000");
+    await expect(page.getByLabel("Prix par matière")).toHaveValue("3\u00a0000,00");
     await expect(resultOf(page, "À payer")).toContainText("5\u00a0700");
     await expectGoodScreen(page, "a generated calculator, in French");
 
