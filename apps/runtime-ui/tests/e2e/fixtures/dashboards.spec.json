@@ -1,0 +1,139 @@
+{
+  "specVersion": "1.0.0",
+  "app": {
+    "name": { "fr": "Tableau de ventes", "ar": "لوحة المبيعات" },
+    "locales": ["fr-DZ", "ar-DZ"],
+    "defaultLocale": "fr-DZ",
+    "currency": "DZD",
+    "timezone": "Africa/Algiers"
+  },
+  "entities": [
+    {
+      "key": "clients",
+      "label": { "fr": "Clients", "ar": "الزبائن" },
+      "kind": "reference",
+      "naming": { "type": "field", "field": "name" },
+      "titleField": "name",
+      "searchFields": ["name"],
+      "personalData": false,
+      "fields": [{ "key": "name", "label": { "fr": "Nom", "ar": "الاسم" }, "type": "text", "required": true }]
+    },
+    {
+      "key": "sales",
+      "label": { "fr": "Ventes", "ar": "المبيعات" },
+      "kind": "ledger",
+      "naming": { "type": "field", "field": "ref" },
+      "titleField": "ref",
+      "searchFields": ["ref"],
+      "personalData": false,
+      "fields": [
+        { "key": "ref", "label": { "fr": "Référence", "ar": "المرجع" }, "type": "text", "required": true },
+        { "key": "customer", "label": { "fr": "Client", "ar": "الزبون" }, "type": "link", "target": "clients", "onDelete": "setNull" },
+        { "key": "amount", "label": { "fr": "Montant", "ar": "المبلغ" }, "type": "money", "precision": 2 },
+        { "key": "qty", "label": { "fr": "Quantité", "ar": "الكمية" }, "type": "integer" },
+        { "key": "rate", "label": { "fr": "Remise", "ar": "التخفيض" }, "type": "percent" },
+        { "key": "day", "label": { "fr": "Jour", "ar": "اليوم" }, "type": "date" },
+        { "key": "month", "label": { "fr": "Mois", "ar": "الشهر" }, "type": "date" },
+        {
+          "key": "zone",
+          "label": { "fr": "Zone", "ar": "المنطقة" },
+          "type": "choice",
+          "choices": [
+            { "key": "west", "label": { "fr": "Ouest", "ar": "الغرب" }, "colour": "#3b82f6" },
+            { "key": "east", "label": { "fr": "Est", "ar": "الشرق" }, "colour": "#2f9e60" }
+          ]
+        },
+        { "key": "cost", "label": { "fr": "Coût", "ar": "التكلفة" }, "type": "money", "precision": 2, "level": 1 }
+      ]
+    }
+  ],
+  "calculators": [],
+  "views": [
+    { "key": "sales_all", "label": { "fr": "Toutes les ventes", "ar": "كل المبيعات" }, "entity": "sales", "type": "list", "columns": ["ref", "amount"] },
+    { "key": "clients_all", "label": { "fr": "Tous les clients", "ar": "كل الزبائن" }, "entity": "clients", "type": "list", "columns": ["name"] }
+  ],
+  "forms": [],
+  "dashboards": [
+    {
+      "key": "figures",
+      "label": { "fr": "Chiffres", "ar": "الأرقام" },
+      "widgets": [
+        { "key": "total", "label": { "fr": "Total des ventes", "ar": "مجموع المبيعات" }, "type": "kpi", "entity": "sales", "aggregate": "sum", "field": "amount" },
+        { "key": "how_many", "label": { "fr": "Nombre de ventes", "ar": "عدد المبيعات" }, "type": "kpi", "entity": "sales", "aggregate": "count" },
+        { "key": "average", "label": { "fr": "Vente moyenne", "ar": "متوسط البيع" }, "type": "kpi", "entity": "sales", "aggregate": "avg", "field": "amount" },
+        { "key": "smallest", "label": { "fr": "Plus petite vente", "ar": "أصغر بيع" }, "type": "kpi", "entity": "sales", "aggregate": "min", "field": "amount" },
+        { "key": "largest", "label": { "fr": "Plus grande vente", "ar": "أكبر بيع" }, "type": "kpi", "entity": "sales", "aggregate": "max", "field": "amount" },
+        { "key": "units", "label": { "fr": "Quantité vendue", "ar": "الكمية المباعة" }, "type": "kpi", "entity": "sales", "aggregate": "sum", "field": "qty" },
+        { "key": "mean_units", "label": { "fr": "Quantité moyenne", "ar": "متوسط الكمية" }, "type": "kpi", "entity": "sales", "aggregate": "avg", "field": "qty" },
+        { "key": "best_rate", "label": { "fr": "Meilleure remise", "ar": "أفضل تخفيض" }, "type": "kpi", "entity": "sales", "aggregate": "max", "field": "rate" },
+        { "key": "east_only", "label": { "fr": "Ventes à l’Est", "ar": "مبيعات الشرق" }, "type": "kpi", "entity": "sales", "aggregate": "count", "filters": [{ "field": "zone", "op": "eq", "value": "east" }] },
+        { "key": "by_zone", "label": { "fr": "Ventes par zone", "ar": "المبيعات حسب المنطقة" }, "type": "bar", "entity": "sales", "aggregate": "count", "groupBy": "zone" },
+        { "key": "money_by_zone", "label": { "fr": "Montant par zone", "ar": "المبلغ حسب المنطقة" }, "type": "bar", "entity": "sales", "aggregate": "sum", "field": "amount", "groupBy": "zone" }
+      ]
+    },
+    {
+      "key": "trends",
+      "label": { "fr": "Tendances", "ar": "الاتجاهات" },
+      "widgets": [
+        { "key": "by_day", "label": { "fr": "Ventes par jour", "ar": "المبيعات حسب اليوم" }, "type": "line", "entity": "sales", "aggregate": "sum", "field": "amount", "groupBy": "day" },
+        { "key": "by_month", "label": { "fr": "Ventes par mois", "ar": "المبيعات حسب الشهر" }, "type": "line", "entity": "sales", "aggregate": "count", "groupBy": "month" }
+      ]
+    },
+    {
+      "key": "customers",
+      "label": { "fr": "Par client", "ar": "حسب الزبون" },
+      "widgets": [
+        { "key": "by_customer", "label": { "fr": "Ventes par client", "ar": "المبيعات حسب الزبون" }, "type": "bar", "entity": "sales", "aggregate": "count", "groupBy": "customer" }
+      ]
+    },
+    {
+      "key": "nothing_yet",
+      "label": { "fr": "Rien encore", "ar": "لا شيء بعد" },
+      "widgets": [
+        { "key": "none_bar", "label": { "fr": "Aucune barre", "ar": "بدون أعمدة" }, "type": "bar", "entity": "sales", "aggregate": "count", "groupBy": "zone", "filters": [{ "field": "ref", "op": "eq", "value": "personne" }] },
+        { "key": "none_line", "label": { "fr": "Aucune courbe", "ar": "بدون منحنى" }, "type": "line", "entity": "sales", "aggregate": "count", "groupBy": "day", "filters": [{ "field": "ref", "op": "eq", "value": "personne" }] }
+      ]
+    },
+    {
+      "key": "for_the_owner",
+      "label": { "fr": "Pour le patron", "ar": "لصاحب العمل" },
+      "widgets": [
+        { "key": "total_cost", "label": { "fr": "Coût total", "ar": "التكلفة الإجمالية" }, "type": "kpi", "entity": "sales", "aggregate": "sum", "field": "cost" }
+      ]
+    },
+    {
+      "key": "partly_hidden",
+      "label": { "fr": "En partie masqué", "ar": "مخفي جزئيا" },
+      "widgets": [
+        { "key": "open_figure", "label": { "fr": "Ventes", "ar": "المبيعات" }, "type": "kpi", "entity": "sales", "aggregate": "count" },
+        { "key": "costly", "label": { "fr": "Ventes coûteuses", "ar": "مبيعات مكلفة" }, "type": "kpi", "entity": "sales", "aggregate": "count", "filters": [{ "field": "cost", "op": "gt", "value": 0 }] }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "owner",
+      "label": { "fr": "Propriétaire", "ar": "المالك" },
+      "fieldLevel": 1,
+      "permissions": [
+        { "entity": "clients", "actions": ["read", "create", "update", "delete", "export", "import", "revert"], "rowScope": "all" },
+        { "entity": "sales", "actions": ["read", "create", "update", "delete", "export", "import", "revert"], "rowScope": "all" }
+      ]
+    },
+    {
+      "key": "staff",
+      "label": { "fr": "Employé", "ar": "موظف" },
+      "fieldLevel": 0,
+      "permissions": [
+        { "entity": "clients", "actions": ["read"], "rowScope": "all" },
+        { "entity": "sales", "actions": ["read", "create"], "rowScope": "all" }
+      ]
+    },
+    { "key": "accountant", "label": { "fr": "Comptable", "ar": "محاسب" }, "fieldLevel": 1, "permissions": [{ "entity": "sales", "actions": ["read"], "rowScope": "all" }] },
+    { "key": "viewer", "label": { "fr": "Lecteur", "ar": "قارئ" }, "fieldLevel": 0, "permissions": [{ "entity": "sales", "actions": ["read"], "rowScope": "all" }] }
+  ],
+  "workflows": [],
+  "reminders": [],
+  "history": {},
+  "mapping": []
+}

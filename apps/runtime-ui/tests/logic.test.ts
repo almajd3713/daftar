@@ -1,7 +1,8 @@
-import type { CalculatorInput, CalculatorOutput, Entity, Expr, Field, ViewBoard, ViewList, Workflow, WorkflowState, WorkflowTransition } from "@daftar/spec/types";
+import type { CalculatorInput, CalculatorOutput, Entity, Expr, Field, ViewBoard, ViewList, Widget, WidgetChart, WidgetKpi, Workflow, WorkflowState, WorkflowTransition } from "@daftar/spec/types";
 import { describe, expect, it } from "vitest";
 
-import { classify, type AuditChange, type MetaCalculator } from "../src/api.js";
+import { classify, type AggregateGroup, type AuditChange, type ListResult, type MetaCalculator, type Row } from "../src/api.js";
+import { barsInOrder, chartPrecision, heroText, kpiType, kpiValue, linePoints, widgetPath } from "../src/widgets.js";
 import { canUndo, deletionOf, isRestoration, linksIn, splitChanges } from "../src/history.js";
 import { parseRoute, pathOf, type Route } from "../src/router.js";
 import { allValues, changedValues, everyValue, fieldOfInput, fitsType, fromDraft, outputError, startingDrafts, toDraft } from "../src/values.js";
@@ -26,6 +27,7 @@ describe("routes", () => {
     { name: "record", entity: "repairs", id: "0b0c2c5e-1111-4222-8333-444455556666", from: "repairs_all" },
     { name: "record", entity: "repairs", id: "0b0c2c5e-1111-4222-8333-444455556666", from: undefined },
     { name: "calculator", calculator: "tuition_fee" },
+    { name: "dashboard", dashboard: "cash" },
     { name: "deleted", entity: "repairs", page: 1 },
     { name: "deleted", entity: "repairs", page: 3 },
   ];
@@ -262,6 +264,107 @@ describe("what a form holds, and what the server stores", () => {
     expect(changedValues(fields, record, drafts)).toEqual({});
     expect(changedValues(fields, record, { ...drafts, name: "Samira" })).toEqual({ name: "Samira" });
     expect(changedValues(fields, record, { ...drafts, price: "" })).toEqual({ price: null });
+  });
+});
+
+describe("a dashboard's widgets", () => {
+  const today = "2026-11-07";
+  const paramsOf = (widget: Widget): URLSearchParams => new URL(widgetPath(widget, today), "http://x").searchParams;
+  const kpi = (aggregate: WidgetKpi["aggregate"], extra: Partial<WidgetKpi> = {}): WidgetKpi => ({ key: "k", label, type: "kpi", entity: "sales", aggregate, field: "amount", ...extra });
+  const result = (extra: Partial<ListResult>): ListResult => ({ rows: [], total: 0, page: 1, pageSize: 1, totals: {}, ...extra });
+  const row = (extra: object): Row => ({ _id: "x", _name: "x", _version: 1, ...extra });
+
+  it("asks the list for a figure, keeping blanks out of what they'd distort", () => {
+    expect(widgetPath({ key: "k", label, type: "kpi", entity: "sales", aggregate: "count" }, today)).toBe("/api/e/sales?pageSize=1");
+    expect(paramsOf(kpi("sum")).get("totals")).toBe("amount");
+    expect(paramsOf(kpi("sum")).has("filter.amount.isNotEmpty")).toBe(false);
+    expect(paramsOf(kpi("avg")).get("totals")).toBe("amount");
+    expect(paramsOf(kpi("avg")).has("filter.amount.isNotEmpty")).toBe(true);
+    expect(paramsOf(kpi("min")).get("sort")).toBe("amount");
+    expect(paramsOf(kpi("max")).get("sort")).toBe("-amount");
+    expect(paramsOf(kpi("max")).has("filter.amount.isNotEmpty")).toBe(true);
+  });
+
+  it("keeps a widget's own filters, with dates relative to today", () => {
+    const params = paramsOf(kpi("count", { filters: [{ field: "status", op: "ne", value: "paid" }, { field: "due", op: "lt", relativeDays: 0 }] }));
+    expect(params.get("filter.status.ne")).toBe("paid");
+    expect(params.get("filter.due.lt")).toBe(today);
+  });
+
+  it("asks a line for its newest points, and a bar for its groups", () => {
+    const chart = (type: "bar" | "line"): WidgetChart => ({ key: "c", label, type, entity: "sales", aggregate: "count", groupBy: "day" });
+    expect(widgetPath(chart("line"), today)).toContain("/api/e/sales/aggregate?");
+    expect(paramsOf(chart("line")).get("order")).toBe("desc");
+    expect(paramsOf(chart("bar")).has("order")).toBe(false);
+    expect(paramsOf(chart("bar")).get("groupBy")).toBe("day");
+  });
+
+  it("reads each figure from what the list answers", () => {
+    expect(kpiValue(kpi("count"), result({ total: 7 }))).toBe(7);
+    expect(kpiValue(kpi("sum"), result({ total: 2, totals: { amount: 900 } }))).toBe(900);
+    expect(kpiValue(kpi("avg"), result({ total: 3, totals: { amount: 900 } }))).toBe(300);
+    expect(kpiValue(kpi("min"), result({ total: 3, rows: [row({ amount: 100 })] }))).toBe(100);
+  });
+
+  it("tells nothing to add up from a total of nothing", () => {
+    expect(kpiValue(kpi("sum"), result({ total: 0, totals: { amount: null } }))).toBe(0);
+    expect(kpiValue(kpi("sum"), result({ total: 2, totals: { amount: null } }))).toBeNull();
+    expect(kpiValue(kpi("avg"), result({ total: 0, totals: { amount: null } }))).toBeNull();
+    expect(kpiValue(kpi("max"), result({ total: 0 }))).toBeNull();
+  });
+
+  it("knows a figure's kind: a count is whole, and an average rarely is", () => {
+    expect(kpiType(kpi("count"), field("amount", "money"))).toBe("integer");
+    expect(kpiType(kpi("sum"), field("amount", "money"))).toBe("money");
+    expect(kpiType(kpi("sum"), field("qty", "integer"))).toBe("integer");
+    expect(kpiType(kpi("avg"), field("qty", "integer"))).toBe("decimal");
+    expect(kpiType(kpi("max"), field("rate", "percent"))).toBe("percent");
+    expect(kpiType(kpi("min"), field("day", "date"))).toBe("date");
+  });
+
+  it("orders a choice's bars by the spec, anything else largest first, and blanks last", () => {
+    const choices = [{ key: "west", label }, { key: "east", label }];
+    const groups: AggregateGroup[] = [{ key: null, value: 9 }, { key: "east", value: 5 }, { key: "west", value: 1 }, { key: "gone", value: null }];
+    expect(barsInOrder(groups, field("zone", "choice", { choices })).map((group) => group.key)).toEqual(["west", "east", null]);
+    expect(barsInOrder(groups, field("name", "text")).map((group) => group.key)).toEqual(["east", "west", null]);
+  });
+
+  const say = (item: { fr: string }): string => item.fr;
+  const dated = (...keys: string[]): AggregateGroup[] => keys.map((key, index) => ({ key, value: index + 1 }));
+
+  it("puts a line back in time order, placed in time, with nothing for rows that have no date", () => {
+    const points = linePoints([{ key: "2026-11-09", value: 2 }, { key: "2026-11-02", value: 1 }, { key: null, value: 8 }], field("day", "date"), say, "fr-DZ");
+    expect(points.map((point) => point.label)).toEqual(["02/11", "09/11"]);
+    expect(points[1]?.at).toBe(Date.parse("2026-11-09"));
+  });
+
+  it("names months when every point is a month's first, and the year once they span two", () => {
+    expect(linePoints(dated("2026-02-01", "2026-01-01"), field("m", "date"), say, "fr-DZ").map((point) => point.label)).toEqual(["janv.", "févr."]);
+    expect(linePoints(dated("2027-01-01", "2026-12-01"), field("m", "date"), say, "fr-DZ").map((point) => point.label)).toEqual(["déc. 26", "janv. 27"]);
+    expect(linePoints(dated("2027-01-05", "2026-12-20"), field("d", "date"), say, "fr-DZ").map((point) => point.label)).toEqual(["20/12/26", "05/01/27"]);
+  });
+
+  it("keeps a broken line's gap, and labels what isn't a date as itself", () => {
+    expect(linePoints([{ key: "2026-11-02", value: null }], field("day", "date"), say, "fr-DZ")[0]?.value).toBeNull();
+    const choices = [{ key: "west", label: { fr: "Ouest", ar: "x" } }];
+    expect(linePoints([{ key: "west", value: 1 }], field("zone", "choice", { choices }), say, "fr-DZ")[0]).toEqual({ key: "west", label: "Ouest", value: 1 });
+  });
+
+  it("gives a chart's numbers the decimals they need", () => {
+    expect(chartPrecision("count", false, [1, 2])).toBe(0);
+    expect(chartPrecision("sum", true, [1, 2])).toBe(2);
+    expect(chartPrecision("sum", false, [1, null])).toBe(0);
+    expect(chartPrecision("avg", false, [1.5])).toBe(2);
+  });
+
+  it("writes the lead figure, with a dash for nothing rather than a zero", () => {
+    expect(heroText("integer", 1200, "fr-DZ", 0)).toBe("1\u00a0200");
+    expect(heroText("money", 1200, "fr-DZ", 2)).toBe("1\u00a0200,00");
+    expect(heroText("percent", 0.125, "fr-DZ", 2)).toBe("12,50");
+    expect(heroText("percent", 0.5, "fr-DZ", 2)).toBe("50");
+    expect(heroText("decimal", 2, "fr-DZ", 2)).toBe("2");
+    expect(heroText("date", "2026-11-07", "fr-DZ", 0)).toBe("07/11/2026");
+    expect(heroText("money", null, "fr-DZ", 2)).toBe("–");
   });
 });
 

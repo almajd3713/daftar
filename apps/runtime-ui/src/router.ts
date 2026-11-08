@@ -13,6 +13,7 @@ export type Route =
   | { name: "edit"; entity: string; id: string; from: string | undefined }
   | { name: "deleted"; entity: string; page: number }
   | { name: "calculator"; calculator: string }
+  | { name: "dashboard"; dashboard: string }
   | { name: "more" }
   | { name: "missing" };
 
@@ -35,6 +36,7 @@ export function parseRoute(pathname: string, search: string): Route {
   const pageNumber = Number.isInteger(page) && page > 0 ? page : 1;
   if (path.length === 2 && path[0] === "v" && path[1]) return { name: "view", view: path[1], q: query.get("q") ?? "", page: pageNumber, state: query.get("state") ?? undefined };
   if (path.length === 2 && path[0] === "c" && path[1]) return { name: "calculator", calculator: path[1] };
+  if (path.length === 2 && path[0] === "d" && path[1]) return { name: "dashboard", dashboard: path[1] };
   if (path[0] === "e" && path[1]) {
     if (path.length === 3 && path[2] === "new") return { name: "new", entity: path[1], from };
     if (path.length === 3 && path[2] === "deleted") return { name: "deleted", entity: path[1], page: pageNumber };
@@ -69,6 +71,8 @@ export function pathOf(route: Route): string {
       return withQuery(`/e/${key(route.entity)}/deleted`, { page: route.page > 1 ? String(route.page) : undefined });
     case "calculator":
       return `/c/${key(route.calculator)}`;
+    case "dashboard":
+      return `/d/${key(route.dashboard)}`;
   }
 }
 

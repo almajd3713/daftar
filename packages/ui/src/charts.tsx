@@ -3,7 +3,7 @@
  * more than these screens' phones should download for two shapes, and the axis has to follow the reading
  * direction. Every chart has its numbers one tap away, so nothing depends on seeing or hovering.
  */
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { chartScale, labelledPoints, labelWidth, lineRuns, pointPositions } from "./chart-scale.js";
 import { formatCompact, formatMoney, formatNumber } from "./format.js";
@@ -44,7 +44,20 @@ export function LineChart({ title, points, valueHeading, labelHeading, money, pr
   const { locale, dir, ui } = useDaftar();
   const { narrow } = useFrame();
   const [hover, setHover] = useState<{ text: string; x: number; y: number } | null>(null);
-  const { width, height } = narrow ? NARROW : WIDE;
+  const figure = useRef<HTMLElement>(null);
+  const [measured, setMeasured] = useState<number>();
+  // Drawn in real pixels for the width it's been given. A fixed coordinate system would scale its text with the chart,
+  // past the type scale in a wide panel and below 13 px in a narrow one, where no check on the CSS could see it.
+  useLayoutEffect(() => {
+    const element = figure.current;
+    if (!element) return undefined;
+    setMeasured(Math.round(element.getBoundingClientRect().width));
+    const observer = new ResizeObserver(() => setMeasured(Math.round(element.getBoundingClientRect().width)));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const { width: fallback, height } = narrow ? NARROW : WIDE;
+  const width = measured || fallback;
   const rtl = dir === "rtl";
   const padStart = rtl ? 68 : 48;
   const padEnd = 20;
@@ -71,7 +84,7 @@ export function LineChart({ title, points, valueHeading, labelHeading, money, pr
   const show = (value: number): string => (money ? formatMoney(value, locale, precision) : formatNumber(value, locale, precision));
   if (lastValue === null) return null;
   return (
-    <figure className={classes.figure}>
+    <figure ref={figure} className={classes.figure}>
       <svg className={classes.chart} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={title}>
         {ticks.map((tick) => (
           <g key={tick}>
@@ -160,14 +173,18 @@ export interface BarItem {
 export function BarList({ items, precision = 0 }: { items: BarItem[]; precision?: number }): ReactNode {
   const { locale } = useDaftar();
   const max = Math.max(...items.map((item) => item.value), 1);
+  const texts = items.map((item) => formatNumber(item.value, locale, precision));
+  // Room for the longest value, the same on every row. Taken from each bar, a long value would squeeze its bar and
+  // leave two different amounts looking the same.
+  const room = `${Math.max(...texts.map((text) => text.length), 1)}ch - var(--space-2)`;
   return (
     <ul className={classes.bars}>
-      {items.map((item) => (
+      {items.map((item, index) => (
         <li key={item.key} className={classes.bar}>
           <span>{item.label}</span>
           <span className={classes.track}>
-            <span className={classes.fill} style={{ width: `calc(${(item.value / max) * 100}% - 3rem)` }} />
-            <span className={classes.value}>{formatNumber(item.value, locale, precision)}</span>
+            <span className={classes.fill} style={{ width: `calc((100% - ${room}) * ${Math.max(item.value, 0) / max})` }} />
+            <span className={classes.value}>{texts[index]}</span>
           </span>
         </li>
       ))}

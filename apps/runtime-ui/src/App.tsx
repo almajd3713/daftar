@@ -25,6 +25,7 @@ import { call, canDo, problemOf, whenSignedOut, type Meta, type Status } from ".
 import { MissingPage, PreviewEndedScreen, SetupScreen, SignInScreen, UnreachableScreen } from "./auth.js";
 import { BoardPage } from "./board.js";
 import { CalculatorPage } from "./calculator.js";
+import { DashboardPage } from "./dashboard.js";
 import { DeletedPage } from "./deleted.js";
 import { EditRecordPage, NewRecordPage } from "./form.js";
 import { ListPage } from "./list.js";
@@ -111,6 +112,7 @@ interface Place {
 
 const entityPlace = (key: string): string => `entity:${key}`;
 const calculatorPlace = (key: string): string => `calculator:${key}`;
+const dashboardPlace = (key: string): string => `dashboard:${key}`;
 
 function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: Status; onLocale: (locale: Locale) => void; onSignOut: () => void }): ReactNode {
   const { say } = useDaftar();
@@ -124,7 +126,10 @@ function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: S
   });
   const groups: Place[][] = [
     nav.map(({ entity, view }) => ({ key: entityPlace(entity.key), label: say(entity.label), route: { name: "view", view: view.key, q: "", page: 1 } })),
-    usableCalculators(meta).map((calculator) => ({ key: calculatorPlace(calculator.key), label: say(calculator.label), route: { name: "calculator", calculator: calculator.key } })),
+    [
+      ...meta.dashboards.map((dashboard): Place => ({ key: dashboardPlace(dashboard.key), label: say(dashboard.label), route: { name: "dashboard", dashboard: dashboard.key } })),
+      ...usableCalculators(meta).map((calculator): Place => ({ key: calculatorPlace(calculator.key), label: say(calculator.label), route: { name: "calculator", calculator: calculator.key } })),
+    ],
   ];
   const places = groups.flat();
   const current = currentKey(route, meta.views) ?? places[0]?.key;
@@ -159,7 +164,7 @@ function SignedIn({ meta, status, onLocale, onSignOut }: { meta: Meta; status: S
       language={language}
       hideNavOnPhone={route.name === "new" || route.name === "edit" || route.name === "record" || route.name === "deleted"}
     >
-      <Screen route={route} meta={meta} entityOf={entityOf} firstView={nav[0]?.view} places={places} onLocale={onLocale} onSignOut={onSignOut} canSwitch={Boolean(language)} />
+      <Screen route={route} meta={meta} entityOf={entityOf} places={places} onLocale={onLocale} onSignOut={onSignOut} canSwitch={Boolean(language)} />
     </AppFrame>
   );
 }
@@ -171,6 +176,7 @@ function currentKey(route: Route, views: Meta["views"]): string | undefined {
   }
   if (route.name === "new" || route.name === "edit" || route.name === "record" || route.name === "deleted") return entityPlace(route.entity);
   if (route.name === "calculator") return calculatorPlace(route.calculator);
+  if (route.name === "dashboard") return dashboardPlace(route.dashboard);
   return undefined;
 }
 
@@ -178,7 +184,6 @@ interface ScreenProps {
   route: Route;
   meta: Meta;
   entityOf: (key: string) => Entity | undefined;
-  firstView: Meta["views"][number] | undefined;
   places: Place[];
   onLocale: (locale: Locale) => void;
   onSignOut: () => void;
@@ -192,18 +197,16 @@ function ViewScreen({ meta, view, entity, q, page, state }: { meta: Meta; view: 
   return workflow ? <BoardPage key={view.key} meta={meta} view={view} workflow={workflow} entity={entity} state={state} /> : <MissingPage />;
 }
 
-function Screen({ route, meta, entityOf, firstView, places, onLocale, onSignOut, canSwitch }: ScreenProps): ReactNode {
+function Screen(props: ScreenProps): ReactNode {
+  const { route, meta, entityOf, places, onLocale, onSignOut, canSwitch } = props;
   const { say } = useDaftar();
   const t = useWords();
   const calculators = usableCalculators(meta);
   if (route.name === "home") {
-    if (!firstView) {
-      const first = calculators[0];
-      if (first) return <CalculatorPage key={first.key} calculator={first} />;
-      return <Page title={say(meta.app.name)}><EmptyState title={t("nothingToShowTitle")}>{t("nothingToShowBody")}</EmptyState></Page>;
-    }
-    const entity = entityOf(firstView.entity);
-    return entity ? <ViewScreen meta={meta} view={firstView} entity={entity} q="" page={1} state={undefined} /> : null;
+    // Home is the first place in the navigation, so what it shows and what the navigation marks can't disagree.
+    const first = places[0]?.route;
+    if (first) return <Screen {...props} route={first} />;
+    return <Page title={say(meta.app.name)}><EmptyState title={t("nothingToShowTitle")}>{t("nothingToShowBody")}</EmptyState></Page>;
   }
   if (route.name === "view") {
     const view = meta.views.find((item) => item.key === route.view);
@@ -229,6 +232,10 @@ function Screen({ route, meta, entityOf, firstView, places, onLocale, onSignOut,
     if (!entity || !canDo(meta, entity.key, "revert")) return <MissingPage />;
     const list = viewsOf(meta, entity.key)[0];
     return <DeletedPage key={entity.key} entity={entity} page={route.page} onBack={() => goBack(list ? { name: "view", view: list.key, q: "", page: 1 } : { name: "home" })} />;
+  }
+  if (route.name === "dashboard") {
+    const dashboard = meta.dashboards.find((item) => item.key === route.dashboard);
+    if (dashboard) return <DashboardPage key={dashboard.key} meta={meta} dashboard={dashboard} />;
   }
   if (route.name === "calculator") {
     const calculator = calculators.find((item) => item.key === route.calculator);

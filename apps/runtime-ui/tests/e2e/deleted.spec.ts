@@ -128,8 +128,10 @@ test.describe.serial("the deleted list on a phone", () => {
     const errors = watchForErrors(page);
     await page.goto(`${base}/?lang=ar`);
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-    // A row whose name is its title has only a date under it, with nothing for a separator to separate.
-    await expect(page.getByRole("button", { name: /R-KEEP/ })).not.toContainText("·");
+    // The line under a row's title says whose it is, and a separator only ever comes between two things.
+    const under = page.getByRole("button", { name: /R-KEEP/ }).locator("[class*=rowMeta]");
+    await expect(under).toContainText("Benali Samir");
+    expect(((await under.textContent()) ?? "").trim()).not.toMatch(/^·|·$/);
     await page.getByRole("button", { name: "العناصر المحذوفة" }).scrollIntoViewIfNeeded();
     await expectGoodScreen(page, "a list with its link to what's deleted, on a phone");
     await page.getByRole("button", { name: "العناصر المحذوفة" }).click();

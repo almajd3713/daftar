@@ -119,20 +119,25 @@ export function ListPage({ meta, view, entity, q, page }: { meta: Meta; view: Vi
     const amount = fields.find(isNumeric);
     const status = fields.find((field) => kindOf(field) === "choice");
     const date = fields.find((field) => kindOf(field) === "date");
+    const named = fields.find((field) => field.key !== entity.titleField && (kindOf(field) === "text" || kindOf(field) === "link"));
     return pageChrome(
       <>
         {header}
         <ProblemNotice problem={problem} />
         <RecordList titleHeading={titleField ? say(titleField.label) : undefined} amountHeading={amount ? `${say(amount.label)}${kindOf(amount) === "money" ? ` (${currencyLabel(locale)})` : ""}` : undefined}>
           {data.rows.map((row) => {
-            const name = row._name !== row[entity.titleField] ? <UserText>{row._name}</UserText> : null;
-            const when = date && row[date.key] ? <FieldValue field={date} row={row} /> : null;
+            // A title is often a code, so the line under it is what tells a person whose it is.
+            const parts = [
+              ...(named && row[named.key] ? [<FieldValue key="named" field={named} row={row} />] : []),
+              ...(row._name !== row[entity.titleField] ? [<UserText key="name">{row._name}</UserText>] : []),
+              ...(date && row[date.key] ? [<FieldValue key="date" field={date} row={row} />] : []),
+            ];
             return (
               <RecordRow
                 key={row._id}
                 title={<RecordTitle entity={entity} row={row} />}
                 amount={amount ? <FieldValue field={amount} row={row} /> : undefined}
-                meta={<>{name}{name && when ? " · " : null}{when}</>}
+                meta={parts.flatMap((part, index) => (index ? [" · ", part] : [part]))}
                 status={status ? <FieldValue field={status} row={row} /> : undefined}
                 onClick={() => open(row)}
               />

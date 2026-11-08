@@ -1,5 +1,5 @@
 /** The Runtime's API (C-7, docs/studio-api.md), and the few shapes of failure a screen has to tell apart. */
-import type { App, Calculator, CalculatorOutput, Entity, Form, Label, Permission, ViewBoard, ViewList, Workflow } from "@daftar/spec/types";
+import type { App, Calculator, CalculatorOutput, Dashboard, Entity, Form, Label, Permission, ViewBoard, ViewList, Workflow } from "@daftar/spec/types";
 import { useCallback, useEffect, useState } from "react";
 
 export interface Status {
@@ -21,7 +21,23 @@ export interface Meta {
   views: (ViewList | ViewBoard)[];
   forms: Form[];
   workflows: Workflow[];
+  /** Only what this role can see of each, and none left with no widgets. */
+  dashboards: Dashboard[];
   calculators: MetaCalculator[];
+}
+
+/** One group of a chart. `key` is null for rows with no value, and `value` for a sum over only blanks. */
+export interface AggregateGroup {
+  key: string | number | boolean | null;
+  value: number | null;
+  /** A link's name, when this person may read it. */
+  label?: string;
+}
+
+export interface AggregateResult {
+  groups: AggregateGroup[];
+  /** There were more than the server returns. */
+  truncated: boolean;
 }
 
 /** Each output is its value, or `{error}` with the Excel error its formula gave. */

@@ -72,6 +72,8 @@ const words = {
   sourceImport: { fr: "Import", ar: "استيراد" },
   sourceSystem: { fr: "Système", ar: "النظام" },
   boardStateEmpty: { fr: "Rien dans cet état.", ar: "لا شيء في هذه الحالة." },
+  noValue: { fr: "Sans valeur", ar: "بدون قيمة" },
+  chartEmpty: { fr: "Rien à afficher pour l’instant.", ar: "لا شيء للعرض حاليا." },
   compute: { fr: "Calculer", ar: "احسب" },
   result: { fr: "Résultat", ar: "النتيجة" },
   couldNotCompute: { fr: "Le calcul n’a pas abouti", ar: "لم يكتمل الحساب" },
@@ -109,6 +111,12 @@ export function noStepBetween(from: string, to: string, options: readonly string
   }
   const none = `Aucune étape ne mène de «\u00a0${from}\u00a0» à «\u00a0${to}\u00a0».`;
   return options.length ? `${none} Possible\u00a0: ${options.join(", ")}` : none;
+}
+
+/** A chart has more bars than it shows. `more` means even the server stopped counting. */
+export function topOf(shown: number, total: number, more: boolean, locale: string): string {
+  if (locale === "ar-DZ") return more ? `أول ${shown} من أكثر من ${total}` : `أول ${shown} من ${total}`;
+  return more ? `Les ${shown} premiers sur plus de ${total}` : `Les ${shown} premiers sur ${total}`;
 }
 
 /** A column holds more than it shows. */

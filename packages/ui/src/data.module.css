@@ -439,7 +439,7 @@
 .panels {
   display: grid;
   grid-template-columns: 7fr 5fr;
-  gap: 0 var(--space-12);
+  gap: var(--space-8) var(--space-12);
   margin-top: var(--space-6);
 }
 
@@ -452,7 +452,13 @@
 
 .panelWide {
   grid-column: 1 / -1;
-  margin-top: var(--space-8);
+}
+
+.panelNote {
+  margin-top: var(--space-2);
+  color: var(--muted);
+  font-size: var(--t-small);
+  line-height: var(--l-small);
 }
 
 /* Board */

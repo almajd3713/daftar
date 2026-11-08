@@ -59,7 +59,7 @@ export function listPath(view: ViewList, { q, page, today }: ListOptions): strin
   return `/api/e/${encodeURIComponent(view.entity)}?${params.toString()}`;
 }
 
-function addFilters(params: URLSearchParams, filters: readonly Filter[] | undefined, today: string): void {
+export function addFilters(params: URLSearchParams, filters: readonly Filter[] | undefined, today: string): void {
   for (const filter of filters ?? []) {
     const value = filterValue(filter, today);
     if (value !== undefined) params.append(`filter.${filter.field}.${filter.op}`, value);

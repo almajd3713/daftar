@@ -23,7 +23,7 @@ import {
 import { Checkbox, MultiSelect } from "@mantine/core";
 import type { ReactNode } from "react";
 
-import { useFetch, type ListResult, type Row } from "./api.js";
+import { useFetch, type AggregateGroup, type ListResult, type Row } from "./api.js";
 import { fitsType, kindOf, outputError, precisionOf, textOf, type Draft } from "./values.js";
 import { useWords } from "./words.js";
 
@@ -99,8 +99,15 @@ export function PastValue({ field, value, linkLabel }: { field: Field; value: un
   return <Value field={field} value={value} linkLabel={linkLabel} showZero />;
 }
 
-/** A calculator's result. It stands alone, so money carries its currency and a zero is a zero. */
-export function OutputValue({ output, value }: { output: CalculatorOutput; value: unknown }): ReactNode {
+/** What a chart's bar is named: a group's value, shown as that field shows it. Rows with no value form a group too. */
+export function GroupLabel({ field, group }: { field: Field; group: AggregateGroup }): ReactNode {
+  const t = useWords();
+  if (group.key === null) return t("noValue");
+  return <Value field={field} value={group.key} linkLabel={group.label} showZero />;
+}
+
+/** A value standing alone, as a calculator's result or a dashboard's figure: money carries its currency and a zero is a zero. */
+export function OutputValue({ output, value }: { output: Pick<CalculatorOutput, "key" | "label" | "type">; value: unknown }): ReactNode {
   const { key, label, type } = output;
   const excelError = outputError(value);
   if (excelError) return <Value field={{ key, label, type }} value={null} excelError={excelError} />;
