@@ -31,7 +31,7 @@ import { canDo, useFetch, type ListResult, type Meta, type Row } from "./api.js"
 import { ProblemNotice } from "./auth.js";
 import { FieldValue, RecordTitle } from "./fields.js";
 import { navigate } from "./router.js";
-import { isListView, listPath, PAGE_SIZE } from "./views.js";
+import { listPath, PAGE_SIZE, viewsOf } from "./views.js";
 import { isNumeric, kindOf, precisionOf } from "./values.js";
 import { rangeOf, useWords } from "./words.js";
 
@@ -50,6 +50,24 @@ function fieldsOf(entity: Entity, keys: readonly string[]): Field[] {
   return keys.flatMap((key) => entity.fields.find((field) => field.key === key) ?? []);
 }
 
+/** The page's add button, for a person who has a form to add with. */
+export function useAddButton(meta: Meta, entity: Entity, from: string): ReactNode {
+  const t = useWords();
+  if (!meta.forms.some((form) => form.entity === entity.key)) return undefined;
+  return <Button primary leftSection={<PlusIcon />} onClick={() => navigate({ name: "new", entity: entity.key, from })}>{t("add")}</Button>;
+}
+
+/** The way to what's been deleted, under whatever shows an entity's records, for those who could restore it. */
+export function DeletedLink({ meta, entity }: { meta: Meta; entity: Entity }): ReactNode {
+  const t = useWords();
+  if (!canDo(meta, entity.key, "revert")) return null;
+  return (
+    <Gutter>
+      <LastActions><TextLink onClick={() => navigate({ name: "deleted", entity: entity.key, page: 1 })}>{t("deletedList")}</TextLink></LastActions>
+    </Gutter>
+  );
+}
+
 export function ListPage({ meta, view, entity, q, page }: { meta: Meta; view: ViewList; entity: Entity; q: string; page: number }): ReactNode {
   const { say, locale } = useDaftar();
   const { narrow } = useFrame();
@@ -58,8 +76,8 @@ export function ListPage({ meta, view, entity, q, page }: { meta: Meta; view: Vi
   const { data, problem, loading, reload } = useFetch<ListResult>(path);
   const creatable = meta.forms.some((form) => form.entity === entity.key);
   const open = (row: Row): void => navigate({ name: "record", entity: entity.key, id: row._id, from: view.key });
-  const add = creatable ? <Button primary leftSection={<PlusIcon />} onClick={() => navigate({ name: "new", entity: entity.key, from: view.key })}>{t("add")}</Button> : undefined;
-  const tabs = meta.views.filter(isListView).filter((item) => item.entity === entity.key).map((item) => ({ key: item.key, label: say(item.label), ...(item.key === view.key && data ? { count: data.total } : {}) }));
+  const add = useAddButton(meta, entity, view.key);
+  const tabs = viewsOf(meta, entity.key).map((item) => ({ key: item.key, label: say(item.label), ...(item.key === view.key && data ? { count: data.total } : {}) }));
   const header = <ViewTabs label={say(entity.label)} views={tabs} current={view.key} tools={<SearchBox key={view.key} view={view.key} q={q} />} onSelect={(key) => navigate({ name: "view", view: key, q: "", page: 1 })} />;
   const fields = fieldsOf(entity, view.columns);
   const totals = data?.totals ?? {};
@@ -68,13 +86,8 @@ export function ListPage({ meta, view, entity, q, page }: { meta: Meta; view: Vi
   const foot = narrow && (add || totalField) ? (
     <FootRow totalLabel={totalField ? say(totalField.label) : undefined} total={totalField && typeof totalValue === "number" ? <Money value={totalValue} precision={precisionOf(totalField)} /> : undefined}>{add}</FootRow>
   ) : undefined;
-  // Once the list has arrived, or this link would jump down the page as it does.
-  const toDeleted = data && canDo(meta, entity.key, "revert") ? (
-    <Gutter>
-      <LastActions><TextLink onClick={() => navigate({ name: "deleted", entity: entity.key, page: 1 })}>{t("deletedList")}</TextLink></LastActions>
-    </Gutter>
-  ) : null;
-  const pageChrome = (children: ReactNode): ReactNode => <Page title={say(entity.label)} actions={add} foot={foot} closing={Boolean(totalField)}>{children}{toDeleted}</Page>;
+  // The link waits for the list, or it would jump down the page as the rows arrive.
+  const pageChrome = (children: ReactNode): ReactNode => <Page title={say(entity.label)} actions={add} foot={foot} closing={Boolean(totalField)}>{children}{data ? <DeletedLink meta={meta} entity={entity} /> : null}</Page>;
 
   if (!data) {
     return pageChrome(<>{header}{loading ? <Waiting>{say(view.label)}</Waiting> : <><ProblemNotice problem={problem} /><Button onClick={reload}>{t("retry")}</Button></>}</>);

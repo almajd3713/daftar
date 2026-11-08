@@ -480,6 +480,14 @@
   padding-inline-end: 0;
 }
 
+.column[data-over] {
+  background: var(--raised);
+}
+
+.card[draggable="true"] {
+  cursor: grab;
+}
+
 .columnHead {
   display: flex;
   justify-content: space-between;

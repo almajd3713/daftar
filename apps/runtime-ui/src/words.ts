@@ -71,6 +71,7 @@ const words = {
   sourceWorkflow: { fr: "Suivi", ar: "المسار" },
   sourceImport: { fr: "Import", ar: "استيراد" },
   sourceSystem: { fr: "Système", ar: "النظام" },
+  boardStateEmpty: { fr: "Rien dans cet état.", ar: "لا شيء في هذه الحالة." },
   compute: { fr: "Calculer", ar: "احسب" },
   result: { fr: "Résultat", ar: "النتيجة" },
   couldNotCompute: { fr: "Le calcul n’a pas abouti", ar: "لم يكتمل الحساب" },
@@ -98,6 +99,21 @@ export function withColon(label: string, locale: string): string {
 /** The heading over why a step didn't go through. */
 export function refusedOf(step: string, locale: string): string {
   return locale === "ar-DZ" ? `تعذّر «${step}»` : `«\u00a0${step}\u00a0» refusé`;
+}
+
+/** A card dragged somewhere no step leads, and where it can go instead. */
+export function noStepBetween(from: string, to: string, options: readonly string[], locale: string): string {
+  if (locale === "ar-DZ") {
+    const none = `لا توجد خطوة من «${from}» إلى «${to}».`;
+    return options.length ? `${none} الخطوات الممكنة: ${options.join("، ")}` : none;
+  }
+  const none = `Aucune étape ne mène de «\u00a0${from}\u00a0» à «\u00a0${to}\u00a0».`;
+  return options.length ? `${none} Possible\u00a0: ${options.join(", ")}` : none;
+}
+
+/** A column holds more than it shows. */
+export function seeAllOf(total: number, locale: string): string {
+  return locale === "ar-DZ" ? `عرض الكل (${total})` : `Tout voir (${total})`;
 }
 
 /** Where to look after a condition wasn't met: the fields it reads. */

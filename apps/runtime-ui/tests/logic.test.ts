@@ -1,12 +1,12 @@
-import type { CalculatorInput, CalculatorOutput, Entity, Expr, Field, ViewList, Workflow, WorkflowState, WorkflowTransition } from "@daftar/spec/types";
+import type { CalculatorInput, CalculatorOutput, Entity, Expr, Field, ViewBoard, ViewList, Workflow, WorkflowState, WorkflowTransition } from "@daftar/spec/types";
 import { describe, expect, it } from "vitest";
 
 import { classify, type AuditChange, type MetaCalculator } from "../src/api.js";
 import { canUndo, deletionOf, isRestoration, linksIn, splitChanges } from "../src/history.js";
 import { parseRoute, pathOf, type Route } from "../src/router.js";
 import { allValues, changedValues, everyValue, fieldOfInput, fitsType, fromDraft, outputError, startingDrafts, toDraft } from "../src/values.js";
-import { listPath, usableCalculators } from "../src/views.js";
-import { fieldsToCheck, offeredSteps } from "../src/workflow.js";
+import { boardPath, listPath, PAGE_SIZE, usableCalculators, viewsOf } from "../src/views.js";
+import { fieldsToCheck, offeredSteps, stepBetween } from "../src/workflow.js";
 
 const label = { fr: "x", ar: "x" };
 const field = (key: string, type: string, extra: object = {}): Field => ({ key, label, type, ...extra }) as Field;
@@ -19,6 +19,7 @@ describe("routes", () => {
     { name: "more" },
     { name: "view", view: "payments_all", q: "", page: 1 },
     { name: "view", view: "payments_all", q: "حورية سعيدي", page: 3 },
+    { name: "view", view: "repairs_board", q: "", page: 1, state: "in_repair" },
     { name: "new", entity: "repairs", from: "repairs_all" },
     { name: "new", entity: "repairs", from: undefined },
     { name: "edit", entity: "repairs", id: "0b0c2c5e-1111-4222-8333-444455556666", from: "repairs_all" },
@@ -71,6 +72,18 @@ describe("a workflow's steps", () => {
   it("come furthest along first, whatever order the spec lists them in", () => {
     expect(keys(offeredSteps(workflow, "b", "owner"))).toEqual(["on", "back"]);
     expect(keys(offeredSteps(workflow, "a", "owner"))).toEqual(["owner_only", "start"]);
+  });
+
+  it("find what moving a card attempts, preferring a step this role may take", () => {
+    expect(stepBetween(workflow, "a", "b", "staff")?.key).toBe("start");
+    expect(stepBetween(workflow, "a", "c", "owner")?.key).toBe("owner_only");
+    expect(stepBetween(workflow, "a", "a", "owner")).toBeUndefined();
+    const both: Workflow = { ...workflow, transitions: [step("owners", ["a"], "b", { roles: ["owner"] }), step("everyone", ["a"], "b")] };
+    expect(stepBetween(both, "a", "b", "staff")?.key).toBe("everyone");
+  });
+
+  it("still find a step this role may not take, so the server can say why not", () => {
+    expect(stepBetween(workflow, "a", "c", "staff")?.key).toBe("owner_only");
   });
 
   const entity = { key: "repairs", label, titleField: "device", fields: [field("price", "money"), field("device", "text"), field("items", "child")] } as unknown as Entity;
@@ -131,6 +144,32 @@ describe("a record's history", () => {
 describe("a view as query parameters", () => {
   const today = "2026-11-06";
   const paramsOf = (path: string): URLSearchParams => new URL(path, "http://x").searchParams;
+  const flow: Workflow = { key: "flow", label, entity: "payments", stateField: "status", initialState: "a", states: [{ key: "a", label }], transitions: [] };
+  const board: ViewBoard = { key: "b", label, entity: "payments", type: "board", workflow: "flow", cardFields: ["x"] };
+
+  it("asks for one state of a board, with the view's own filters, a page's worth at a time", () => {
+    const params = paramsOf(boardPath({ ...board, filters: [{ field: "kind", op: "ne", value: "z" }] }, flow, "a", today));
+    expect(params.get("filter.status.eq")).toBe("a");
+    expect(params.get("filter.kind.ne")).toBe("z");
+    expect(params.get("pageSize")).toBe(String(PAGE_SIZE));
+  });
+
+  it("shows a working state's oldest first, and what changed last in a state no step leaves", () => {
+    const step: WorkflowTransition = { key: "go", label, from: ["a"], to: "z", roles: ["owner"] };
+    const moving: Workflow = { ...flow, states: [{ key: "a", label }, { key: "z", label }], transitions: [step] };
+    expect(paramsOf(boardPath(board, moving, "a", today)).has("sort")).toBe(false);
+    expect(paramsOf(boardPath(board, moving, "z", today)).get("sort")).toBe("-_updatedAt");
+  });
+
+  it("leaves out a board a role can't draw, and keeps an entity's views in the spec's order", () => {
+    const entity = (fields: Field[]): Entity => ({ key: "payments", label, fields }) as Entity;
+    const list = view({ key: "l" });
+    const meta = (fields: Field[], workflows: Workflow[] = [flow]): Parameters<typeof viewsOf>[0] => ({ views: [board, list], workflows, entities: [entity(fields)] });
+    expect(viewsOf(meta([field("status", "choice")]), "payments").map((item) => item.key)).toEqual(["b", "l"]);
+    expect(viewsOf(meta([field("other", "text")]), "payments").map((item) => item.key)).toEqual(["l"]);
+    expect(viewsOf(meta([field("status", "choice")], []), "payments").map((item) => item.key)).toEqual(["l"]);
+    expect(viewsOf(meta([field("status", "choice")]), "elsewhere")).toEqual([]);
+  });
 
   it("sends its sort, with a minus for descending", () => {
     expect(paramsOf(listPath(view({ sort: [{ field: "a", direction: "desc" }, { field: "b", direction: "asc" }] }), { q: "", page: 1, today })).get("sort")).toBe("-a,b");

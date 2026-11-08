@@ -248,6 +248,19 @@ describe("the record API", () => {
     expect(response.body.reason.fr).toContain("dépendent");
   });
 
+  it("sorts by when a record last changed, and still refuses anything else that isn't a field", async () => {
+    const add = async (code: string): Promise<string> => (await owner.post("/api/e/classes", { code, name: "Récent", monthly_fee: 1 })).body._id;
+    const first = await add("RC1");
+    const second = await add("RC2");
+    const codes = async (sort: string): Promise<string[]> => (await owner.get(`/api/e/classes?filter.name.eq=R%C3%A9cent&sort=${sort}`)).body.rows.map((row: any) => row.code);
+    expect(await codes("-_updatedAt")).toEqual(["RC2", "RC1"]);
+    expect((await owner.patch(`/api/e/classes/${first}`, { monthly_fee: 2 })).status).toBe(200);
+    expect(await codes("-_updatedAt")).toEqual(["RC1", "RC2"]);
+    expect(await codes("_updatedAt")).toEqual(["RC2", "RC1"]);
+    expect(second).toBeTruthy();
+    expect((await owner.get("/api/e/classes?sort=_seq")).status).toBe(400);
+  });
+
   it("lists with filter, sort, search, paging and totals", async () => {
     for (const [code, fee] of [["A", 1000], ["B", 2000], ["C", 3000]] as const) await owner.post("/api/e/classes", { code: `L${code}`, name: `Liste ${code}`, monthly_fee: fee });
     const sorted = await owner.get("/api/e/classes?filter.name.contains=Liste&sort=-monthly_fee&totals=monthly_fee&pageSize=2");
