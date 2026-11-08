@@ -1,10 +1,12 @@
-import type { Field, ViewList } from "@daftar/spec/types";
+import type { Entity, Expr, Field, ViewList, Workflow, WorkflowState, WorkflowTransition } from "@daftar/spec/types";
 import { describe, expect, it } from "vitest";
 
-import { classify } from "../src/api.js";
+import { classify, type AuditChange } from "../src/api.js";
+import { canUndo, deletionOf, isRestoration, linksIn, splitChanges } from "../src/history.js";
 import { parseRoute, pathOf, type Route } from "../src/router.js";
 import { allValues, changedValues, fromDraft, startingDrafts, toDraft } from "../src/values.js";
 import { listPath } from "../src/views.js";
+import { fieldsToCheck, offeredSteps } from "../src/workflow.js";
 
 const label = { fr: "x", ar: "x" };
 const field = (key: string, type: string, extra: object = {}): Field => ({ key, label, type, ...extra }) as Field;
@@ -20,6 +22,8 @@ describe("routes", () => {
     { name: "new", entity: "repairs", from: "repairs_all" },
     { name: "new", entity: "repairs", from: undefined },
     { name: "edit", entity: "repairs", id: "0b0c2c5e-1111-4222-8333-444455556666", from: "repairs_all" },
+    { name: "record", entity: "repairs", id: "0b0c2c5e-1111-4222-8333-444455556666", from: "repairs_all" },
+    { name: "record", entity: "repairs", id: "0b0c2c5e-1111-4222-8333-444455556666", from: undefined },
   ];
 
   it("read back what they wrote, so a reload lands on the same page", () => {
@@ -37,6 +41,87 @@ describe("routes", () => {
 
   it("fall back to the first page on a nonsense page number", () => {
     for (const page of ["0", "-1", "1.5", "abc"]) expect(parseRoute("/v/a", `?page=${page}`)).toMatchObject({ page: 1 });
+  });
+});
+
+describe("a workflow's steps", () => {
+  const state = (key: string): WorkflowState => ({ key, label });
+  const step = (key: string, from: [string, ...string[]], to: string, extra: Partial<WorkflowTransition> = {}): WorkflowTransition => ({ key, label, from, to, roles: ["owner", "staff"], ...extra });
+  const workflow: Workflow = {
+    key: "flow",
+    label,
+    entity: "repairs",
+    stateField: "status",
+    initialState: "a",
+    states: [state("a"), state("b"), state("c")],
+    transitions: [step("back", ["b"], "a"), step("on", ["b"], "c"), step("start", ["a"], "b"), step("owner_only", ["a"], "c", { roles: ["owner"] })],
+  };
+  const keys = (items: WorkflowTransition[]): string[] => items.map((item) => item.key);
+
+  it("are those from this state that this role may take", () => {
+    expect(keys(offeredSteps(workflow, "a", "staff"))).toEqual(["start"]);
+    expect(keys(offeredSteps(workflow, "c", "owner"))).toEqual([]);
+    expect(keys(offeredSteps(workflow, "a", "viewer"))).toEqual([]);
+    expect(keys(offeredSteps(workflow, null, "owner"))).toEqual([]);
+  });
+
+  it("come furthest along first, whatever order the spec lists them in", () => {
+    expect(keys(offeredSteps(workflow, "b", "owner"))).toEqual(["on", "back"]);
+    expect(keys(offeredSteps(workflow, "a", "owner"))).toEqual(["owner_only", "start"]);
+  });
+
+  const entity = { key: "repairs", label, titleField: "device", fields: [field("price", "money"), field("device", "text"), field("items", "child")] } as unknown as Entity;
+  const read = (fieldKey: string): Expr => ({ kind: "field", valueType: "number", field: fieldKey });
+
+  it("point a refusal at the fields a condition reads, however deep", () => {
+    const deep: Expr = { kind: "op", valueType: "boolean", op: "gt", args: [{ kind: "call", valueType: "number", fn: "SUM", args: [read("price"), { kind: "rollup", valueType: "number", via: "items", fn: "count" }] }, { kind: "literal", valueType: "number", value: 0 }] };
+    expect(fieldsToCheck(entity, step("x", ["a"], "b", { condition: deep })).map((item) => item.key)).toEqual(["price", "items"]);
+  });
+
+  it("never name a field this person can't see, or anything for a step with no condition", () => {
+    expect(fieldsToCheck(entity, step("x", ["a"], "b", { condition: read("margin") }))).toEqual([]);
+    expect(fieldsToCheck(entity, step("x", ["a"], "b"))).toEqual([]);
+  });
+});
+
+describe("a record's history", () => {
+  const change = (id: string, op: string, extra: Partial<AuditChange> = {}): AuditChange => ({ id, at: "2026-11-05T09:42:00Z", actor: "samira", source: "ui", op, changes: {}, ...extra });
+  const entity = { key: "students", label, titleField: "name", fields: [field("name", "text"), field("class", "link", { target: "classes" })] } as unknown as Entity;
+
+  it("offers undoing an edit or a step, once", () => {
+    expect(canUndo(change("a", "update"))).toBe(true);
+    expect(canUndo(change("a", "transition"))).toBe(true);
+    expect(canUndo(change("a", "update", { revertedBy: "b" }))).toBe(false);
+    for (const op of ["create", "delete", "revert"]) expect(canUndo(change("a", op))).toBe(false);
+  });
+
+  it("restores the newest deletion that hasn't been undone", () => {
+    const older = change("old", "delete", { revertedBy: "x" });
+    expect(deletionOf([change("n", "update"), change("new", "delete"), older])?.id).toBe("new");
+    expect(deletionOf([change("x", "revert", { revertOf: "old" }), older])).toBeUndefined();
+  });
+
+  it("tells a restoration from an undone edit", () => {
+    const changes = [change("r", "revert", { revertOf: "d" }), change("d", "delete"), change("u", "revert", { revertOf: "e" }), change("e", "update")];
+    expect(isRestoration(changes[0] as AuditChange, changes)).toBe(true);
+    expect(isRestoration(changes[2] as AuditChange, changes)).toBe(false);
+    expect(isRestoration(changes[3] as AuditChange, changes)).toBe(false);
+  });
+
+  it("only says that a hidden field changed, because it has no label to show", () => {
+    const split = splitChanges(entity, change("a", "update", { changes: { name: ["A", "B"], parts_cost: ["*", "*"] } }));
+    expect(split.shown).toEqual([{ field: entity.fields[0], from: "A", to: "B" }]);
+    expect(split.hidden).toBe(true);
+    expect(splitChanges(entity, change("a", "update", { changes: { name: ["A", "B"] } })).hidden).toBe(false);
+  });
+
+  it("asks once for each link's name, and only where a line will show it", () => {
+    const changes = [
+      change("c", "update", { changes: { class: ["id-1", "id-2"], name: ["A", "B"] } }),
+      change("b", "update", { changes: { class: [null, "id-1"] } }),
+      change("a", "create", { changes: { class: [null, "id-9"] } }),
+    ];
+    expect(linksIn(entity, changes)).toEqual(["classes/id-1", "classes/id-2"]);
   });
 });
 

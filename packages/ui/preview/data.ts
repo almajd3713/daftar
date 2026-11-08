@@ -52,6 +52,7 @@ export const words = {
   save: { fr: "Enregistrer", ar: "حفظ" },
   cancel: { fr: "Annuler", ar: "إلغاء" },
   edit: { fr: "Modifier", ar: "تعديل" },
+  delete: { fr: "Supprimer", ar: "حذف" },
   badPhone: { fr: "Entrez un numéro de téléphone algérien.", ar: "أدخل رقم هاتف جزائري." },
   addRep: { fr: "Nouvelle réparation", ar: "تصليح جديد" },
   boardView: { fr: "Tableau", ar: "اللوحة" },

@@ -1,7 +1,7 @@
 /** A ledger with several views of one entity, and enough rows to need paging. */
 import { expect, test } from "@playwright/test";
 
-import { baseOf, expectGoodScreen, PC, signIn, signUp, watchForErrors } from "./helpers.js";
+import { baseOf, expectGoodScreen, PASSWORD, PC, signIn, signUp, watchForErrors } from "./helpers.js";
 
 const base = baseOf("payments");
 
@@ -78,8 +78,31 @@ test.describe.serial("the payments ledger", () => {
     await signIn(page, base);
     await page.goto(`${base}/?lang=fr`);
     await page.locator("tbody tr").first().getByRole("button").first().click();
+    // On the record it's a value like any other, worked out by the server.
+    await expect(page.getByRole("term").filter({ hasText: "Reste" })).toBeVisible();
+    await expectGoodScreen(page, "a record with computed fields");
+    await page.getByRole("button", { name: "Modifier" }).click();
     await expect(page.locator("#field-receipt_no")).toBeVisible();
     await expect(page.locator("#field-amount_due")).toBeVisible();
     await expect(page.locator("#field-remaining")).toHaveCount(0);
+  });
+
+  test("someone limited to their own records can open one, with its history, but not anyone else's", async ({ page }) => {
+    await signIn(page, base);
+    const others = await (await page.request.get(`${base}/api/e/payments?pageSize=1`)).json();
+    expect((await page.request.post(`${base}/api/auth/users`, { data: { username: "kamel", password: PASSWORD, role: "staff" } })).status()).toBe(201);
+    await page.context().clearCookies();
+    await signIn(page, base, "kamel");
+    const mine = await page.request.post(`${base}/api/e/payments`, { data: { receipt_no: "R-9000", payer: "Kamel", period: "2026-11-01", due_on: "2099-02-01", amount_due: 500, amount_paid: 0, status: "unpaid" } });
+    expect(mine.status(), await mine.text()).toBe(201);
+
+    await page.goto(`${base}/?lang=fr`);
+    await page.getByRole("main").getByRole("button", { name: "R-9000" }).click();
+    await expect(page.getByRole("heading", { name: "R-9000", level: 1 })).toBeVisible();
+    await expect(page.getByText("Créé", { exact: true })).toBeVisible();
+
+    await page.goto(`${base}/e/payments/${others.rows[0]._id}`);
+    await expect(page.getByRole("heading", { name: "Page introuvable", level: 1 })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Restaurer" })).toHaveCount(0);
   });
 });

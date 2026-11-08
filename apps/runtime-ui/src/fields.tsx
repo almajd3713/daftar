@@ -1,5 +1,5 @@
 /** One place that knows each field type: how to show its value, and which input takes it. */
-import type { Field } from "@daftar/spec/types";
+import type { Entity, Field } from "@daftar/spec/types";
 import {
   Amount,
   ChoiceField,
@@ -30,20 +30,27 @@ function choiceOf(field: Field, key: unknown): { label: { fr: string; ar: string
   return "choices" in field ? field.choices.find((choice) => choice.key === key) : undefined;
 }
 
-/** A value as a list or a record shows it. */
-export function FieldValue({ field, row }: { field: Field; row: Row }): ReactNode {
+interface ValueProps {
+  field: Field;
+  value: unknown;
+  /** The name of a link's target. It's left out when this person may not read that row. */
+  linkLabel?: string | undefined;
+  excelError?: string | undefined;
+  /** A column's zero is a dash, as in Excel's Accounting format. Standing alone, it would read as nothing entered. */
+  showZero?: boolean | undefined;
+}
+
+function Value({ field, value, linkLabel, excelError, showZero }: ValueProps): ReactNode {
   const { say } = useDaftar();
   const t = useWords();
-  const value = row[field.key];
   // An Excel error stays visible beside where its value would be, rather than reading as blank.
-  const excelError = row._errors?.[field.key];
   if (excelError) return <bdi dir="ltr">{excelError}</bdi>;
   if (value === null || value === undefined) return null;
   switch (kindOf(field)) {
     case "integer":
     case "decimal":
     case "money":
-      return <Amount value={value as number} precision={precisionOf(field)} />;
+      return <Amount value={value as number} precision={precisionOf(field)} showZero={showZero} />;
     case "percent":
       return <Percent ratio={value as number} />;
     case "date":
@@ -66,11 +73,32 @@ export function FieldValue({ field, row }: { field: Field; row: Row }): ReactNod
     case "email":
       return <TextLink href={`mailto:${value as string}`}><bdi dir="ltr">{value as string}</bdi></TextLink>;
     case "link":
-      // A label is left out when this person may not read the row it points at.
-      return row._labels?.[field.key] ? <UserText>{row._labels[field.key]}</UserText> : "–";
+      return linkLabel ? <UserText>{linkLabel}</UserText> : "–";
     default:
       return <UserText>{textOf(value)}</UserText>;
   }
+}
+
+/** A value as a list or a record shows it. */
+export function FieldValue({ field, row, showZero }: { field: Field; row: Row; showZero?: boolean }): ReactNode {
+  return <Value field={field} value={row[field.key]} linkLabel={row._labels?.[field.key]} excelError={row._errors?.[field.key]} showZero={showZero} />;
+}
+
+/** A value in a history line. There a state is a word rather than a chip, and nothing has to read as nothing. */
+export function PastValue({ field, value, linkLabel }: { field: Field; value: unknown; linkLabel?: string | undefined }): ReactNode {
+  const { say } = useDaftar();
+  if (value === null || value === undefined || value === "") return "–";
+  if (kindOf(field) === "choice") {
+    const choice = choiceOf(field, value);
+    return choice ? say(choice.label) : <UserText>{textOf(value)}</UserText>;
+  }
+  return <Value field={field} value={value} linkLabel={linkLabel} showZero />;
+}
+
+/** What a record is called: its title field if this person can see one with a value, otherwise its name. */
+export function RecordTitle({ entity, row }: { entity: Entity; row: Row }): ReactNode {
+  const field = entity.fields.find((item) => item.key === entity.titleField);
+  return field && row[field.key] !== null && row[field.key] !== undefined ? <FieldValue field={field} row={row} /> : <UserText>{row._name}</UserText>;
 }
 
 export const inputId = (field: Field): string => `field-${field.key}`;

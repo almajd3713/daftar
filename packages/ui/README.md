@@ -99,7 +99,7 @@ Spacing is `space-1`, `2`, `3`, `4`, `6`, `8`, `12`: multiples of 4 px, in rem. 
 | Root | `DaftarProvider`, `useDaftar`, `useStoredLocale`, `Frame`, `useFrame` |
 | Text | `UserText`, `CodeText`, `Amount`, `Money`, `Percent`, `DateText`, `DateTimeText`, `PhoneLink`, `LateTag`, `TextLink`, `StatusChip`, `Confidence` |
 | Layout | `AppFrame`, `BareFrame`, `AuthLayout`, `Page`, `ViewTabs`, `FootRow`, `LanguageSwitch`, `Button` |
-| Records | `LedgerTable`, `RecordList`, `RecordRow`, `Pager`, `EmptyState`, `Notice`, `Waiting`, `FactList`, `Fact`, `TwoColumns`, `Gutter`, `SectionHeading`, `HistoryList`, `Change`, `StateLine` |
+| Records | `LedgerTable`, `RecordList`, `RecordRow`, `Pager`, `EmptyState`, `Notice`, `Waiting`, `FactList`, `Fact`, `TwoColumns`, `Gutter`, `SectionHeading`, `HistoryList`, `Change`, `StateLine`, `LastActions` |
 | Statements and dashboards | `Statement`, `StatementLine`, `HeroFigure`, `LeadRow`, `Panels`, `Panel`, `LineChart`, `BarList` |
 | Board | `BoardColumns`, `BoardColumn`, `BoardCard` |
 | Forms | The fields above, `SearchField`, `FormBody`, `FormSection`, `FieldPair`, `FormActions`, `ErrorSummary` |

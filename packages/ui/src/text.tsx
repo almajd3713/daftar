@@ -1,7 +1,7 @@
 /** Small pieces of text that carry a rule: how a number, a date or a name of unknown script must be set. */
 import type { ReactNode } from "react";
 
-import { formatDate, formatDateTime, formatMoney, formatNumber, formatPercent } from "./format.js";
+import { formatDate, formatDateTime, formatMoney, formatNumber, formatPercent, formatPhone } from "./format.js";
 import { useDaftar } from "./provider.js";
 import classes from "./text.module.css";
 
@@ -80,11 +80,11 @@ export function DateTimeText({ value, timeZone }: { value: string; timeZone?: st
 }
 
 /** Calling a customer is what a phone number is for here. Never mirrored, per Wikimedia's guidance. */
-export function PhoneLink({ value, display }: { value: string; display?: string }): ReactNode {
+export function PhoneLink({ value }: { value: string }): ReactNode {
   return (
     <a className={classes.phone} href={`tel:${value.replace(/[^+\d]/g, "")}`}>
-      <bdi dir="ltr" className={classes.figures}>
-        {display ?? value}
+      <bdi dir="ltr" className={`${classes.figures} ${classes.nowrap}`}>
+        {formatPhone(value)}
       </bdi>
     </a>
   );
