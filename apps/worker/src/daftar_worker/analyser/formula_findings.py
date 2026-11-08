@@ -17,12 +17,14 @@ from daftar_worker.sheet.grid import Grid, a1, a1_range, column_index
 
 CELL_TYPES = {
     "percent": "percent",
+    "money": "money",
     "decimal": "decimal",
     "date": "date",
     "boolean": "boolean",
     "text": "text",
 }
 MAX_EVIDENCE = 40
+ISO_DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}(T00:00:00)?$")
 AGGREGATE_CONFIDENCE = 0.75
 CONDITIONAL_AGGREGATE = re.compile(r"\b(?:SUMIFS?|COUNTIFS?|AVERAGEIFS?)\s*\(", re.IGNORECASE)
 # Another sheet's column, then the cell on this row that it's matched against.
@@ -191,6 +193,13 @@ def _aggregate_relations(make: Any, grid: Grid, table: Table) -> list[dict[str, 
     return found
 
 
+def _value(port: Port) -> Any:
+    """A port's value as the Runtime takes it: a date is YYYY-MM-DD, without the reader's time."""
+    if port.kind == "date" and isinstance(port.value, str) and ISO_DATE.match(port.value):
+        return port.value[:10]
+    return port.value
+
+
 def _port(prefix: str, port: Port, input_port: bool) -> dict[str, Any]:
     entry: dict[str, Any] = {
         "key": port_key(prefix, port),
@@ -200,7 +209,7 @@ def _port(prefix: str, port: Port, input_port: bool) -> dict[str, Any]:
         "cell": a1(port.row, port.column),
     }
     if input_port:
-        entry["default"] = port.value
+        entry["default"] = _value(port)
     return entry
 
 
@@ -228,8 +237,8 @@ def calculator_findings(
         # What Excel stored for these inputs: the case the calculator must reproduce.
         proposal["testCases"] = [
             {
-                "inputs": {port_key("input", port): port.value for port in model.inputs},
-                "outputs": {port_key("output", port): port.value for port in model.outputs},
+                "inputs": {port_key("input", port): _value(port) for port in model.inputs},
+                "outputs": {port_key("output", port): _value(port) for port in model.outputs},
             }
         ]
     labelled = sum(1 for port in [*model.inputs, *model.outputs] if port.label)

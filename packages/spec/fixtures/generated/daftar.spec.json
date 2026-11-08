@@ -396,7 +396,7 @@
       "fr": "Prix par matière",
       "ar": "Prix par matière"
      },
-     "type": "decimal",
+     "type": "money",
      "sheet": "Calcul",
      "cell": "B1",
      "default": 3000
@@ -431,7 +431,7 @@
       "fr": "À payer",
       "ar": "À payer"
      },
-     "type": "decimal",
+     "type": "money",
      "sheet": "Calcul",
      "cell": "B6"
     }
@@ -624,6 +624,17 @@
    },
    "widgets": [
     {
+     "key": "paiements_du_sum",
+     "label": {
+      "fr": "Dû",
+      "ar": "Dû"
+     },
+     "type": "kpi",
+     "entity": "paiements",
+     "aggregate": "sum",
+     "field": "du"
+    },
+    {
      "key": "eleves_count",
      "label": {
       "fr": "Élèves",
@@ -642,17 +653,6 @@
      "type": "kpi",
      "entity": "paiements",
      "aggregate": "count"
-    },
-    {
-     "key": "paiements_du_sum",
-     "label": {
-      "fr": "Dû",
-      "ar": "Dû"
-     },
-     "type": "kpi",
-     "entity": "paiements",
-     "aggregate": "sum",
-     "field": "du"
     },
     {
      "key": "parent_count",

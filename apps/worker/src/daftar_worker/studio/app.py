@@ -256,7 +256,8 @@ class Store:
         with self.lock:
             analysis = _read(folder / "analysis.json")
             accepted = accept_high_confidence(analysis, self.who)
-            _write(folder / "analysis.json", analysis)
+            if accepted:  # A no-op mustn't mark the report stale.
+                _write(folder / "analysis.json", analysis)
         statuses = [item["decision"]["status"] for item in analysis["findings"]]
         return {
             "acceptedHigh": accepted,

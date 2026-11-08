@@ -119,4 +119,5 @@ def project_generate(folder: Path) -> dict[str, Any]:
         "badValues": len(report.bad_values),
         "parityFailures": len(report.parity_failures),
         "questions": report.questions,
+        "skippedTables": report.skipped_tables,
     }

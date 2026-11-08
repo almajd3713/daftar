@@ -12,7 +12,7 @@ from daftar_worker.sheet.values import TEXT_DATE, normal_text
 
 # Column names that make an otherwise plain number more specific.
 MONEY_HINT = re.compile(
-    r"\b(montants?|prix|soldes?|totale?s?|d[ûu]s?|pay[ée]e?s?|co[ûu]ts?|frais|salaires?|recettes?|d[ée]penses?"
+    r"\b(montants?|prix|soldes?|totale?s?|d[ûu]s?|pay(?:[ée]e?s?|er)|co[ûu]ts?|frais|salaires?|recettes?|d[ée]penses?"
     r"|tarifs?|reste|acomptes?|amounts?|prices?|costs?|fees?|balance|paid)\b"
     r"|مبلغ|المبلغ|سعر|السعر|ثمن|رصيد|الرصيد|تكلفة|مصاريف|راتب|المدفوع|المتبقي",
     re.IGNORECASE,
