@@ -1,0 +1,87 @@
+/* Generated from src/tokens.ts by `pnpm generate`. Do not edit. */
+:root {
+  --font: "Daftar Plex", system-ui, sans-serif;
+  --t-input: var(--t-body);
+  --t-small: .8125rem;
+  --l-small: 1.25rem;
+  --t-body: .875rem;
+  --l-body: 1.5rem;
+  --t-h2: 1rem;
+  --l-h2: 1.5rem;
+  --t-h1: 1.5rem;
+  --l-h1: 2rem;
+  --t-hero: 2.5rem;
+  --l-hero: 3rem;
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --space-3: .75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --radius: 2px;
+  --control: 2.25rem;
+  --row: 2.5rem;
+  --target: 1.5rem;
+  --paper: #FBFCFE;
+  --surface: #FFFFFF;
+  --raised: #F1F4FA;
+  --fill: #EEF1F7;
+  --ink: #161E31;
+  --muted: #4C566B;
+  --rule: #D3DAE6;
+  --rule-input: #7C879B;
+  --rule-strong: #161E31;
+  --accent: #1C2F80;
+  --accent-hover: #142362;
+  --on-accent: #FFFFFF;
+  --late: #A81C24;
+  --late-soft: #FCEBEC;
+  --focus: #1C2F80;
+  --chart: #2A4BC4;
+  --evidence: #DCE4F8;
+  color-scheme: light;
+}
+
+:root[data-mantine-color-scheme="dark"] {
+  --paper: #12161F;
+  --surface: #191E2A;
+  --raised: #1C2230;
+  --fill: #1F2533;
+  --ink: #E8ECF4;
+  --muted: #A7B1C4;
+  --rule: #2F3848;
+  --rule-input: #6F7A90;
+  --rule-strong: #C6CEDD;
+  --accent: #9DBEF5;
+  --accent-hover: #BCD3FA;
+  --on-accent: #101726;
+  --late: #FF9A9A;
+  --late-soft: #3B1F24;
+  --focus: #9DBEF5;
+  --chart: #5B8DEB;
+  --evidence: #25315A;
+  color-scheme: dark;
+}
+
+/* A browser font size under 16 px makes iOS zoom into a field. */
+@media (pointer: coarse) {
+  :root {
+    --control: 3rem;
+    --row: 2.75rem;
+    --target: 2.75rem;
+    --t-input: 1rem;
+  }
+}
+
+[data-layout="narrow"] {
+  --control: 3rem;
+  --row: 2.75rem;
+  --target: 2.75rem;
+  --t-body: .9375rem;
+  --t-h1: 1.25rem;
+  --l-h1: 1.75rem;
+  --t-hero: 2rem;
+  --l-hero: 2.5rem;
+  --t-input: 1rem;
+}

@@ -1,0 +1,84 @@
+.figures {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.zero {
+  color: var(--muted);
+}
+
+.lateFigure {
+  color: var(--late);
+  font-weight: 500;
+}
+
+.lateTag {
+  color: var(--late);
+  font-size: var(--t-small);
+  line-height: var(--l-small);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.link,
+.phone {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  color: var(--accent);
+  text-align: start;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+.link:hover,
+.phone:hover {
+  text-decoration-thickness: 2px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.swatch {
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  background: var(--muted);
+  /* A pale workbook colour still has an edge on paper. */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 25%, transparent);
+  forced-color-adjust: none;
+}
+
+.confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--t-small);
+  line-height: var(--l-small);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.confidenceMarks {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.confidenceMarks b {
+  display: block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border: 1px solid var(--muted);
+}
+
+.confidenceOn {
+  background: var(--muted);
+  forced-color-adjust: none;
+}

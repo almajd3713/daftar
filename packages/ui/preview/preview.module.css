@@ -1,0 +1,53 @@
+.bench {
+  min-height: 100dvh;
+  background: var(--fill);
+  padding: var(--space-4);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.controls button {
+  min-height: var(--target);
+  padding-inline: var(--space-2);
+  border: 1px solid var(--rule-input);
+  background: var(--paper);
+  font-size: var(--t-small);
+}
+
+.controls button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.gap {
+  width: var(--space-4);
+}
+
+.frames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  align-items: flex-start;
+}
+
+.phone {
+  --frame-height: 680px;
+  width: 360px;
+  flex: none;
+  overflow: hidden;
+  border: 1px solid var(--rule-input);
+}
+
+.desk {
+  --frame-height: 720px;
+  flex: 1 1 800px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--rule-input);
+}
