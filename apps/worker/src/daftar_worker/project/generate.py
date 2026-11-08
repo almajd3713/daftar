@@ -64,6 +64,16 @@ def slug(text: str, fallback: str) -> str:
     return plain[:MAX_KEY].rstrip("_")
 
 
+def _card_fields(entity: dict[str, Any], state_field: str) -> list[str]:
+    """A card's title, then who or what it's about, then when: the UI shows them in that order."""
+    title = entity["titleField"]
+    shown = [item for item in entity["fields"] if not item.get("level") and item["key"] not in (title, state_field)]
+    kinds = {item["key"]: item.get("resultType") or item["type"] for item in shown}
+    subtitle = next((key for key, kind in kinds.items() if kind == "text"), None)
+    when = next((key for key, kind in kinds.items() if kind in ("date", "datetime")), None)
+    return [title, *(key for key in (subtitle, when) if key)]
+
+
 def _unique(key: str, taken: set[str]) -> str:
     candidate = key
     number = 2
@@ -132,6 +142,8 @@ class Report:
     questions: list[dict[str, Any]] = field(default_factory=list)
     # A series column left as plain data, because its formula can't be shown to hold in every tab.
     series_formulas: list[dict[str, Any]] = field(default_factory=list)
+    # An accepted table that made no entity, and why: so an operator knows what to decide next.
+    skipped_tables: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _level_of(name: str) -> int:
@@ -433,6 +445,7 @@ class Generator:
         table = proposal["range"]
         fields_found = self._fields_of(sheet, table)
         if not fields_found:
+            self.report.skipped_tables.append({"sheet": sheet, "table": table, "reason": "noFields"})
             return
         title = proposal.get("entityLabel")
         name = title["fr"] if title else (self._series_name(sheet, proposal) if series else sheet)
@@ -459,6 +472,10 @@ class Generator:
             letters = {letter: entry["key"] for letter, entry in by_letter.items()}
             specs = [entry for entry in specs if entry["key"] in letters.values()]
             self._keep_series_formulas(key, tabs, first_positions, by_letter)
+        if not specs:
+            self.entity_keys.discard(key)
+            self.report.skipped_tables.append({"sheet": sheet, "table": table, "reason": "noFields"})
+            return
         provisional = {f"col_{letter.lower()}": item for letter, item in letters.items()}
         for entry in specs:
             computed = entry.get("computed")
@@ -838,7 +855,7 @@ class Generator:
     def _calculators(self) -> list[dict[str, Any]]:
         out = []
         used: set[str] = set()
-        types = {"percent": "percent", "decimal": "decimal", "date": "date", "boolean": "boolean", "text": "text"}
+        types = {"percent": "percent", "money": "money", "decimal": "decimal", "date": "date", "boolean": "boolean", "text": "text"}
         for finding in self._of_kind("calculator"):
             proposal = _proposal(finding)
             sheet = finding["sheet"]
@@ -871,7 +888,8 @@ class Generator:
     def _views_forms_dashboards(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
         views: list[dict[str, Any]] = []
         forms: list[dict[str, Any]] = []
-        widgets: list[dict[str, Any]] = []
+        sums: list[dict[str, Any]] = []
+        counts: list[dict[str, Any]] = []
         for entity in self.entities:
             key = entity["key"]
             fields = entity["fields"]
@@ -882,14 +900,15 @@ class Generator:
                 "label": dict(entity["label"]),
                 "entity": key,
                 "type": "list",
-                "columns": [item["key"] for item in fields if item["type"] != "longtext"][:8],
+                # Long text makes a poor column, unless there's nothing else to show.
+                "columns": ([item["key"] for item in fields if item["type"] != "longtext"] or [item["key"] for item in fields])[:8],
             }
             totals = [item["key"] for item in money]
             if totals:
                 view["totals"] = totals
-            views.append(view)
             workflow = next((item for item in self.workflows if item["entity"] == key), None)
             if workflow:
+                # An entity opens on its first view, and a tracker is worked from its board.
                 views.append(
                     {
                         "key": f"{key}_board"[:63],
@@ -897,9 +916,10 @@ class Generator:
                         "entity": key,
                         "type": "board",
                         "workflow": workflow["key"],
-                        "cardFields": [entity["titleField"]],
+                        "cardFields": _card_fields(entity, workflow["stateField"]),
                     }
                 )
+            views.append(view)
             writable = [item["key"] for item in fields if item["type"] != "computed"]
             if workflow:
                 writable = [item for item in writable if item != workflow["stateField"]]
@@ -912,13 +932,15 @@ class Generator:
                         "sections": [{"key": "main", "label": dict(entity["label"]), "fields": writable}],
                     }
                 )
-            widgets.append(
+            counts.append(
                 {"key": f"{key}_count"[:63], "label": dict(entity["label"]), "type": "kpi", "entity": key, "aggregate": "count"}
             )
             for item in money[:1]:
-                widgets.append(
+                sums.append(
                     {"key": f"{key}_{item['key']}_sum"[:63], "label": dict(item["label"]), "type": "kpi", "entity": key, "aggregate": "sum", "field": item["key"]}
                 )
+        # The first figure leads, and money is what an owner opens this page for.
+        widgets = sums + counts
         dashboards = [{"key": "overview", "label": {"fr": "Vue d'ensemble", "ar": "نظرة عامة"}, "widgets": widgets}] if widgets else []
         return views, forms, dashboards
 
@@ -928,7 +950,10 @@ class Generator:
         for finding in self._of_kind("table"):
             sheet = finding["sheet"]
             outcome = self._outcome(sheet)
-            if outcome is None or outcome in ("notConverted", "formulaModel"):
+            if outcome is None:
+                self.report.skipped_tables.append({"sheet": sheet, "table": _proposal(finding)["range"], "reason": "sheetKindUndecided"})
+                continue
+            if outcome in ("notConverted", "formulaModel"):
                 continue
             series = self._series_of(series_by_tab, sheet, _proposal(finding)["range"])
             if series is not None:
@@ -1007,7 +1032,10 @@ def _is_period_word(word: str) -> bool:
 
 def write_project_outputs(output: Path, spec: dict[str, Any], seed: dict[str, list[dict[str, Any]]], report: Report) -> None:
     output.mkdir(parents=True, exist_ok=True)
-    (output / "daftar.spec.json").write_text(json.dumps(spec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    # Whole, because the Studio can read the spec while the next generation runs.
+    spec_partial = output / "daftar.spec.json.partial"
+    spec_partial.write_text(json.dumps(spec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    spec_partial.replace(output / "daftar.spec.json")
     seed_dir = output / "seed"
     seed_dir.mkdir(exist_ok=True)
     for key, rows in seed.items():
@@ -1024,6 +1052,7 @@ def write_project_outputs(output: Path, spec: dict[str, Any], seed: dict[str, li
                 "parityFailures": report.parity_failures,
                 "seriesFormulas": report.series_formulas,
                 "questions": report.questions,
+                "skippedTables": report.skipped_tables,
             },
             ensure_ascii=False,
             indent=1,

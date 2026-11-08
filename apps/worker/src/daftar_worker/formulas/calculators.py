@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 import re
 from typing import Any
 
+from daftar_worker.analyser.types import CURRENCY_FORMAT, MONEY_HINT
+from daftar_worker.formulas.computed import cell_scalar
 from daftar_worker.formulas.references import clean_sheet, parse_reference
 from daftar_worker.sheet.grid import Cell, Grid, a1, text_of
 
@@ -63,14 +65,25 @@ def _label(grid: Grid, cell: Cell) -> str:
     return text_of(above) if above is not None and above.is_text else ""
 
 
-def _kind_of(cell: Cell) -> str:
+def _kind_of(cell: Cell, label: str) -> str:
+    """A port's type. Whole numbers stay decimal: one cell is no evidence that 2.5 can't be typed."""
     if cell.kind == "d":
         return "date"
     if cell.kind == "b":
         return "boolean"
     if cell.kind == "s":
         return "text"
-    return "percent" if cell.number_format and "%" in cell.number_format else "decimal"
+    fmt = cell.number_format or ""
+    if "%" in fmt:
+        return "percent"
+    if CURRENCY_FORMAT.search(fmt) or MONEY_HINT.search(label):
+        return "money"
+    return "decimal"
+
+
+def _port(sheet: str, row: int, column: int, grid: Grid, cell: Cell) -> Port:
+    label = _label(grid, cell)
+    return Port(sheet, row, column, label, _kind_of(cell, label), cell.value)
 
 
 def find_model(grid: Grid, grids: dict[str, Grid]) -> Model | None:
@@ -108,15 +121,17 @@ def find_model(grid: Grid, grids: dict[str, Grid]) -> Model | None:
         owner = grids.get(sheet)
         cell = owner.get(row, column) if owner else None
         if cell is not None:
-            model.cells.append((sheet, row, column, cell.value, cell.formula))
+            # A date constant goes in as a serial number, as Excel holds it, so MONTH() and the like work.
+            value = cell_scalar(cell) if cell.kind == "d" and not cell.formula else cell.value
+            model.cells.append((sheet, row, column, value, cell.formula))
     for key in sorted(inputs):
         cell = grid.get(key[1], key[2])
         assert cell is not None
-        model.inputs.append(Port(*key, _label(grid, cell), _kind_of(cell), cell.value))
+        model.inputs.append(_port(*key, grid, cell))
     for key in sorted(outputs):
         cell = grid.get(key[1], key[2])
         assert cell is not None
-        model.outputs.append(Port(*key, _label(grid, cell), _kind_of(cell), cell.value))
+        model.outputs.append(_port(*key, grid, cell))
     return model if model.inputs else None
 
 
