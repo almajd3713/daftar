@@ -46,7 +46,7 @@ export function labelledPoints(xs: readonly number[], widths: readonly number[],
 
 /** About how wide a label is at the small size: Arabic letters join, and digits are wider than they look. */
 export function labelWidth(label: string): number {
-  return label.length * (/[؀-ۿ]/.test(label) ? 6 : 8);
+  return label.length * (/[\u0600-\u06ff]/.test(label) ? 6 : 8);
 }
 
 /** Runs of points that have a value, as indexes. A gap breaks the line rather than pretending to be zero. */

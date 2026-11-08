@@ -16,6 +16,7 @@ import { loadEngine } from "./expr/engine.js";
 import { RecordService } from "./records/service.js";
 import { migrateOnBoot } from "./schema/migrate.js";
 import { loadSeedOnce } from "./seed.js";
+import { serveUi } from "./ui.js";
 
 @Module({})
 class ApiModule {
@@ -52,6 +53,8 @@ export interface AppOptions {
   seedDir?: string;
   /** Set only by the Studio's preview. Cookies ignore ports, so it can't share the usual name. */
   previewCookie?: string;
+  /** The built UI. Without it the runtime serves only its API. */
+  uiDir?: string | undefined;
 }
 
 export async function createApp(options: AppOptions): Promise<INestApplication> {
@@ -74,6 +77,7 @@ export async function createApp(options: AppOptions): Promise<INestApplication> 
   const app = await NestFactory.create<NestExpressApplication>(ApiModule.with(runtime), { logger: ["error"] });
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
+  if (options.uiDir) serveUi(app, options.uiDir, runtime.preview);
   app.use(jsonWritesOnly);
   app.use("/api/import", raw({ type: XLSX_TYPES, limit: MAX_UPLOAD }));
   return app;

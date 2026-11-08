@@ -5,7 +5,7 @@
  */
 import { FileInput, NativeSelect, PasswordInput, Textarea, TextInput, type FileInputProps, type NativeSelectProps, type PasswordInputProps, type TextareaProps, type TextInputProps } from "@mantine/core";
 import { DateInput, type DateInputProps } from "@mantine/dates";
-import { useId, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 import { currencyLabel, parseDateInput } from "./format.js";
 import { fieldsToFix } from "./messages.js";
@@ -157,9 +157,11 @@ export function FieldPair({ children }: { children: ReactNode }): ReactNode {
   return <div className={classes.pair}>{children}</div>;
 }
 
-export function FormBody({ children, onSubmit }: { children: ReactNode; onSubmit?: (() => void) | undefined }): ReactNode {
+/** `id` lets a button outside the form submit it with `form=`, as a phone's pinned foot has to. */
+export function FormBody({ id, children, onSubmit }: { id?: string | undefined; children: ReactNode; onSubmit?: (() => void) | undefined }): ReactNode {
   return (
     <form
+      id={id}
       className={classes.form}
       noValidate
       onSubmit={(event) => {
@@ -181,13 +183,19 @@ export interface ErrorSummaryProps {
   errors: { fieldId: string; message: ReactNode }[];
 }
 
-/** Top of the form, shown even for one error. On a long phone form the bad field may be off screen. Move focus here. */
+/** Top of the form, shown even for one error. On a long phone form the bad field may be off screen, so it takes focus. */
 export function ErrorSummary({ errors }: ErrorSummaryProps): ReactNode {
   const { locale } = useDaftar();
   const id = useId();
+  const box = useRef<HTMLDivElement>(null);
+  // Only when the set of bad fields changes, so a redraw can't pull someone out of the field they're fixing.
+  const bad = errors.map((error) => error.fieldId).join();
+  useEffect(() => {
+    if (bad) box.current?.focus();
+  }, [bad]);
   if (!errors.length) return null;
   return (
-    <div className={classes.summary} role="alert" tabIndex={-1} aria-labelledby={id}>
+    <div ref={box} className={classes.summary} role="alert" tabIndex={-1} aria-labelledby={id}>
       <h2 id={id}>{plural(errors.length, locale, fieldsToFix[langOf(locale)])}</h2>
       <ul>
         {errors.map((error) => (

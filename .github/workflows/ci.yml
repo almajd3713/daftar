@@ -49,6 +49,18 @@ jobs:
 
   ui-browser:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -60,6 +72,11 @@ jobs:
       - run: pnpm --filter @daftar/ui exec playwright install --with-deps chromium
       # Every screen in both languages and themes: overflow, targets, contrast and axe.
       - run: pnpm --filter @daftar/ui test:browser
+      # The real app, on a real Runtime and Postgres, with nothing mocked.
+      - run: pnpm -r build
+      - run: pnpm --filter @daftar/runtime-ui test:e2e
+        env:
+          DAFTAR_TEST_DATABASE_URL: postgres://postgres:test@127.0.0.1:5434/postgres
 
   python:
     runs-on: ubuntu-latest

@@ -3,11 +3,15 @@ FROM node:26-bookworm-slim@sha256:bc0a2afd3b74ce12222fc8bab99271e66257f021078f5f
 RUN npm install -g pnpm@11.24.0
 WORKDIR /repo
 COPY . .
-RUN pnpm install --frozen-lockfile --filter @daftar/runtime...
-RUN pnpm --filter @daftar/spec build && pnpm --filter @daftar/runtime build
+RUN pnpm install --frozen-lockfile --filter @daftar/runtime... --filter @daftar/runtime-ui...
+RUN pnpm --filter @daftar/spec build && pnpm --filter @daftar/runtime build && pnpm --filter @daftar/runtime-ui build
 RUN pnpm --filter @daftar/runtime deploy --prod --legacy /out
-# The operator's preview belongs to the Studio, never to a client's install (D-9).
+# The operator's preview belongs to the Studio, never to a client's install (D-9). That goes for its source too,
+# and nothing at runtime reads TypeScript.
 RUN rm -f /out/dist/preview.js* /out/dist/preview-server.js* /out/dist/preview.d.ts* /out/dist/preview-server.d.ts*
+RUN rm -rf /out/src /out/tsconfig.json /out/tsconfig.build.json
+# Only the built page: the UI's sources and build tools stay out of a client's install.
+RUN cp -r apps/runtime-ui/dist /out/ui
 
 FROM node:26-bookworm-slim@sha256:bc0a2afd3b74ce12222fc8bab99271e66257f021078f5f4a5d687a77d280c1d9 AS runtime
 WORKDIR /app
