@@ -153,7 +153,7 @@ The blueprint has no browser-facing Studio routes: C-7 is the Runtime, and C-4 i
 | `POST /api/projects/{id}/reanalyze?fileName=&llm=` | a raw file with `fileName`, or `{}` as JSON to rerun the same workbook | 202 `{jobId}`, whose result is `{applied, moved, conflicts}` | `project_reanalyze` |
 | `GET /api/projects/{id}/conflicts` | none | `[{reason: gone\|changed, finding, now?}]`, where `now` is the new finding's id | `conflicts.json` |
 | `POST /api/projects/{id}/generate` | `{}` as JSON | 202 `{jobId}`, whose result is what `GET .../generation` returns | `project_generate`, which runs a parity check and can be slow |
-| `GET /api/projects/{id}/generation` | none | `{entities, rows, badValues, parityFailures, seriesFormulas, questions, labels}`: `entities` counts them, `rows` counts rows per entity key, the next four are full lists, and `questions` holds only those still open. `labels` is `{entityKey: {label: {fr, ar}, fields: {fieldKey: {fr, ar}}}}`. 404 if not generated yet | `generation-report.json`, the spec |
+| `GET /api/projects/{id}/generation` | none | `{entities, rows, badValues, parityFailures, seriesFormulas, skippedTables, questions, labels}`: `entities` counts them, `rows` counts rows per entity key, the next five are full lists, and `questions` holds only those still open. `labels` is `{entityKey: {label: {fr, ar}, fields: {fieldKey: {fr, ar}}}}`. 404 if not generated yet | `generation-report.json`, the spec |
 | `POST /api/projects/{id}/answers` | `{kind: periodYear, sheet, year}` or `{kind: confirmRetention, entity, months}` | `{questions}`, those still open. Generate again to apply the answers | `answers.json` |
 | `POST /api/projects/{id}/preview` | `{}` as JSON | 202 `{jobId}`, whose result is `{url}`. 409 if not generated yet, 503 if previews aren't set up on this machine | D-9, R-14 |
 | `GET /api/projects/{id}/preview/open` | none, opened by the browser | 303 to the running preview, with its session cookie set. 404 if none is running | new |
@@ -186,7 +186,12 @@ These are warnings a person has to see. A report file alone isn't enough.
    - `notAFormula`: the tab has typed values there, or its formula wasn't accepted.
    - `differentFormula`: the tab's formula is different.
    - `parity`: the engine doesn't reproduce Excel's results on that tab.
-3. **`parityFailures`, `badValues` and `questions`:** each listed with its sheet and cell or field. A `badValues` item is `{entity, sheet, cell, field, type}`. Use `labels` for names, because keys are ASCII even when the column's title is Arabic. A `questions` entry blocks nothing, but a `periodYear` tab stays out of the app until it's answered and generated again.
+3. **`skippedTables`:** an accepted table that made no entity, so an app can generate with fewer entities than expected, or none. Show each with what to decide next. Each item is `{sheet, table}`, where `table` is the A1 range of its `table` finding, plus `reason`, one of:
+   - `sheetKindUndecided`: no `sheetKind` is accepted for the sheet. Accept-high often leaves it pending, at medium confidence, even when the table is high.
+   - `noFields`: no `fieldType` in the table is accepted.
+
+   A sheet whose accepted `sheetKind` says it isn't converted isn't listed, because that was decided. A report from before this key may lack it, so read a missing key as `[]`.
+4. **`parityFailures`, `badValues` and `questions`:** each listed with its sheet and cell or field. A `badValues` item is `{entity, sheet, cell, field, type}`. Use `labels` for names, because keys are ASCII even when the column's title is Arabic. A `questions` entry blocks nothing, but a `periodYear` tab stays out of the app until it's answered and generated again.
 
 The UI owns the French and Arabic wording for these codes. It shows `explanation.fr` or `.ar` as written. Each inserted fact (a name, sample value, formula, range or list of row numbers) is already wrapped in FSI and PDI (U+2068, U+2069), so browsers keep its order in either language with no work in the UI. Don't strip them, except when copying a sentence to plain text.
 
