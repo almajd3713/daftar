@@ -40,7 +40,7 @@ uv run daftar eval --labels eval/labels --split dev --analyses analyses/ -o repo
 uv run daftar eval --labels eval/labels --split dev --prelabel --analyses analyses/ -o drafts/
 
 # Label with a blind agent, which can't see the analyser or anyone's labels. Results stay in private/agent/.
-uv run python eval/blind/run.py label --model opus --run 3 sb_2768
+uv run python eval/blind/run.py label --model opus --effort high --run 3 sb_2768
 
 # Compare runs, the people's labels and Daftar.
 uv run python eval/blind/run.py models sb_2768 --tags opus-3 sonnet-3
