@@ -133,9 +133,18 @@ def render(snapshot: dict[str, Any]) -> str:
 
 
 def english_guide() -> str:
+    """The guide's English part, without the two sections written for people using the labelling screen.
+
+    The agent doesn't use the screen. Sonnet's safeguards stop some runs as "reasoning extraction" (dg050 at
+    medium: 3 of 3 with these sections, 2 of 3 without), so they're left out. See the blueprint Log, 2026-11-10.
+    """
     text = (ROOT / "eval" / "LABELLING.md").read_text(encoding="utf-8")
     start, end = text.index("## English"), text.index("## Français")
-    return text[start:end].replace("---", "").strip() + "\n"
+    guide = text[start:end]
+    for heading in ("### What this is for", "### Starting"):
+        first = guide.index(heading)
+        guide = guide[:first] + guide[guide.index("\n### ", first + len(heading)) + 1 :]
+    return guide.replace("---", "").strip() + "\n"
 
 
 def prepare(workbook_id: str, snapshot: dict[str, Any], tag: str) -> Path:
@@ -216,6 +225,18 @@ def final_event(log: str) -> dict[str, Any]:
     return {}
 
 
+def refused(log: str) -> bool:
+    """The model's safeguards stopped the run. That's no judgement on the workbook, so it's collected for later."""
+    for line in log.splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if event.get("type") == "system" and "refusal" in str(event.get("subtype", "")):
+            return True
+    return False
+
+
 def model_used(log: str) -> str | None:
     for line in log.splitlines():
         try:
@@ -290,6 +311,8 @@ def label(workbook_id: str, model: str, run: int, effort: str) -> None:
     bad = outside_paths(done.stdout, folder)
     if bad:
         facts["outcome"] = f"NOT BLIND, discarded: {bad[:5]}"
+    elif refused(done.stdout):
+        facts["outcome"] = "refused"
     elif not answer_path.exists():
         facts["outcome"] = f"no label (exit {done.returncode})"
     else:
