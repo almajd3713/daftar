@@ -325,6 +325,12 @@ def label(workbook_id: str, model: str, run: int, effort: str) -> None:
                 labelledBy=[f"blind-agent:{tag}"],
             )
             built["workbook"] = {**built["workbook"], "notes": str(answer.get("notes", ""))[:2000]}
+            # A column with a blank header gets a blank name. Names aren't scored, so use the column letter.
+            for sheet in built["sheets"]:
+                for table in sheet.get("tables", []) if isinstance(sheet, dict) else []:
+                    for field in table.get("fields", []) if isinstance(table, dict) else []:
+                        if isinstance(field, dict) and not str(field.get("name", "")).strip():
+                            field["name"] = str(field.get("column") or "?")
             problems = schema_problems(built)
             warnings: list[Any] = []
             if not problems:
