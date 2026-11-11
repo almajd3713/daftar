@@ -1,6 +1,6 @@
 """Run a blind labelling agent on workbooks from the manifest, and compare it with human labels.
 
-    uv run python eval/blind/run.py label --model sonnet --run 1 sb_2768 rp_ar_atelier
+    uv run python eval/blind/run.py label --model sonnet --effort high --run 1 sb_2768 rp_ar_atelier
     uv run python eval/blind/run.py compare --tag sonnet-1 sb_2768
     uv run python eval/blind/run.py models sb_2768 rp_ar_atelier --tags opus-1 opus-2 sonnet-1 haiku-1
     uv run python eval/blind/run.py review sb_2768 rp_ar_atelier --tags opus-3 sonnet-3
@@ -8,6 +8,9 @@
 Each run gets an empty folder outside the repository with only that workbook, the guide and the label
 format. Its tools are limited to reading and writing there, and its log is checked afterwards. It never
 sees the analyser, its guesses, or a person's labels. Results stay in eval/private/agent/<model>-<run>/.
+
+The effort level is always set, never left to the CLI's default for the model, which can change between
+releases. Each run's facts record it. Runs from before it was recorded show "default".
 """
 
 import argparse
@@ -15,6 +18,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 import json
+import os
 from pathlib import Path
 import subprocess
 from typing import Any
@@ -43,6 +47,7 @@ MANIFEST = ROOT / "eval" / "manifest.csv"
 RESULTS = ROOT / "eval" / "private" / "agent"
 WORK = Path.home() / ".cache" / "daftar" / "blind"
 TIMEOUT_SECONDS = 1500
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
 METRICS = (
     "tables.exact.f1",
     "tables.near.f1",
@@ -128,9 +133,18 @@ def render(snapshot: dict[str, Any]) -> str:
 
 
 def english_guide() -> str:
+    """The guide's English part, without the two sections written for people using the labelling screen.
+
+    The agent doesn't use the screen. Sonnet's safeguards stop some runs as "reasoning extraction" (dg050 at
+    medium: 3 of 3 with these sections, 2 of 3 without), so they're left out. See the blueprint Log, 2026-11-10.
+    """
     text = (ROOT / "eval" / "LABELLING.md").read_text(encoding="utf-8")
     start, end = text.index("## English"), text.index("## Français")
-    return text[start:end].replace("---", "").strip() + "\n"
+    guide = text[start:end]
+    for heading in ("### What this is for", "### Starting"):
+        first = guide.index(heading)
+        guide = guide[:first] + guide[guide.index("\n### ", first + len(heading)) + 1 :]
+    return guide.replace("---", "").strip() + "\n"
 
 
 def prepare(workbook_id: str, snapshot: dict[str, Any], tag: str) -> Path:
@@ -211,6 +225,18 @@ def final_event(log: str) -> dict[str, Any]:
     return {}
 
 
+def refused(log: str) -> bool:
+    """The model's safeguards stopped the run. That's no judgement on the workbook, so it's collected for later."""
+    for line in log.splitlines():
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if event.get("type") == "system" and "refusal" in str(event.get("subtype", "")):
+            return True
+    return False
+
+
 def model_used(log: str) -> str | None:
     for line in log.splitlines():
         try:
@@ -222,7 +248,8 @@ def model_used(log: str) -> str | None:
     return None
 
 
-def ask_agent(folder: Path, model: str) -> subprocess.CompletedProcess[str]:
+def ask_agent(folder: Path, model: str, effort: str) -> subprocess.CompletedProcess[str]:
+    # The environment variable overrides --effort in the CLI, so set both to the same level.
     return subprocess.run(
         [
             "claude",
@@ -230,6 +257,8 @@ def ask_agent(folder: Path, model: str) -> subprocess.CompletedProcess[str]:
             TASK,
             "--model",
             model,
+            "--effort",
+            effort,
             "--tools",
             "Read,Write",
             "--allowedTools",
@@ -245,6 +274,7 @@ def ask_agent(folder: Path, model: str) -> subprocess.CompletedProcess[str]:
             "--verbose",
         ],
         cwd=folder,
+        env={**os.environ, "CLAUDE_CODE_EFFORT_LEVEL": effort},
         capture_output=True,
         text=True,
         timeout=TIMEOUT_SECONDS,
@@ -253,7 +283,7 @@ def ask_agent(folder: Path, model: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def label(workbook_id: str, model: str, run: int) -> None:
+def label(workbook_id: str, model: str, run: int, effort: str) -> None:
     tag = f"{model}-{run}"
     row = row_of(workbook_id)
     snapshot = snapshot_of(row)
@@ -261,7 +291,7 @@ def label(workbook_id: str, model: str, run: int) -> None:
     out = RESULTS / tag
     out.mkdir(parents=True, exist_ok=True)
     try:
-        done = ask_agent(folder, model)
+        done = ask_agent(folder, model, effort)
     except subprocess.TimeoutExpired:
         print(f"{tag} {workbook_id}: timed out")
         return
@@ -270,6 +300,7 @@ def label(workbook_id: str, model: str, run: int) -> None:
     total = len((folder / "workbook.txt").read_text(encoding="utf-8").splitlines())
     facts: dict[str, Any] = {
         "model": model_used(done.stdout),
+        "effort": effort,
         "costUsd": final.get("total_cost_usd"),
         "seconds": round(float(final.get("duration_ms") or 0) / 1000),
         "lines": total,
@@ -280,6 +311,8 @@ def label(workbook_id: str, model: str, run: int) -> None:
     bad = outside_paths(done.stdout, folder)
     if bad:
         facts["outcome"] = f"NOT BLIND, discarded: {bad[:5]}"
+    elif refused(done.stdout):
+        facts["outcome"] = "refused"
     elif not answer_path.exists():
         facts["outcome"] = f"no label (exit {done.returncode})"
     else:
@@ -292,6 +325,12 @@ def label(workbook_id: str, model: str, run: int) -> None:
                 labelledBy=[f"blind-agent:{tag}"],
             )
             built["workbook"] = {**built["workbook"], "notes": str(answer.get("notes", ""))[:2000]}
+            # A column with a blank header gets a blank name. Names aren't scored, so use the column letter.
+            for sheet in built["sheets"]:
+                for table in sheet.get("tables", []) if isinstance(sheet, dict) else []:
+                    for field in table.get("fields", []) if isinstance(table, dict) else []:
+                        if isinstance(field, dict) and not str(field.get("name", "")).strip():
+                            field["name"] = str(field.get("column") or "?")
             problems = schema_problems(built)
             warnings: list[Any] = []
             if not problems:
@@ -429,7 +468,7 @@ def models(ids: list[str], tags: list[str]) -> None:
     """Every run against the people's labels and against other runs, plus what each run cost."""
     rows = {item: row_of(item) for item in ids}
     print(
-        f"{'run':<12}{'model':<28}{'ok':>6}{'cost $':>9}{'seconds':>9}{'read all':>10}{'unsure':>8}"
+        f"{'run':<12}{'model':<28}{'effort':<9}{'ok':>6}{'cost $':>9}{'seconds':>9}{'read all':>10}{'unsure':>8}"
     )
     for tag in tags:
         facts = [
@@ -439,7 +478,9 @@ def models(ids: list[str], tags: list[str]) -> None:
         ]
         fine = [item for item in facts if item["outcome"] == "ok"]
         print(
-            f"{tag:<12}{str(facts[0]['model'] if facts else '-'):<28}{f'{len(fine)}/{len(ids)}':>6}"
+            f"{tag:<12}{str(facts[0]['model'] if facts else '-'):<28}"
+            f"{'/'.join(sorted({str(item.get('effort', 'default')) for item in facts})) or '-':<9}"
+            f"{f'{len(fine)}/{len(ids)}':>6}"
             f"{sum(float(item['costUsd'] or 0) for item in facts):>9.2f}{sum(item['seconds'] for item in facts):>9}"
             f"{sum(item['linesRead'] >= item['lines'] for item in facts):>10}{sum(len(item.get('unsure', [])) for item in fine):>8}"
         )
@@ -519,6 +560,7 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("label")
     run.add_argument("--model", default="opus")
+    run.add_argument("--effort", choices=EFFORTS, required=True)
     run.add_argument("--run", type=int, default=1)
     run.add_argument("--workers", type=int, default=4)
     run.add_argument("ids", nargs="+")
@@ -532,9 +574,16 @@ def main() -> None:
     rule.add_argument("--tags", nargs=2, required=True)
     rule.add_argument("ids", nargs="+")
     args = parser.parse_args()
+    if args.command in ("compare", "models"):
+        # Both run Daftar and show it workbook by workbook, which would let test mistakes steer the rules.
+        held = [item for item in args.ids if row_of(item).split == "test"]
+        if held:
+            raise SystemExit(
+                f"not for test workbooks, use `daftar eval --split test`: {' '.join(held)}"
+            )
     if args.command == "label":
         with ThreadPoolExecutor(args.workers) as pool:
-            list(pool.map(lambda item: label(item, args.model, args.run), args.ids))
+            list(pool.map(lambda item: label(item, args.model, args.run, args.effort), args.ids))
     elif args.command == "compare":
         for item in args.ids:
             compare(item, args.tag)

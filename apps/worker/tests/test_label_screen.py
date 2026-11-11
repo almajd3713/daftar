@@ -335,7 +335,7 @@ def test_the_real_batch_is_listed_and_every_file_matches() -> None:
     for row in rows:
         path = workbook_path(root / "manifest.csv", row)
         if path is None:
-            # Private workbooks exist only on the labeller's machine. Published ones must be here.
-            assert row.id.startswith("sb_"), row.id
+            # Private workbooks exist only on the labeller's machine, and the manifest says so. Published ones must be here.
+            assert row.source.endswith("(private copy)"), row.id
             continue
         assert read_file(path)["source"]["sha256"] == row.sha256

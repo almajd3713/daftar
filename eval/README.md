@@ -6,7 +6,7 @@ The labelled workbooks behind Daftar's published accuracy (contract C-6).
 |---|---|
 | `LABELLING.md` | How to label, in English, French and Arabic |
 | `replicas/build.py` | Builds the invented SME replicas in `workbooks/` |
-| `manifest.csv` | One row per workbook: id, source, licence, language, stratum, split, consent, sha256 |
+| `manifest.csv` | One row per workbook: id, source, licence, language, stratum, split, consent, sha256. A source ending in "(private copy)" means the file is in `private/` |
 | `labels/<id>.json` | The human labels, checked against `daftar_worker/evaluation/label.schema.json` |
 | `workbooks/` | Workbooks that may be published |
 | `private/` | Git-ignored. Workbooks that may not be published, including anything from a client |
@@ -40,9 +40,9 @@ uv run daftar eval --labels eval/labels --split dev --analyses analyses/ -o repo
 uv run daftar eval --labels eval/labels --split dev --prelabel --analyses analyses/ -o drafts/
 
 # Label with a blind agent, which can't see the analyser or anyone's labels. Results stay in private/agent/.
-uv run python eval/blind/run.py label --model opus --run 3 sb_2768
+uv run python eval/blind/run.py label --model opus --effort high --run 3 sb_2768
 
-# Compare runs, the people's labels and Daftar.
+# Compare runs, the people's labels and Daftar. Dev only: it refuses test workbooks, as `compare` does.
 uv run python eval/blind/run.py models sb_2768 --tags opus-3 sonnet-3
 
 # List what a person has to rule on: where two runs differ, and what the first was unsure of.
