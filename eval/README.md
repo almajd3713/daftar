@@ -6,7 +6,7 @@ The labelled workbooks behind Daftar's published accuracy (contract C-6).
 |---|---|
 | `LABELLING.md` | How to label, in English, French and Arabic |
 | `replicas/build.py` | Builds the invented SME replicas in `workbooks/` |
-| `manifest.csv` | One row per workbook: id, source, licence, language, stratum, split, consent, sha256 |
+| `manifest.csv` | One row per workbook: id, source, licence, language, stratum, split, consent, sha256. A source ending in "(private copy)" means the file is in `private/` |
 | `labels/<id>.json` | The human labels, checked against `daftar_worker/evaluation/label.schema.json` |
 | `workbooks/` | Workbooks that may be published |
 | `private/` | Git-ignored. Workbooks that may not be published, including anything from a client |
