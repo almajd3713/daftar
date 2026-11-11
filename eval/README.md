@@ -42,6 +42,9 @@ uv run daftar eval --labels eval/labels --split dev --prelabel --analyses analys
 # Label with a blind agent, which can't see the analyser or anyone's labels. Results stay in private/agent/.
 uv run python eval/blind/run.py label --model opus --effort high --run 3 sb_2768
 
+# Label candidates from their own manifest in eval/ (git-ignored as a .csv), so only the ones kept enter manifest.csv.
+uv run python eval/blind/run.py --manifest eval/candidates.csv label --model sonnet --effort medium --run 12 df022
+
 # Compare runs, the people's labels and Daftar. Dev only: it refuses test workbooks, as `compare` does.
 uv run python eval/blind/run.py models sb_2768 --tags opus-3 sonnet-3
 

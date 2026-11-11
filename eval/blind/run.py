@@ -556,7 +556,11 @@ def review(ids: list[str], first: str, second: str) -> None:
 
 
 def main() -> None:
+    global MANIFEST
     parser = argparse.ArgumentParser()
+    # Candidates can be labelled from their own manifest, so only the ones kept enter eval/manifest.csv.
+    # It must sit in eval/, since files are found in the manifest's workbooks/ and private/ folders.
+    parser.add_argument("--manifest", type=Path, default=MANIFEST)
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("label")
     run.add_argument("--model", default="opus")
@@ -574,6 +578,7 @@ def main() -> None:
     rule.add_argument("--tags", nargs=2, required=True)
     rule.add_argument("ids", nargs="+")
     args = parser.parse_args()
+    MANIFEST = args.manifest.resolve()
     if args.command in ("compare", "models"):
         # Both run Daftar and show it workbook by workbook, which would let test mistakes steer the rules.
         held = [item for item in args.ids if row_of(item).split == "test"]
