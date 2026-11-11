@@ -574,6 +574,13 @@ def main() -> None:
     rule.add_argument("--tags", nargs=2, required=True)
     rule.add_argument("ids", nargs="+")
     args = parser.parse_args()
+    if args.command in ("compare", "models"):
+        # Both run Daftar and show it workbook by workbook, which would let test mistakes steer the rules.
+        held = [item for item in args.ids if row_of(item).split == "test"]
+        if held:
+            raise SystemExit(
+                f"not for test workbooks, use `daftar eval --split test`: {' '.join(held)}"
+            )
     if args.command == "label":
         with ThreadPoolExecutor(args.workers) as pool:
             list(pool.map(lambda item: label(item, args.model, args.run, args.effort), args.ids))
